@@ -10,7 +10,7 @@ SpendWise Expense Tracker is a Java Swing desktop application for a CSE215 Objec
 
 ## Current status
 
-The project now includes the core expense model, reusable validation, storage-independent repository abstraction, safe UTF-8 CSV persistence, `ExpenseService` business workflows, and a programmatic Swing expense-management interface. Users can add, edit, delete, search, filter by category or inclusive dates, sort, refresh, and view summaries for the displayed expenses. Application startup wires the CSV repository into the service and main window. Core-model, persistence, service, path-resolution, and GUI-foundation tests are dependency-free.
+The project now includes the core expense model, reusable validation, storage-independent repository abstraction, safe UTF-8 CSV persistence, `ExpenseService` business workflows, and a programmatic Swing interface with Expenses and Dashboard tabs. Users can add, edit, delete, search, filter by category or inclusive dates, sort, refresh, and view summaries for displayed expenses. The dashboard provides selected-month analytics, comparison with the previous month, a six-month spending trend, category distribution, and an on-screen read-only monthly report. All automated tests remain dependency-free.
 
 Feature status in this document will be updated only after the corresponding behavior has been implemented and verified.
 
@@ -33,7 +33,6 @@ SpendWise is intended to help an individual record income and expenses, organize
 These features are candidates after the core workflow is complete:
 
 - Search and filter across future income and expense records
-- Category-based and monthly spending visualizations
 - Budget warning indicators
 - Recurring transaction templates
 - Exportable filtered summaries
@@ -42,7 +41,7 @@ These features are candidates after the core workflow is complete:
 ## Technology stack
 
 - Java 21
-- Java Swing for the planned graphical interface
+- Java Swing and Java2D for the graphical interface and charts
 - Java standard libraries, including `java.time`, `java.math`, and `java.nio`
 - Apache Ant
 - Apache NetBeans project structure
@@ -116,6 +115,14 @@ The GUI target runs all earlier suites, the path-resolution tests, and the Swing
 C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-gui
 ```
 
+## Run the analytics and dashboard tests
+
+The analytics target runs all earlier suites before the analytics-service and headless dashboard/chart tests:
+
+```powershell
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-analytics
+```
+
 ## Application data location
 
 On Windows, expense data is stored at:
@@ -127,6 +134,19 @@ On Windows, expense data is stored at:
 If `LOCALAPPDATA` is unavailable, SpendWise uses the equivalent location below `user.home\AppData\Local`. macOS uses `~/Library/Application Support`, while Linux and other Unix-like systems use `XDG_DATA_HOME` or the `~/.local/share` fallback.
 
 Resolving the path and starting the application are read-only operations. The CSV file and its parent directory are created only after the first successful expense mutation. Repository writes continue to use safe same-directory temporary-file replacement.
+
+Opening or refreshing the Dashboard is also read-only. It does not create or rewrite the production CSV file.
+
+## Expense analytics dashboard
+
+The Dashboard tab analyzes a selected calendar month and shows:
+
+- Expense count, total, two-decimal average, previous-month total, and signed change
+- A six-month Java2D bar chart ending in the selected month
+- A Java2D donut chart using the selected month's category totals
+- A read-only monthly report with category and expense tables
+
+Months without expenses remain in the trend with `0.00`, so gaps do not disappear. The Dashboard refreshes when its main tab is selected and can also be refreshed with its own button. The charts use only the Java standard library; no external chart library is required.
 
 ## Project structure
 
@@ -152,14 +172,19 @@ SpendWiseExpenseTracker/
 |       |   |-- ExpenseRepository.java
 |       |   `-- RepositoryException.java
 |       |-- service/
+|       |   |-- ExpenseAnalyticsService.java
+|       |   |-- ExpenseAnalyticsSnapshot.java
 |       |   |-- ExpenseNotFoundException.java
 |       |   |-- ExpenseService.java
 |       |   |-- ExpenseSortOrder.java
 |       |   `-- ExpenseSummary.java
 |       |-- ui/
+|       |   |-- CategoryDonutChartPanel.java
+|       |   |-- DashboardPanel.java
 |       |   |-- ExpenseFormDialog.java
 |       |   |-- ExpensePanel.java
 |       |   |-- ExpenseTableModel.java
+|       |   |-- MonthlyBarChartPanel.java
 |       |   `-- SpendWiseFrame.java
 |       `-- validation/
 |           |-- ExpenseValidator.java
@@ -169,8 +194,12 @@ SpendWiseExpenseTracker/
 |       |-- config/AppPathsTest.java
 |       |-- model/ExpenseTest.java
 |       |-- repository/CsvExpenseRepositoryTest.java
-|       |-- service/ExpenseServiceTest.java
-|       `-- ui/SwingFoundationTest.java
+|       |-- service/
+|       |   |-- ExpenseAnalyticsServiceTest.java
+|       |   `-- ExpenseServiceTest.java
+|       `-- ui/
+|           |-- DashboardFoundationTest.java
+|           `-- SwingFoundationTest.java
 |-- docs/
 |   `-- PROJECT_PLAN.md
 |-- .gitattributes
@@ -183,4 +212,4 @@ The generated `build/` and `dist/` directories and the machine-specific `nbproje
 
 The CSV repository supports commas, doubled quotes, Unicode, and quoted line breaks. Mutations write a complete temporary file in the destination directory and replace the previous file only after the temporary content is closed and flushed. The service layer remains independent of CSV details and provides validated CRUD, combined description/notes/category text matching, category and inclusive date filtering, stable sorting, and exact `BigDecimal` summaries.
 
-Charts, budgets, income, authentication, advanced reports, backup UI, and import/export UI are not implemented. Multi-process file locking also remains outside the current scope.
+Budgets, income, recurring transactions, category limits, authentication, dark mode, backup/restore, import/export, printing, cloud synchronization, and a website are not implemented. Exported reports and multi-process file locking also remain outside the current scope.

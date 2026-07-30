@@ -85,6 +85,7 @@
         </javac>
         <java classname="com.spendwise.model.ExpenseTest"
               fork="true"
+              maxmemory="64m"
               failonerror="true">
             <classpath>
                 <pathelement location="${build.classes.dir}"/>
@@ -96,6 +97,7 @@
             description="Runs the dependency-free CSV persistence tests.">
         <java classname="com.spendwise.repository.CsvExpenseRepositoryTest"
               fork="true"
+              maxmemory="64m"
               failonerror="true">
             <classpath>
                 <pathelement location="${build.classes.dir}"/>
@@ -107,6 +109,7 @@
             description="Runs the dependency-free expense service tests.">
         <java classname="com.spendwise.service.ExpenseServiceTest"
               fork="true"
+              maxmemory="64m"
               failonerror="true">
             <classpath>
                 <pathelement location="${build.classes.dir}"/>
@@ -118,6 +121,7 @@
             description="Runs the dependency-free GUI foundation tests.">
         <java classname="com.spendwise.config.AppPathsTest"
               fork="true"
+              maxmemory="64m"
               failonerror="true">
             <classpath>
                 <pathelement location="${build.classes.dir}"/>
@@ -126,6 +130,29 @@
         </java>
         <java classname="com.spendwise.ui.SwingFoundationTest"
               fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <sysproperty key="java.awt.headless" value="true"/>
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+    </target>
+    <target name="test-analytics" depends="test-gui"
+            description="Runs the dependency-free analytics and dashboard tests.">
+        <java classname="com.spendwise.service.ExpenseAnalyticsServiceTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+        <java classname="com.spendwise.ui.DashboardFoundationTest"
+              fork="true"
+              maxmemory="64m"
               failonerror="true">
             <sysproperty key="java.awt.headless" value="true"/>
             <classpath>
