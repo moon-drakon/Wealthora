@@ -10,7 +10,7 @@ SpendWise Expense Tracker is a planned Java Swing desktop application for a CSE2
 
 ## Current status
 
-The project foundation has been initialized as a Java 21 Apache NetBeans project. The core expense model and validation are implemented together with a storage-independent `ExpenseRepository` abstraction and safe UTF-8 CSV persistence. Dependency-free core-model and persistence tests are available. The application entry point remains empty, and the service layer and Swing interface have not been implemented yet.
+The project foundation has been initialized as a Java 21 Apache NetBeans project. The core expense model, reusable validation, storage-independent repository abstraction, safe UTF-8 CSV persistence, and `ExpenseService` business workflows are implemented. The service supports expense CRUD operations, combined text and date/category filtering, stable sorting, and immutable overall or filtered summaries. Dependency-free core-model, persistence, and service tests are available. The application entry point remains empty, and the Swing interface and startup wiring have not been implemented yet.
 
 Feature status in this document will be updated only after the corresponding behavior has been implemented and verified.
 
@@ -93,6 +93,14 @@ The persistence target runs the existing core tests before the CSV repository te
 C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-persistence
 ```
 
+## Run the service tests
+
+The service target runs the core and persistence suites before the expense-service tests:
+
+```powershell
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-service
+```
+
 ## Project structure
 
 ```text
@@ -115,13 +123,19 @@ SpendWiseExpenseTracker/
 |       |   |-- CsvExpenseRepository.java
 |       |   |-- ExpenseRepository.java
 |       |   `-- RepositoryException.java
+|       |-- service/
+|       |   |-- ExpenseNotFoundException.java
+|       |   |-- ExpenseService.java
+|       |   |-- ExpenseSortOrder.java
+|       |   `-- ExpenseSummary.java
 |       `-- validation/
 |           |-- ExpenseValidator.java
 |           `-- ValidationException.java
 |-- test/
 |   `-- com/spendwise/
 |       |-- model/ExpenseTest.java
-|       `-- repository/CsvExpenseRepositoryTest.java
+|       |-- repository/CsvExpenseRepositoryTest.java
+|       `-- service/ExpenseServiceTest.java
 |-- docs/
 |   `-- PROJECT_PLAN.md
 |-- .gitattributes
@@ -132,4 +146,6 @@ SpendWiseExpenseTracker/
 
 The generated `build/` and `dist/` directories and the machine-specific `nbproject/private/` directory are intentionally excluded from version control.
 
-The CSV repository supports commas, doubled quotes, Unicode, and quoted line breaks. Mutations write a complete temporary file in the destination directory and replace the previous file only after the temporary content is closed and flushed. Multi-process file locking, user-facing backup, and import/export workflows are outside the current scope.
+The CSV repository supports commas, doubled quotes, Unicode, and quoted line breaks. Mutations write a complete temporary file in the destination directory and replace the previous file only after the temporary content is closed and flushed. The service layer remains independent of CSV details and provides validated CRUD, combined description/notes/category text matching, category and inclusive date filtering, stable sorting, and exact `BigDecimal` summaries.
+
+The Swing interface, application startup wiring, charts, budgets, income, authentication, reports, backup UI, and import/export UI are not implemented. Multi-process file locking also remains outside the current scope.

@@ -2,7 +2,7 @@
 
 ## Current implementation status
 
-The project currently includes the core expense model and validation, a storage-independent `ExpenseRepository`, safe UTF-8 CSV persistence, 23 dependency-free model tests, and 35 dependency-free persistence tests. Service classes, the Swing interface, budgets, reports, and other application workflows are not implemented yet.
+The project currently includes the core expense model and validation, a storage-independent `ExpenseRepository`, safe UTF-8 CSV persistence, and an `ExpenseService` for validated CRUD workflows, combined searching/filtering, stable sorting, and immutable summaries. The 23 model tests, 35 persistence tests, and service tests are dependency-free. The Swing interface and application startup wiring are not implemented. Charts, budgets, income, authentication, reports, backup UI, and import/export UI also remain unimplemented.
 
 ## Problem statement
 
@@ -87,7 +87,9 @@ com.spendwise.repository
     ExpenseRepository, CsvExpenseRepository, CsvExpenseCodec,
     RepositoryException
 com.spendwise.service
-    ExpenseService, BudgetService, SummaryService
+    ExpenseService, ExpenseSummary, ExpenseSortOrder,
+    ExpenseNotFoundException
+    BudgetService (planned)
 com.spendwise.ui
     MainFrame, DashboardPanel, TransactionsPanel, BudgetPanel,
     CategoryPanel, TransactionDialog
@@ -122,7 +124,7 @@ The repository package now provides a storage-independent expense contract and a
 
 ### Service
 
-Service classes will coordinate use cases and calculations. They will validate operations, maintain identifiers, apply filters, calculate summaries, and call the storage layer. Swing components will not read or write CSV directly.
+`ExpenseService` now coordinates expense creation, lookup, replacement-based updates, deletion, combined querying, stable sorting, and summary calculations through the repository abstraction. It reuses model validation and has no CSV, file-path, or Swing knowledge. `ExpenseSummary` provides immutable two-decimal totals, averages, counts, and totals for every category. Future Swing components will call this service rather than reading or writing CSV directly.
 
 ### UI
 
@@ -175,12 +177,18 @@ The persistence target reruns the core tests and then runs all CSV repository te
 C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-persistence
 ```
 
+The service target reruns both earlier suites and then runs the dependency-free service tests:
+
+```powershell
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-service
+```
+
 ## Milestones
 
 1. **Foundation (complete):** establish the Java 21 NetBeans project, repository baseline, documentation, and repeatable build.
 2. **Domain model (in progress):** implement model classes, enums, validation rules, and calculation tests. The expense model, category enum, reusable validation, and core tests are complete.
 3. **CSV storage (complete for expenses):** implement encoding, loading, safe replacement, corruption handling, and round-trip tests.
-4. **Service layer:** implement transaction operations, budget calculations, summaries, and filters.
+4. **Expense service layer (complete):** implement validated expense CRUD operations, combined text/category/date queries, stable sorting, and overall or filtered summaries. Budget calculations remain planned.
 5. **Transaction UI:** implement the main frame, transaction table, and add/edit/delete workflow.
 6. **Dashboard and supporting UI:** add summaries, budget progress, and category management.
 7. **Advanced selection:** choose and implement only advanced features that fit the remaining schedule.

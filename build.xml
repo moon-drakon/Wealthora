@@ -103,4 +103,15 @@
             </classpath>
         </java>
     </target>
+    <target name="test-service" depends="test-persistence"
+            description="Runs the dependency-free expense service tests.">
+        <java classname="com.spendwise.service.ExpenseServiceTest"
+              fork="true"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+    </target>
 </project>
