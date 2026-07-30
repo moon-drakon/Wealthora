@@ -22,6 +22,9 @@ public class AppPathsTest {
         runTest("resolution has no file effects", AppPathsTest::resolutionCreatesNothing);
         runTest("missing home rejection", AppPathsTest::missingHomeIsRejected);
         runTest("caller-provided roots", AppPathsTest::resolutionUsesCallerProvidedRoots);
+        runTest("budget sibling path", AppPathsTest::budgetPathIsExpenseSibling);
+        runTest("budget filename", AppPathsTest::budgetPathHasExpectedSuffix);
+        runTest("budget resolution side effects", AppPathsTest::budgetResolutionCreatesNothing);
 
         System.out.println("All " + passedTests + " AppPaths tests passed.");
     }
@@ -170,6 +173,36 @@ public class AppPathsTest {
         assertTrue(first.startsWith(firstHome), "First user root was not honored.");
         assertTrue(second.startsWith(secondHome), "Second user root was not honored.");
         assertFalse(first.equals(second), "Resolution should not use one fixed machine path.");
+    }
+
+    private static void budgetPathIsExpenseSibling() {
+        Path root = syntheticRoot("budget-sibling");
+        Path expensePath = AppPaths.resolveExpenseCsvPath(
+                "Windows 11", root.toString(), null, null);
+        Path budgetPath = AppPaths.resolveBudgetCsvPath(
+                "Windows 11", root.toString(), null, null);
+
+        assertEquals(expensePath.getParent(), budgetPath.getParent(),
+                "Budget and expense CSV files should be siblings.");
+    }
+
+    private static void budgetPathHasExpectedSuffix() {
+        Path actual = AppPaths.resolveBudgetCsvPath(
+                "Linux", null, syntheticRoot("budget-suffix").toString(), null);
+
+        assertTrue(
+                actual.endsWith(Path.of(
+                        "SpendWiseExpenseTracker", "data", "budgets.csv")),
+                "Budget path has the wrong application-data suffix.");
+    }
+
+    private static void budgetResolutionCreatesNothing() {
+        Path root = syntheticRoot("budget-no-side-effects");
+        Path resolved = AppPaths.resolveBudgetCsvPath(
+                "Windows 11", root.resolve("local").toString(), null, null);
+
+        assertFalse(Files.exists(root), "Budget path resolution created a directory.");
+        assertFalse(Files.exists(resolved), "Budget path resolution created the CSV file.");
     }
 
     private static Path expectedExpensePath(Path dataRoot) {

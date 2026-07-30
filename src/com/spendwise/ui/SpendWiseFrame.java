@@ -1,5 +1,6 @@
 package com.spendwise.ui;
 
+import com.spendwise.service.BudgetService;
 import com.spendwise.service.ExpenseAnalyticsService;
 import com.spendwise.service.ExpenseService;
 import java.awt.Dimension;
@@ -12,7 +13,8 @@ public final class SpendWiseFrame extends JFrame {
 
     public SpendWiseFrame(
             ExpenseService expenseService,
-            ExpenseAnalyticsService analyticsService) {
+            ExpenseAnalyticsService analyticsService,
+            BudgetService budgetService) {
         super("SpendWise Expense Tracker");
         if (!SwingUtilities.isEventDispatchThread()) {
             throw new IllegalStateException(
@@ -21,16 +23,23 @@ public final class SpendWiseFrame extends JFrame {
         Objects.requireNonNull(expenseService, "Expense service is required.");
         Objects.requireNonNull(
                 analyticsService, "Expense analytics service is required.");
+        Objects.requireNonNull(budgetService, "Budget service is required.");
 
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         ExpensePanel expensePanel = new ExpensePanel(expenseService);
-        DashboardPanel dashboardPanel = new DashboardPanel(analyticsService);
+        DashboardPanel dashboardPanel =
+                new DashboardPanel(analyticsService, budgetService);
+        BudgetPanel budgetPanel =
+                new BudgetPanel(analyticsService, budgetService);
         JTabbedPane mainTabs = new JTabbedPane();
         mainTabs.addTab("Expenses", expensePanel);
         mainTabs.addTab("Dashboard", dashboardPanel);
+        mainTabs.addTab("Budgets", budgetPanel);
         mainTabs.addChangeListener(event -> {
             if (mainTabs.getSelectedComponent() == dashboardPanel) {
                 dashboardPanel.refreshDashboard();
+            } else if (mainTabs.getSelectedComponent() == budgetPanel) {
+                budgetPanel.refreshBudgetStatus();
             }
         });
         setContentPane(mainTabs);

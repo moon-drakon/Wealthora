@@ -2,7 +2,7 @@
 
 ## Current implementation status
 
-The project currently includes the core expense model and validation, a storage-independent `ExpenseRepository`, safe UTF-8 CSV persistence, an `ExpenseService`, and a programmatic Swing application with Expenses and Dashboard tabs. The expense workspace supports add, edit, confirmed delete, combined searching/filtering, stable sorting, refresh, and displayed-result summaries. The dashboard adds selected-month analytics, previous-month comparison, a chronological six-month trend, category distribution, and a read-only monthly report. Startup wiring and cross-platform per-user data-path resolution are implemented. The 23 model tests, 35 persistence tests, 60 service tests, 12 path tests, 25 GUI-foundation tests, 48 analytics-service tests, and 43 dashboard-foundation tests are dependency-free.
+The project currently includes validated expense and monthly-budget models, storage-independent repositories, safe UTF-8 CSV persistence, expense and budget services, and a programmatic Swing application with Expenses, Dashboard, and Budgets tabs. The expense workspace and analytics dashboard retain their existing CRUD, query, summary, chart, and monthly-report behavior. Monthly overall budgets, optional independent category limits, exact usage calculations, and informational warnings are implemented. The dependency-free suites contain 23 expense-model, 35 expense-persistence, 60 expense-service, 15 path, 25 Swing-foundation, 48 analytics-service, 43 dashboard-foundation, 20 budget-model, 35 budget-repository, 40 budget-service, and 40 budget-foundation tests.
 
 ## Problem statement
 
@@ -56,11 +56,11 @@ Advanced items are proposals, not implemented features or fixed delivery promise
 
 ### Main frame
 
-`SpendWiseFrame` now owns the application window and displays the expense-management panel. Future screens can be added without moving repository construction or business rules into the frame.
+`SpendWiseFrame` owns the application window and constructs the Expenses, Dashboard, and Budgets panels once. Dashboard and budget status refresh when their tabs are selected without moving repository construction or business rules into the frame.
 
 ### Dashboard
 
-`DashboardPanel` now presents selected-month expense count, total, average, previous-month total, and signed change. Its Overview tab contains Java2D six-month and category-distribution charts, while its Monthly Report tab contains read-only category and expense tables. Empty months remain visible as `0.00`. Income, balances, and budget progress remain outside the implemented dashboard scope.
+`DashboardPanel` presents selected-month expense count, total, average, previous-month total, and signed change. Its Overview retains both Java2D charts and adds overall budget status plus the highest category warning. Its Monthly Report retains the expense table and shows spent, limit, remaining, and status for every category. Empty months remain visible as `0.00`.
 
 ### Expenses
 
@@ -68,7 +68,7 @@ Advanced items are proposals, not implemented features or fixed delivery promise
 
 ### Budgets
 
-`BudgetPanel` will allow the user to set a monthly spending limit and review current progress.
+`BudgetPanel` allows direct editing of an optional overall limit and optional per-category limits for a selected month. It shows exact spending, remaining, percentage, and warning status, confirms clears, preserves unsuccessful edits, and treats warnings as informational.
 
 ### Categories
 
@@ -82,12 +82,13 @@ com.spendwise.app
 com.spendwise.config
     AppPaths
 com.spendwise.model
-    Expense, Category
-    Additional income and budget models (planned)
+    Expense, Category, MonthlyBudget
+    Additional income models (planned)
 com.spendwise.repository
     ExpenseRepository, CsvExpenseRepository, CsvExpenseCodec,
-    RepositoryException
+    BudgetRepository, CsvBudgetRepository, RepositoryException
 com.spendwise.service
+    BudgetService, BudgetUsage, BudgetStatusSnapshot, BudgetAlertLevel
     ExpenseAnalyticsService, ExpenseAnalyticsSnapshot,
     ExpenseService, ExpenseSummary, ExpenseSortOrder,
     ExpenseNotFoundException
@@ -95,7 +96,8 @@ com.spendwise.service
 com.spendwise.ui
     SpendWiseFrame, ExpensePanel, ExpenseFormDialog, ExpenseTableModel
     DashboardPanel, MonthlyBarChartPanel, CategoryDonutChartPanel
-    BudgetPanel, CategoryPanel (planned)
+    BudgetPanel, BudgetLimitTableModel
+    CategoryPanel (planned)
 com.spendwise.validation
     ExpenseValidator, ValidationException
 ```
@@ -110,7 +112,8 @@ Model classes will represent the application's data and basic invariants:
 
 - `Expense` now represents an occurred expense with an identifier, description, amount, date, category, and notes.
 - `Category` now provides the supported expense categories and their readable display names.
-- Additional income and budget models remain planned for later milestones.
+- `MonthlyBudget` now represents one month, an optional overall limit, and configured category limits as immutable two-decimal values.
+- Additional income models remain planned for later milestones.
 
 Money will use `BigDecimal`, and dates will use `LocalDate` and `YearMonth`.
 
@@ -124,22 +127,28 @@ The repository package now provides a storage-independent expense contract and a
 - Uses UTF-8, ISO `LocalDate` text, plain `BigDecimal` text, and enum constant names.
 - Rejects malformed records and duplicate IDs without returning partial results.
 - Writes through a same-directory temporary file and replaces the target only after a complete flush and close.
+- Stores budgets separately with the exact `month,scope,category,amount` header, chronological months, and enum-ordered categories.
+- Refuses to overwrite malformed existing budget data.
 
 ### Service
 
 `ExpenseService` now coordinates expense creation, lookup, replacement-based updates, deletion, combined querying, stable sorting, and summary calculations through the repository abstraction. It reuses model validation and has no CSV, file-path, or Swing knowledge. `ExpenseSummary` provides immutable two-decimal totals, averages, counts, and totals for every category. `ExpenseAnalyticsService` reads one current service snapshot per analysis and produces an immutable `ExpenseAnalyticsSnapshot` for a selected month, previous-month comparison, and an ordered trend without caching or writing data.
 
+`BudgetService` stores or clears monthly plans through `BudgetRepository` and evaluates an existing analytics snapshot without reloading expenses. `BudgetUsage` calculates exact remaining amounts and two-decimal `HALF_UP` percentages, while exact comparisons classify within-limit, near-limit, reached, and over-limit states.
+
 ### UI
 
-The UI package now creates programmatic Swing components, translates user actions into service calls, and displays results or validation messages. `ExpenseTableModel` keeps identifiers available for CRUD selection while showing only date, description, category, amount, and notes; the same safe non-editable model is reused in the monthly report. `SpendWiseFrame` retains the existing expense workspace and adds a Dashboard tab that refreshes when selected. `MonthlyBarChartPanel` and `CategoryDonutChartPanel` render with standard Java2D and accept only defensive data snapshots. Swing startup and UI updates run on the Event Dispatch Thread. Budget, income, category-management, and export screens remain future work.
+The UI package creates programmatic Swing components, translates user actions into service calls, and displays results or validation messages. `SpendWiseFrame` exposes Expenses, Dashboard, and Budgets tabs. `BudgetLimitTableModel` permits editing only the limit column, and `BudgetPanel` keeps invalid or unsaved text visible until the user resolves it. Dashboard and budget refreshes replace their last successful display only after analytics and budget loading both succeed. The Java2D charts and all previous expense workflows remain available. Income, category-management, and export screens remain future work.
 
 ## CSV persistence plan
 
-Expense CSV persistence is implemented for a caller-supplied path rather than a hard-coded developer location. `AppPaths` resolves `%LOCALAPPDATA%\SpendWiseExpenseTracker\data\expenses.csv` on Windows, with a `user.home` fallback, and supports standard per-user macOS and Linux locations. Path resolution and read-only startup do not create files; the repository creates the parent directory and CSV only after the first successful mutation. Additional storage for future income, category, and budget models remains planned.
+Expense and budget CSV persistence use caller-supplied paths rather than a hard-coded developer location. `AppPaths` resolves sibling `expenses.csv` and `budgets.csv` files below `%LOCALAPPDATA%\SpendWiseExpenseTracker\data` on Windows, with the existing `user.home` fallback and standard per-user macOS and Linux locations. Path resolution, startup, and viewing Dashboard or Budgets do not create files. `budgets.csv` is created only after the first successful budget save.
 
 The implemented format uses UTF-8, a required header, stable column order, ISO dates, enum constant names, and decimal amounts produced with `BigDecimal.toPlainString()`. `CsvExpenseCodec` owns quoting and parsing rules, including quoted line breaks, LF and CRLF input, and an optional UTF-8 BOM before the header. Loading constructs each `Expense` through existing model validation. Mutations prepare the full snapshot before writing and use same-directory temporary-file replacement.
 
 CSV is appropriate for the course scope because it is inspectable and requires no external database dependency. It is not intended for high-volume or multi-user data.
+
+Budget CSV rows use ISO `YearMonth`, `OVERALL` or `CATEGORY` scope, enum category names, and exact two-decimal limits. Other months survive replacement or deletion, and both repositories use complete same-directory temporary files before target replacement.
 
 ## Validation and error handling
 
@@ -150,6 +159,8 @@ CSV is appropriate for the course scope because it is inspectable and requires n
 - Parse dates through `java.time` rather than manual string splitting.
 - Prevent blank or duplicate category names after trimming.
 - Prevent invalid budget values.
+- Treat blank budget fields as unconfigured limits and require configured limits to be positive with no more than two meaningful decimals.
+- Classify budget warnings with exact comparisons: below 80%, 80% to below 100%, exactly 100%, and above 100%.
 - Confirm destructive UI actions such as transaction deletion.
 - Catch file and parsing errors at a boundary where they can be logged or converted into a clear user message.
 - Avoid displaying raw stack traces to users.
@@ -165,6 +176,7 @@ Testing will combine focused automated checks with repeatable manual GUI testing
 - Headless Swing checks for table mapping, immutable snapshots, parsing, events, and empty summaries
 - Deterministic analytics checks for month boundaries, previous-month change, chronological trends, immutable snapshots, and single-snapshot loading
 - Headless `BufferedImage` rendering checks for empty and populated Java2D charts and dashboard refresh safety
+- Budget model, CSV corruption, safe-replacement, calculation-boundary, and headless editor/status checks
 - Isolated path-resolution checks that do not modify environment variables or production data
 - Manual checks for navigation, table updates, dialogs, keyboard focus, resizing, and error messages
 - A clean Ant build before each milestone is accepted
@@ -208,16 +220,23 @@ The analytics target reruns the complete earlier chain, then runs analytics-serv
 C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-analytics
 ```
 
+The budget target reruns the complete earlier chain, then runs the budget model, repository, service, and headless UI tests:
+
+```powershell
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-budget
+```
+
 ## Milestones
 
 1. **Foundation (complete):** establish the Java 21 NetBeans project, repository baseline, documentation, and repeatable build.
 2. **Domain model (in progress):** implement model classes, enums, validation rules, and calculation tests. The expense model, category enum, reusable validation, and core tests are complete.
 3. **CSV storage (complete for expenses):** implement encoding, loading, safe replacement, corruption handling, and round-trip tests.
-4. **Expense service layer (complete):** implement validated expense CRUD operations, combined text/category/date queries, stable sorting, and overall or filtered summaries. Budget calculations remain planned.
+4. **Expense service layer (complete):** implement validated expense CRUD operations, combined text/category/date queries, stable sorting, and overall or filtered summaries.
 5. **Expense-management UI (complete):** implement the main frame, expense table, add/edit/confirmed-delete workflows, filtering, sorting, refresh, and displayed-result summaries.
-6. **Expense analytics dashboard (complete):** add selected-month summaries, previous-month comparison, six-month and category charts, and a read-only monthly report. Budget progress and category management remain planned.
-7. **Advanced selection:** choose and implement only advanced features that fit the remaining schedule.
-8. **Quality pass:** complete regression testing, usability fixes, documentation updates, and demo preparation.
+6. **Expense analytics dashboard (complete):** add selected-month summaries, previous-month comparison, six-month and category charts, and a read-only monthly report.
+7. **Monthly budgets (complete):** persist monthly overall and category limits, calculate exact usage warnings, add the Budgets tab, and integrate status into Dashboard.
+8. **Advanced selection:** choose and implement only advanced features that fit the remaining schedule.
+9. **Quality pass:** complete regression testing, usability fixes, documentation updates, and demo preparation.
 
 ## Demo and viva preparation checklist
 
@@ -242,7 +261,7 @@ C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-analytics
 - No exported, printable, or advanced financial reports beyond the implemented on-screen monthly expense report
 - No bank, payment-provider, or financial-account integration
 - No authentication, shared accounts, or role management
-- No budgets, income, recurring transactions, or category spending limits
+- No income or recurring transactions
 - No dark mode or theme switching
 - No backup/restore, import/export, printing, or website
 - No encryption beyond protections provided by the local operating system

@@ -2,6 +2,10 @@ package com.spendwise.ui;
 
 import com.spendwise.model.Category;
 import com.spendwise.repository.RepositoryException;
+import com.spendwise.service.BudgetAlertLevel;
+import com.spendwise.service.BudgetService;
+import com.spendwise.service.BudgetStatusSnapshot;
+import com.spendwise.service.BudgetUsage;
 import com.spendwise.service.ExpenseAnalyticsService;
 import com.spendwise.service.ExpenseAnalyticsSnapshot;
 import com.spendwise.service.ExpenseSummary;
@@ -61,6 +65,7 @@ public final class DashboardPanel extends JPanel {
     private static final Color NEUTRAL_COLOR = new Color(85, 96, 106);
 
     private final ExpenseAnalyticsService analyticsService;
+    private final BudgetService budgetService;
     private final JComboBox<Month> monthComboBox = new JComboBox<>(Month.values());
     private final JSpinner yearSpinner;
     private final JLabel monthlyCountValue = createSummaryValueLabel();
@@ -82,18 +87,32 @@ public final class DashboardPanel extends JPanel {
     private final JLabel reportPreviousValue = new JLabel("0.00");
     private final JLabel reportChangeValue = new JLabel("0.00");
     private final JLabel statusLabel = new JLabel("Loading dashboard...");
+    private final JLabel budgetLimitValue = new JLabel("Not set");
+    private final JLabel budgetSpentValue = new JLabel("0.00");
+    private final JLabel budgetRemainingValue = new JLabel("Not set");
+    private final JLabel budgetUsageValue = new JLabel("Not set");
+    private final JLabel budgetOverallStatusValue = new JLabel("Not set");
+    private final JLabel budgetCategoryStatusValue = new JLabel("Not set");
+    private final JLabel budgetInstructionLabel = new JLabel(
+            "Configure monthly limits in the Budgets tab.");
 
     private YearMonth displayedMonth;
 
-    public DashboardPanel(ExpenseAnalyticsService analyticsService) {
-        this(analyticsService, YearMonth.now());
+    public DashboardPanel(
+            ExpenseAnalyticsService analyticsService,
+            BudgetService budgetService) {
+        this(analyticsService, budgetService, YearMonth.now());
     }
 
     DashboardPanel(
-            ExpenseAnalyticsService analyticsService, YearMonth initialMonth) {
+            ExpenseAnalyticsService analyticsService,
+            BudgetService budgetService,
+            YearMonth initialMonth) {
         requireEventDispatchThread();
         this.analyticsService = Objects.requireNonNull(
                 analyticsService, "Expense analytics service is required.");
+        this.budgetService = Objects.requireNonNull(
+                budgetService, "Budget service is required.");
         YearMonth requiredInitialMonth = Objects.requireNonNull(
                 initialMonth, "Initial dashboard month is required.");
         yearSpinner = new JSpinner(new SpinnerNumberModel(
@@ -157,6 +176,42 @@ public final class DashboardPanel extends JPanel {
 
     BigDecimal getCategoryTotalAt(int rowIndex) {
         return categoryTableModel.getTotalAt(rowIndex);
+    }
+
+    Object getCategoryLimitAt(int rowIndex) {
+        return categoryTableModel.getValueAt(rowIndex, 2);
+    }
+
+    Object getCategoryRemainingAt(int rowIndex) {
+        return categoryTableModel.getValueAt(rowIndex, 3);
+    }
+
+    BudgetAlertLevel getCategoryAlertAt(int rowIndex) {
+        return categoryTableModel.getAlertAt(rowIndex);
+    }
+
+    String getBudgetLimitText() {
+        return budgetLimitValue.getText();
+    }
+
+    String getBudgetSpentText() {
+        return budgetSpentValue.getText();
+    }
+
+    String getBudgetRemainingText() {
+        return budgetRemainingValue.getText();
+    }
+
+    String getBudgetUsageText() {
+        return budgetUsageValue.getText();
+    }
+
+    String getBudgetOverallStatusText() {
+        return budgetOverallStatusValue.getText();
+    }
+
+    String getBudgetCategoryStatusText() {
+        return budgetCategoryStatusValue.getText();
     }
 
     Map<YearMonth, BigDecimal> getBarChartData() {
@@ -302,12 +357,45 @@ public final class DashboardPanel extends JPanel {
     }
 
     private JPanel createOverviewPanel() {
-        JPanel overviewPanel = new JPanel(new GridLayout(1, 2, 14, 0));
+        JPanel overviewPanel = new JPanel(new BorderLayout(0, 12));
         overviewPanel.setBackground(PAGE_BACKGROUND);
         overviewPanel.setBorder(BorderFactory.createEmptyBorder(12, 0, 0, 0));
-        overviewPanel.add(createChartCard(monthlyBarChart));
-        overviewPanel.add(createChartCard(categoryDonutChart));
+        overviewPanel.add(createBudgetStatusPanel(), BorderLayout.NORTH);
+
+        JPanel charts = new JPanel(new GridLayout(1, 2, 14, 0));
+        charts.setOpaque(false);
+        charts.add(createChartCard(monthlyBarChart));
+        charts.add(createChartCard(categoryDonutChart));
+        overviewPanel.add(charts, BorderLayout.CENTER);
         return overviewPanel;
+    }
+
+    private JPanel createBudgetStatusPanel() {
+        JPanel panel = new JPanel(new BorderLayout(12, 8));
+        panel.setBackground(CARD_BACKGROUND);
+        panel.setBorder(new CompoundBorder(
+                BorderFactory.createLineBorder(new Color(218, 225, 231)),
+                BorderFactory.createEmptyBorder(10, 12, 10, 12)));
+
+        JLabel title = new JLabel("Budget Status");
+        title.setFont(title.getFont().deriveFont(Font.BOLD, 15f));
+        title.setForeground(PRIMARY_COLOR);
+
+        JPanel metrics = new JPanel(new GridLayout(1, 6, 12, 0));
+        metrics.setOpaque(false);
+        metrics.add(createReportMetric("Overall Limit", budgetLimitValue));
+        metrics.add(createReportMetric("Spent", budgetSpentValue));
+        metrics.add(createReportMetric("Remaining", budgetRemainingValue));
+        metrics.add(createReportMetric("Usage", budgetUsageValue));
+        metrics.add(createReportMetric("Overall Status", budgetOverallStatusValue));
+        metrics.add(createReportMetric(
+                "Highest Category", budgetCategoryStatusValue));
+
+        budgetInstructionLabel.setForeground(SECONDARY_TEXT);
+        panel.add(title, BorderLayout.NORTH);
+        panel.add(metrics, BorderLayout.CENTER);
+        panel.add(budgetInstructionLabel, BorderLayout.SOUTH);
+        return panel;
     }
 
     private JPanel createChartCard(JPanel chartPanel) {
@@ -344,7 +432,7 @@ public final class DashboardPanel extends JPanel {
         categoryScrollPane.setBorder(BorderFactory.createTitledBorder(
                 BorderFactory.createLineBorder(new Color(210, 218, 225)),
                 "Category Breakdown"));
-        categoryScrollPane.setPreferredSize(new Dimension(330, 270));
+        categoryScrollPane.setPreferredSize(new Dimension(450, 270));
 
         JScrollPane expenseScrollPane = new JScrollPane(reportExpenseTable);
         expenseScrollPane.setBorder(BorderFactory.createTitledBorder(
@@ -355,7 +443,7 @@ public final class DashboardPanel extends JPanel {
                 JSplitPane.HORIZONTAL_SPLIT,
                 categoryScrollPane,
                 expenseScrollPane);
-        tablesSplitPane.setResizeWeight(0.3);
+        tablesSplitPane.setResizeWeight(0.43);
         tablesSplitPane.setBorder(null);
         tablesSplitPane.setContinuousLayout(true);
 
@@ -395,10 +483,20 @@ public final class DashboardPanel extends JPanel {
         categoryTable.setRowHeight(23);
         categoryTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         categoryTable.getTableHeader().setReorderingAllowed(false);
-        categoryTable.getColumnModel().getColumn(0).setPreferredWidth(170);
-        categoryTable.getColumnModel().getColumn(1).setPreferredWidth(100);
+        categoryTable.getColumnModel().getColumn(0).setPreferredWidth(120);
+        categoryTable.getColumnModel().getColumn(1).setPreferredWidth(70);
+        categoryTable.getColumnModel().getColumn(2).setPreferredWidth(75);
+        categoryTable.getColumnModel().getColumn(3).setPreferredWidth(80);
+        categoryTable.getColumnModel().getColumn(4).setPreferredWidth(95);
+        AmountCellRenderer amountRenderer = new AmountCellRenderer();
         categoryTable.getColumnModel().getColumn(1)
-                .setCellRenderer(new AmountCellRenderer());
+                .setCellRenderer(amountRenderer);
+        categoryTable.getColumnModel().getColumn(2)
+                .setCellRenderer(amountRenderer);
+        categoryTable.getColumnModel().getColumn(3)
+                .setCellRenderer(amountRenderer);
+        categoryTable.getColumnModel().getColumn(4)
+                .setCellRenderer(new BudgetAlertRenderer());
     }
 
     private void configureReportExpenseTable() {
@@ -432,7 +530,10 @@ public final class DashboardPanel extends JPanel {
         try {
             ExpenseAnalyticsSnapshot snapshot =
                     analyticsService.analyzeMonth(selectedMonth);
-            DashboardViewData viewData = DashboardViewData.from(snapshot);
+            BudgetStatusSnapshot budgetSnapshot =
+                    budgetService.evaluate(snapshot);
+            DashboardViewData viewData =
+                    DashboardViewData.from(snapshot, budgetSnapshot);
             applyViewData(viewData);
         } catch (ValidationException | RepositoryException exception) {
             handleRefreshFailure(safeMessage(exception), showFailureDialog);
@@ -450,6 +551,7 @@ public final class DashboardPanel extends JPanel {
 
     private void applyViewData(DashboardViewData viewData) {
         ExpenseAnalyticsSnapshot snapshot = viewData.snapshot();
+        BudgetStatusSnapshot budgetSnapshot = viewData.budgetSnapshot();
         displayedMonth = snapshot.getSelectedMonth();
         monthlyCountValue.setText(viewData.countText());
         monthlyTotalValue.setText(viewData.totalText());
@@ -460,9 +562,16 @@ public final class DashboardPanel extends JPanel {
         monthlyBarChart.replaceData(snapshot.getMonthlyTotals());
         categoryDonutChart.replaceData(
                 snapshot.getSelectedMonthSummary().getTotalsByCategory());
-        categoryTableModel.replaceTotals(
-                snapshot.getSelectedMonthSummary().getTotalsByCategory());
+        categoryTableModel.replaceStatus(budgetSnapshot);
         reportExpenseTableModel.replaceExpenses(snapshot.getSelectedMonthExpenses());
+
+        budgetLimitValue.setText(viewData.budgetLimitText());
+        budgetSpentValue.setText(viewData.budgetSpentText());
+        budgetRemainingValue.setText(viewData.budgetRemainingText());
+        budgetUsageValue.setText(viewData.budgetUsageText());
+        budgetOverallStatusValue.setText(viewData.budgetOverallStatusText());
+        budgetCategoryStatusValue.setText(viewData.budgetCategoryStatusText());
+        budgetInstructionLabel.setVisible(viewData.showBudgetInstruction());
 
         reportTitle.setText(viewData.reportTitle());
         reportCountValue.setText(viewData.countText());
@@ -487,6 +596,10 @@ public final class DashboardPanel extends JPanel {
         String safeMessage = message == null || message.isBlank()
                 ? "Dashboard analytics could not be refreshed safely."
                 : message;
+        if (displayedMonth != null) {
+            monthComboBox.setSelectedItem(displayedMonth.getMonth());
+            yearSpinner.setValue(displayedMonth.getYear());
+        }
         statusLabel.setText("Dashboard refresh failed: " + safeMessage);
         if (showFailureDialog && !GraphicsEnvironment.isHeadless()) {
             JOptionPane.showMessageDialog(
@@ -510,6 +623,50 @@ public final class DashboardPanel extends JPanel {
                 : amount.toPlainString();
     }
 
+    private static boolean hasAnyConfiguredLimit(
+            BudgetStatusSnapshot snapshot) {
+        if (snapshot.getOverallUsage().getLimit().isPresent()) {
+            return true;
+        }
+        for (BudgetUsage usage : snapshot.getCategoryUsage().values()) {
+            if (usage.getLimit().isPresent()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static BudgetAlertLevel highestCategoryAlert(
+            BudgetStatusSnapshot snapshot) {
+        BudgetAlertLevel highest = BudgetAlertLevel.NOT_SET;
+        for (BudgetUsage usage : snapshot.getCategoryUsage().values()) {
+            if (alertSeverity(usage.getAlertLevel()) > alertSeverity(highest)) {
+                highest = usage.getAlertLevel();
+            }
+        }
+        return highest;
+    }
+
+    private static int alertSeverity(BudgetAlertLevel alertLevel) {
+        return switch (alertLevel) {
+            case NOT_SET -> 0;
+            case WITHIN_LIMIT -> 1;
+            case NEAR_LIMIT -> 2;
+            case LIMIT_REACHED -> 3;
+            case OVER_LIMIT -> 4;
+        };
+    }
+
+    private static String alertText(BudgetAlertLevel alertLevel) {
+        return switch (alertLevel) {
+            case NOT_SET -> "Not set";
+            case WITHIN_LIMIT -> "Within limit";
+            case NEAR_LIMIT -> "Near limit";
+            case LIMIT_REACHED -> "Limit reached";
+            case OVER_LIMIT -> "Over limit";
+        };
+    }
+
     private static JLabel createSummaryValueLabel() {
         JLabel label = new JLabel("0.00");
         label.setFont(label.getFont().deriveFont(Font.BOLD, 22f));
@@ -526,16 +683,27 @@ public final class DashboardPanel extends JPanel {
 
     private record DashboardViewData(
             ExpenseAnalyticsSnapshot snapshot,
+            BudgetStatusSnapshot budgetSnapshot,
             String countText,
             String totalText,
             String averageText,
             String previousText,
             String changeText,
             String reportTitle,
-            String statusText) {
+            String statusText,
+            String budgetLimitText,
+            String budgetSpentText,
+            String budgetRemainingText,
+            String budgetUsageText,
+            String budgetOverallStatusText,
+            String budgetCategoryStatusText,
+            boolean showBudgetInstruction) {
 
-        static DashboardViewData from(ExpenseAnalyticsSnapshot snapshot) {
+        static DashboardViewData from(
+                ExpenseAnalyticsSnapshot snapshot,
+                BudgetStatusSnapshot budgetSnapshot) {
             ExpenseSummary summary = snapshot.getSelectedMonthSummary();
+            BudgetUsage overallUsage = budgetSnapshot.getOverallUsage();
             String monthText = snapshot.getSelectedMonth()
                     .getMonth()
                     .getDisplayName(TextStyle.FULL, Locale.ENGLISH)
@@ -544,6 +712,7 @@ public final class DashboardPanel extends JPanel {
             int count = summary.getExpenseCount();
             return new DashboardViewData(
                     snapshot,
+                    budgetSnapshot,
                     Integer.toString(count),
                     summary.getTotalAmount().toPlainString(),
                     summary.getAverageAmount().toPlainString(),
@@ -552,32 +721,51 @@ public final class DashboardPanel extends JPanel {
                     monthText + " Monthly Report",
                     monthText + " · " + count
                     + (count == 1 ? " expense" : " expenses")
-                    + " · Dashboard refreshed.");
+                    + " · Dashboard refreshed.",
+                    overallUsage.getLimit()
+                            .map(BigDecimal::toPlainString)
+                            .orElse("Not set"),
+                    overallUsage.getSpent().toPlainString(),
+                    overallUsage.getRemaining()
+                            .map(BigDecimal::toPlainString)
+                            .orElse("Not set"),
+                    overallUsage.getUsagePercentage()
+                            .map(value -> value.toPlainString() + "%")
+                            .orElse("Not set"),
+                    alertText(overallUsage.getAlertLevel()),
+                    alertText(highestCategoryAlert(budgetSnapshot)),
+                    !hasAnyConfiguredLimit(budgetSnapshot));
         }
     }
 
     private static final class CategoryBreakdownTableModel
             extends AbstractTableModel {
 
-        private Map<Category, BigDecimal> totals = Map.of();
+        private Map<Category, BudgetUsage> usageByCategory = Map.of();
 
         CategoryBreakdownTableModel() {
-            replaceTotals(Map.of());
-        }
-
-        void replaceTotals(Map<Category, BigDecimal> newTotals) {
-            Objects.requireNonNull(newTotals, "Category totals are required.");
-            java.util.EnumMap<Category, BigDecimal> copiedTotals =
+            java.util.EnumMap<Category, BudgetUsage> emptyUsage =
                     new java.util.EnumMap<>(Category.class);
             for (Category category : Category.values()) {
-                copiedTotals.put(
+                emptyUsage.put(
                         category,
-                        Objects.requireNonNull(
-                                newTotals.getOrDefault(
-                                        category, new BigDecimal("0.00")),
-                                "Category total is required."));
+                        new BudgetUsage(
+                                new BigDecimal("0.00"),
+                                java.util.Optional.empty()));
             }
-            totals = java.util.Collections.unmodifiableMap(copiedTotals);
+            usageByCategory = java.util.Collections.unmodifiableMap(emptyUsage);
+        }
+
+        void replaceStatus(BudgetStatusSnapshot snapshot) {
+            Objects.requireNonNull(snapshot, "Budget status is required.");
+            java.util.EnumMap<Category, BudgetUsage> copiedUsage =
+                    new java.util.EnumMap<>(Category.class);
+            for (Category category : Category.values()) {
+                copiedUsage.put(
+                        category,
+                        snapshot.getUsageForCategory(category));
+            }
+            usageByCategory = java.util.Collections.unmodifiableMap(copiedUsage);
             fireTableDataChanged();
         }
 
@@ -586,7 +774,11 @@ public final class DashboardPanel extends JPanel {
         }
 
         BigDecimal getTotalAt(int rowIndex) {
-            return totals.get(getCategoryAt(rowIndex));
+            return usageByCategory.get(getCategoryAt(rowIndex)).getSpent();
+        }
+
+        BudgetAlertLevel getAlertAt(int rowIndex) {
+            return usageByCategory.get(getCategoryAt(rowIndex)).getAlertLevel();
         }
 
         @Override
@@ -596,25 +788,51 @@ public final class DashboardPanel extends JPanel {
 
         @Override
         public int getColumnCount() {
-            return 2;
+            return 5;
         }
 
         @Override
         public String getColumnName(int columnIndex) {
-            return columnIndex == 0 ? "Category" : "Total";
+            return switch (columnIndex) {
+                case 0 -> "Category";
+                case 1 -> "Spent";
+                case 2 -> "Limit";
+                case 3 -> "Remaining";
+                case 4 -> "Status";
+                default -> throw new IndexOutOfBoundsException(
+                        "Category column index is out of range: " + columnIndex);
+            };
         }
 
         @Override
         public Class<?> getColumnClass(int columnIndex) {
-            return columnIndex == 0 ? String.class : BigDecimal.class;
+            return switch (columnIndex) {
+                case 0 -> String.class;
+                case 1 -> BigDecimal.class;
+                case 2, 3 -> Object.class;
+                case 4 -> BudgetAlertLevel.class;
+                default -> throw new IndexOutOfBoundsException(
+                        "Category column index is out of range: " + columnIndex);
+            };
         }
 
         @Override
         public Object getValueAt(int rowIndex, int columnIndex) {
             Category category = getCategoryAt(rowIndex);
-            return columnIndex == 0
-                    ? category.getDisplayName()
-                    : totals.get(category);
+            BudgetUsage usage = usageByCategory.get(category);
+            return switch (columnIndex) {
+                case 0 -> category.getDisplayName();
+                case 1 -> usage.getSpent();
+                case 2 -> usage.getLimit()
+                        .<Object>map(value -> value)
+                        .orElse("Not set");
+                case 3 -> usage.getRemaining()
+                        .<Object>map(value -> value)
+                        .orElse("Not set");
+                case 4 -> usage.getAlertLevel();
+                default -> throw new IndexOutOfBoundsException(
+                        "Category column index is out of range: " + columnIndex);
+            };
         }
 
         @Override
@@ -651,6 +869,17 @@ public final class DashboardPanel extends JPanel {
         protected void setValue(Object value) {
             setText(value instanceof BigDecimal amount
                     ? amount.toPlainString()
+                    : Objects.toString(value, ""));
+        }
+    }
+
+    private static final class BudgetAlertRenderer
+            extends DefaultTableCellRenderer {
+
+        @Override
+        protected void setValue(Object value) {
+            setText(value instanceof BudgetAlertLevel alertLevel
+                    ? "  " + alertText(alertLevel)
                     : "");
         }
     }

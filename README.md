@@ -10,7 +10,7 @@ SpendWise Expense Tracker is a Java Swing desktop application for a CSE215 Objec
 
 ## Current status
 
-The project now includes the core expense model, reusable validation, storage-independent repository abstraction, safe UTF-8 CSV persistence, `ExpenseService` business workflows, and a programmatic Swing interface with Expenses and Dashboard tabs. Users can add, edit, delete, search, filter by category or inclusive dates, sort, refresh, and view summaries for displayed expenses. The dashboard provides selected-month analytics, comparison with the previous month, a six-month spending trend, category distribution, and an on-screen read-only monthly report. All automated tests remain dependency-free.
+The project now includes the core expense model, reusable validation, storage-independent repositories, safe UTF-8 CSV persistence, expense and budget services, and a programmatic Swing interface with Expenses, Dashboard, and Budgets tabs. Users can manage expenses, analyze a selected month, and configure an overall monthly budget plus optional independent category limits. The Dashboard shows budget status beside the existing charts and monthly report. All automated tests remain dependency-free.
 
 Feature status in this document will be updated only after the corresponding behavior has been implemented and verified.
 
@@ -23,7 +23,7 @@ SpendWise is intended to help an individual record income and expenses, organize
 - Add, edit, and delete income and expense transactions
 - Assign dates, categories, amounts, and notes to transactions
 - Manage practical spending categories
-- Set and monitor monthly budgets
+- Set and monitor monthly overall and optional category budgets (implemented)
 - View balances and monthly income and expense summaries
 - Save and reload application data using local CSV files
 - Validate input and present clear error messages
@@ -33,7 +33,7 @@ SpendWise is intended to help an individual record income and expenses, organize
 These features are candidates after the core workflow is complete:
 
 - Search and filter across future income and expense records
-- Budget warning indicators
+- Additional financial planning views
 - Recurring transaction templates
 - Exportable filtered summaries
 - Local data backup and restore
@@ -45,7 +45,7 @@ These features are candidates after the core workflow is complete:
 - Java standard libraries, including `java.time`, `java.math`, and `java.nio`
 - Apache Ant
 - Apache NetBeans project structure
-- UTF-8 CSV files for local expense persistence
+- UTF-8 CSV files for local expense and budget persistence
 
 No external libraries are currently required.
 
@@ -123,6 +123,14 @@ The analytics target runs all earlier suites before the analytics-service and he
 C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-analytics
 ```
 
+## Run the budget tests
+
+The budget target reruns the complete earlier chain before the budget model, repository, service, and headless Swing suites:
+
+```powershell
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-budget
+```
+
 ## Application data location
 
 On Windows, expense data is stored at:
@@ -131,11 +139,17 @@ On Windows, expense data is stored at:
 %LOCALAPPDATA%\SpendWiseExpenseTracker\data\expenses.csv
 ```
 
+Budget settings are stored beside it at:
+
+```text
+%LOCALAPPDATA%\SpendWiseExpenseTracker\data\budgets.csv
+```
+
 If `LOCALAPPDATA` is unavailable, SpendWise uses the equivalent location below `user.home\AppData\Local`. macOS uses `~/Library/Application Support`, while Linux and other Unix-like systems use `XDG_DATA_HOME` or the `~/.local/share` fallback.
 
-Resolving the path and starting the application are read-only operations. The CSV file and its parent directory are created only after the first successful expense mutation. Repository writes continue to use safe same-directory temporary-file replacement.
+Resolving either path and starting the application are read-only operations. `expenses.csv` is created only after the first successful expense mutation, while `budgets.csv` is created only after the first successful budget save. Repository writes use safe same-directory temporary-file replacement.
 
-Opening or refreshing the Dashboard is also read-only. It does not create or rewrite the production CSV file.
+Opening or refreshing the Dashboard or Budgets tab is also read-only. These views do not create or rewrite either production CSV file.
 
 ## Expense analytics dashboard
 
@@ -144,9 +158,16 @@ The Dashboard tab analyzes a selected calendar month and shows:
 - Expense count, total, two-decimal average, previous-month total, and signed change
 - A six-month Java2D bar chart ending in the selected month
 - A Java2D donut chart using the selected month's category totals
-- A read-only monthly report with category and expense tables
+- Overall budget limit, spent, remaining, usage percentage, and warning status
+- A read-only monthly report with category spending, limit, remaining, status, and expense tables
 
 Months without expenses remain in the trend with `0.00`, so gaps do not disappear. The Dashboard refreshes when its main tab is selected and can also be refreshed with its own button. The charts use only the Java standard library; no external chart library is required.
+
+## Monthly budgets
+
+The Budgets tab supports one optional overall limit and optional per-category limits for each calendar month. Blank fields mean that a limit is not configured, and category limits are independent of the overall limit. Status shows exact two-decimal spent, limit, remaining, and percentage values.
+
+Warnings are informational: below 80% is within the limit, 80% through below 100% is near the limit, exactly 100% is limit reached, and above 100% is over the limit. These warnings never block adding, editing, or deleting expenses.
 
 ## Project structure
 
@@ -165,13 +186,20 @@ SpendWiseExpenseTracker/
 |       |-- config/AppPaths.java
 |       |-- model/
 |       |   |-- Category.java
-|       |   `-- Expense.java
+|       |   |-- Expense.java
+|       |   `-- MonthlyBudget.java
 |       |-- repository/
+|       |   |-- BudgetRepository.java
+|       |   |-- CsvBudgetRepository.java
 |       |   |-- CsvExpenseCodec.java
 |       |   |-- CsvExpenseRepository.java
 |       |   |-- ExpenseRepository.java
 |       |   `-- RepositoryException.java
 |       |-- service/
+|       |   |-- BudgetAlertLevel.java
+|       |   |-- BudgetService.java
+|       |   |-- BudgetStatusSnapshot.java
+|       |   |-- BudgetUsage.java
 |       |   |-- ExpenseAnalyticsService.java
 |       |   |-- ExpenseAnalyticsSnapshot.java
 |       |   |-- ExpenseNotFoundException.java
@@ -179,6 +207,8 @@ SpendWiseExpenseTracker/
 |       |   |-- ExpenseSortOrder.java
 |       |   `-- ExpenseSummary.java
 |       |-- ui/
+|       |   |-- BudgetLimitTableModel.java
+|       |   |-- BudgetPanel.java
 |       |   |-- CategoryDonutChartPanel.java
 |       |   |-- DashboardPanel.java
 |       |   |-- ExpenseFormDialog.java
@@ -192,12 +222,18 @@ SpendWiseExpenseTracker/
 |-- test/
 |   `-- com/spendwise/
 |       |-- config/AppPathsTest.java
-|       |-- model/ExpenseTest.java
-|       |-- repository/CsvExpenseRepositoryTest.java
+|       |-- model/
+|       |   |-- ExpenseTest.java
+|       |   `-- MonthlyBudgetTest.java
+|       |-- repository/
+|       |   |-- CsvBudgetRepositoryTest.java
+|       |   `-- CsvExpenseRepositoryTest.java
 |       |-- service/
+|       |   |-- BudgetServiceTest.java
 |       |   |-- ExpenseAnalyticsServiceTest.java
 |       |   `-- ExpenseServiceTest.java
 |       `-- ui/
+|           |-- BudgetFoundationTest.java
 |           |-- DashboardFoundationTest.java
 |           `-- SwingFoundationTest.java
 |-- docs/
@@ -210,6 +246,6 @@ SpendWiseExpenseTracker/
 
 The generated `build/` and `dist/` directories and the machine-specific `nbproject/private/` directory are intentionally excluded from version control.
 
-The CSV repository supports commas, doubled quotes, Unicode, and quoted line breaks. Mutations write a complete temporary file in the destination directory and replace the previous file only after the temporary content is closed and flushed. The service layer remains independent of CSV details and provides validated CRUD, combined description/notes/category text matching, category and inclusive date filtering, stable sorting, and exact `BigDecimal` summaries.
+The expense CSV repository supports commas, doubled quotes, Unicode, and quoted line breaks. Budget settings use the separate `month,scope,category,amount` format. Mutations write a complete temporary file in the destination directory and replace the previous file only after the temporary content is closed and flushed. Corrupt budget data is never silently reset or overwritten.
 
-Budgets, income, recurring transactions, category limits, authentication, dark mode, backup/restore, import/export, printing, cloud synchronization, and a website are not implemented. Exported reports and multi-process file locking also remain outside the current scope.
+Income, recurring transactions, authentication, dark mode, backup/restore, import/export, printing, cloud synchronization, and website functionality are not implemented. Exported reports and multi-process file locking also remain outside the current scope.

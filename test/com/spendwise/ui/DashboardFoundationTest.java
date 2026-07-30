@@ -3,8 +3,11 @@ package com.spendwise.ui;
 import com.spendwise.config.AppPaths;
 import com.spendwise.model.Category;
 import com.spendwise.model.Expense;
+import com.spendwise.model.MonthlyBudget;
+import com.spendwise.repository.BudgetRepository;
 import com.spendwise.repository.ExpenseRepository;
 import com.spendwise.repository.RepositoryException;
+import com.spendwise.service.BudgetService;
 import com.spendwise.service.ExpenseAnalyticsService;
 import com.spendwise.service.ExpenseService;
 import java.awt.Dimension;
@@ -278,7 +281,10 @@ public class DashboardFoundationTest {
     private static void nullAnalyticsIsRejected() {
         expectThrows(
                 NullPointerException.class,
-                () -> new DashboardPanel(null, SELECTED_MONTH),
+                () -> new DashboardPanel(
+                        null,
+                        new BudgetService(new EmptyBudgetRepository()),
+                        SELECTED_MONTH),
                 "Dashboard should reject a null analytics service.");
     }
 
@@ -494,6 +500,7 @@ public class DashboardFoundationTest {
         ExpenseService expenseService = new ExpenseService(repository);
         return new DashboardPanel(
                 new ExpenseAnalyticsService(expenseService),
+                new BudgetService(new EmptyBudgetRepository()),
                 SELECTED_MONTH);
     }
 
@@ -725,6 +732,25 @@ public class DashboardFoundationTest {
 
         void failReads(RepositoryException failure) {
             readFailure = failure;
+        }
+    }
+
+    private static final class EmptyBudgetRepository
+            implements BudgetRepository {
+
+        @Override
+        public Optional<MonthlyBudget> findByMonth(YearMonth month) {
+            return Optional.empty();
+        }
+
+        @Override
+        public void save(MonthlyBudget budget) {
+            throw new AssertionError("Dashboard should not save budgets.");
+        }
+
+        @Override
+        public boolean delete(YearMonth month) {
+            throw new AssertionError("Dashboard should not delete budgets.");
         }
     }
 }

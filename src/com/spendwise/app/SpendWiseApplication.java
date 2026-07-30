@@ -1,7 +1,9 @@
 package com.spendwise.app;
 
 import com.spendwise.config.AppPaths;
+import com.spendwise.repository.CsvBudgetRepository;
 import com.spendwise.repository.CsvExpenseRepository;
+import com.spendwise.service.BudgetService;
 import com.spendwise.service.ExpenseAnalyticsService;
 import com.spendwise.service.ExpenseService;
 import com.spendwise.ui.SpendWiseFrame;
@@ -29,8 +31,13 @@ public final class SpendWiseApplication {
             ExpenseService expenseService = new ExpenseService(repository);
             ExpenseAnalyticsService analyticsService =
                     new ExpenseAnalyticsService(expenseService);
+            Path budgetCsvPath = AppPaths.getBudgetCsvPath();
+            CsvBudgetRepository budgetRepository =
+                    new CsvBudgetRepository(budgetCsvPath);
+            BudgetService budgetService = new BudgetService(budgetRepository);
             SpendWiseFrame frame =
-                    new SpendWiseFrame(expenseService, analyticsService);
+                    new SpendWiseFrame(
+                            expenseService, analyticsService, budgetService);
             frame.setVisible(true);
         } catch (RuntimeException exception) {
             JOptionPane.showMessageDialog(

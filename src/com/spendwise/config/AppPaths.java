@@ -11,11 +11,21 @@ public final class AppPaths {
     }
 
     public static Path getExpenseCsvPath() {
-        return resolveExpenseCsvPath(
+        return resolveDataFilePath(
                 System.getProperty("os.name"),
                 System.getenv("LOCALAPPDATA"),
                 System.getenv("XDG_DATA_HOME"),
-                System.getProperty("user.home"));
+                System.getProperty("user.home"),
+                "expenses.csv");
+    }
+
+    public static Path getBudgetCsvPath() {
+        return resolveDataFilePath(
+                System.getProperty("os.name"),
+                System.getenv("LOCALAPPDATA"),
+                System.getenv("XDG_DATA_HOME"),
+                System.getProperty("user.home"),
+                "budgets.csv");
     }
 
     static Path resolveExpenseCsvPath(
@@ -23,6 +33,33 @@ public final class AppPaths {
             String localAppData,
             String xdgDataHome,
             String userHome) {
+        return resolveDataFilePath(
+                operatingSystemName,
+                localAppData,
+                xdgDataHome,
+                userHome,
+                "expenses.csv");
+    }
+
+    static Path resolveBudgetCsvPath(
+            String operatingSystemName,
+            String localAppData,
+            String xdgDataHome,
+            String userHome) {
+        return resolveDataFilePath(
+                operatingSystemName,
+                localAppData,
+                xdgDataHome,
+                userHome,
+                "budgets.csv");
+    }
+
+    private static Path resolveDataFilePath(
+            String operatingSystemName,
+            String localAppData,
+            String xdgDataHome,
+            String userHome,
+            String fileName) {
         String normalizedOperatingSystem = requiredValue(
                 operatingSystemName, "Operating-system information is unavailable.")
                 .toLowerCase(Locale.ROOT);
@@ -49,7 +86,7 @@ public final class AppPaths {
         return dataRoot
                 .resolve(APPLICATION_DIRECTORY)
                 .resolve("data")
-                .resolve("expenses.csv")
+                .resolve(fileName)
                 .toAbsolutePath()
                 .normalize();
     }
