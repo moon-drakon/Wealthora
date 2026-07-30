@@ -10,7 +10,7 @@ SpendWise Expense Tracker is a planned Java Swing desktop application for a CSE2
 
 ## Current status
 
-The project foundation has been initialized as a Java 21 Apache NetBeans project. The core `Expense` model, `Category` enum, reusable expense validation, and dependency-free core-model tests are implemented. The application entry point remains empty, and CSV persistence, the service layer, and the Swing interface have not been implemented yet.
+The project foundation has been initialized as a Java 21 Apache NetBeans project. The core expense model and validation are implemented together with a storage-independent `ExpenseRepository` abstraction and safe UTF-8 CSV persistence. Dependency-free core-model and persistence tests are available. The application entry point remains empty, and the service layer and Swing interface have not been implemented yet.
 
 Feature status in this document will be updated only after the corresponding behavior has been implemented and verified.
 
@@ -46,7 +46,7 @@ These features are candidates after the core workflow is complete:
 - Java standard libraries, including `java.time`, `java.math`, and `java.nio`
 - Apache Ant
 - Apache NetBeans project structure
-- CSV files for planned local persistence
+- UTF-8 CSV files for local expense persistence
 
 No external libraries are currently required.
 
@@ -85,6 +85,14 @@ The core-model tests use a plain Java runner and require no external testing lib
 C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-core
 ```
 
+## Run the persistence tests
+
+The persistence target runs the existing core tests before the CSV repository tests:
+
+```powershell
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-persistence
+```
+
 ## Project structure
 
 ```text
@@ -102,11 +110,18 @@ SpendWiseExpenseTracker/
 |       |-- model/
 |       |   |-- Category.java
 |       |   `-- Expense.java
+|       |-- repository/
+|       |   |-- CsvExpenseCodec.java
+|       |   |-- CsvExpenseRepository.java
+|       |   |-- ExpenseRepository.java
+|       |   `-- RepositoryException.java
 |       `-- validation/
 |           |-- ExpenseValidator.java
 |           `-- ValidationException.java
 |-- test/
-|   `-- com/spendwise/model/ExpenseTest.java
+|   `-- com/spendwise/
+|       |-- model/ExpenseTest.java
+|       `-- repository/CsvExpenseRepositoryTest.java
 |-- docs/
 |   `-- PROJECT_PLAN.md
 |-- .gitattributes
@@ -116,3 +131,5 @@ SpendWiseExpenseTracker/
 ```
 
 The generated `build/` and `dist/` directories and the machine-specific `nbproject/private/` directory are intentionally excluded from version control.
+
+The CSV repository supports commas, doubled quotes, Unicode, and quoted line breaks. Mutations write a complete temporary file in the destination directory and replace the previous file only after the temporary content is closed and flushed. Multi-process file locking, user-facing backup, and import/export workflows are outside the current scope.

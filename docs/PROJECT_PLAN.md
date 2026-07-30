@@ -2,7 +2,7 @@
 
 ## Current implementation status
 
-The project currently includes the core `Expense` model, the `Category` enum, reusable expense validation, and 23 dependency-free model tests integrated through the Ant `test-core` target. CSV persistence, service classes, the Swing interface, budgets, reports, and other application workflows are not implemented yet.
+The project currently includes the core expense model and validation, a storage-independent `ExpenseRepository`, safe UTF-8 CSV persistence, 23 dependency-free model tests, and 35 dependency-free persistence tests. Service classes, the Swing interface, budgets, reports, and other application workflows are not implemented yet.
 
 ## Problem statement
 
@@ -83,8 +83,9 @@ com.spendwise.app
 com.spendwise.model
     Expense, Category
     Additional income and budget models (planned)
-com.spendwise.storage
-    CsvDataStore, CsvCodec, DataStoreException
+com.spendwise.repository
+    ExpenseRepository, CsvExpenseRepository, CsvExpenseCodec,
+    RepositoryException
 com.spendwise.service
     ExpenseService, BudgetService, SummaryService
 com.spendwise.ui
@@ -108,16 +109,16 @@ Model classes will represent the application's data and basic invariants:
 
 Money will use `BigDecimal`, and dates will use `LocalDate` and `YearMonth`.
 
-### Storage
+### Repository and storage
 
-The storage package will translate model data to and from CSV files. It will:
+The repository package now provides a storage-independent expense contract and a CSV implementation. It:
 
-- Keep file-format knowledge out of the UI.
-- Write a header and a documented field order.
-- Escape commas, quotes, and line breaks correctly.
-- Use UTF-8 consistently.
-- Report malformed rows with useful context.
-- Prefer writing through a temporary file and replacing the target only after a successful save.
+- Keeps file-format knowledge out of the UI.
+- Writes the exact `id,description,amount,date,category,notes` header and column order.
+- Escapes commas, doubled quotes, Unicode text, and quoted line breaks.
+- Uses UTF-8, ISO `LocalDate` text, plain `BigDecimal` text, and enum constant names.
+- Rejects malformed records and duplicate IDs without returning partial results.
+- Writes through a same-directory temporary file and replaces the target only after a complete flush and close.
 
 ### Service
 
@@ -129,9 +130,9 @@ UI classes will create programmatic Swing components, translate user actions int
 
 ## CSV persistence plan
 
-Separate CSV files are planned for transactions, categories, and budgets. Files will be stored in one application data directory selected during implementation rather than hard-coded to a developer-specific path.
+Expense CSV persistence is implemented for a caller-supplied path rather than a hard-coded developer location. Additional storage for future income, category, and budget models remains planned.
 
-The format will use UTF-8, a header row, stable column order, and explicit conversion for dates, transaction types, and decimal amounts. A small `CsvCodec` will handle quoting rules so parsing logic is not duplicated. Loading will validate each row before adding it to the active data set. Save operations will avoid leaving a partially written primary file after an error.
+The implemented format uses UTF-8, a required header, stable column order, ISO dates, enum constant names, and decimal amounts produced with `BigDecimal.toPlainString()`. `CsvExpenseCodec` owns quoting and parsing rules, including quoted line breaks, LF and CRLF input, and an optional UTF-8 BOM before the header. Loading constructs each `Expense` through existing model validation. Mutations prepare the full snapshot before writing and use same-directory temporary-file replacement.
 
 CSV is appropriate for the course scope because it is inspectable and requires no external database dependency. It is not intended for high-volume or multi-user data.
 
@@ -168,11 +169,17 @@ The implemented core-model tests can be run with:
 C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-core
 ```
 
+The persistence target reruns the core tests and then runs all CSV repository tests:
+
+```powershell
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-persistence
+```
+
 ## Milestones
 
 1. **Foundation (complete):** establish the Java 21 NetBeans project, repository baseline, documentation, and repeatable build.
 2. **Domain model (in progress):** implement model classes, enums, validation rules, and calculation tests. The expense model, category enum, reusable validation, and core tests are complete.
-3. **CSV storage:** implement encoding, loading, saving, error handling, and round-trip tests.
+3. **CSV storage (complete for expenses):** implement encoding, loading, safe replacement, corruption handling, and round-trip tests.
 4. **Service layer:** implement transaction operations, budget calculations, summaries, and filters.
 5. **Transaction UI:** implement the main frame, transaction table, and add/edit/delete workflow.
 6. **Dashboard and supporting UI:** add summaries, budget progress, and category management.
@@ -197,6 +204,8 @@ C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-core
 - Single-user, offline desktop use only
 - CSV storage rather than a relational database
 - No cloud synchronization or multi-device support
+- No multi-process CSV file locking
+- No user-facing backup or import/export workflow
 - No bank, payment-provider, or financial-account integration
 - No authentication, shared accounts, or role management
 - No encryption beyond protections provided by the local operating system

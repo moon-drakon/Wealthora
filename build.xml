@@ -92,4 +92,15 @@
             </classpath>
         </java>
     </target>
+    <target name="test-persistence" depends="test-core"
+            description="Runs the dependency-free CSV persistence tests.">
+        <java classname="com.spendwise.repository.CsvExpenseRepositoryTest"
+              fork="true"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+    </target>
 </project>
