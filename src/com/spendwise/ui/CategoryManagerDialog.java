@@ -1,15 +1,19 @@
 package com.spendwise.ui;
 
 import com.spendwise.model.Category;
-import com.spendwise.repository.RepositoryException;
 import com.spendwise.service.CategoryService;
-import com.spendwise.validation.ValidationException;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Window;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JDialog;
@@ -23,6 +27,9 @@ import javax.swing.SwingUtilities;
 import javax.swing.event.ListSelectionEvent;
 
 final class CategoryManagerDialog extends JDialog {
+
+    private static final Logger LOGGER =
+            Logger.getLogger(CategoryManagerDialog.class.getName());
 
     private final CategoryService categoryService;
     private final Predicate<Category> referenceChecker;
@@ -50,7 +57,11 @@ final class CategoryManagerDialog extends JDialog {
 
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         buildInterface();
-        refreshCategories(null, "Categories loaded.");
+        try {
+            refreshCategories(null, "Categories loaded.");
+        } catch (RuntimeException exception) {
+            showFailure(exception);
+        }
         setSize(new Dimension(620, 430));
         setMinimumSize(new Dimension(520, 360));
         setLocationRelativeTo(owner);
@@ -118,12 +129,9 @@ final class CategoryManagerDialog extends JDialog {
         if (name == null) {
             return;
         }
-        try {
-            Category added = categoryService.addCategory(name);
-            mutationSucceeded(added, "Category added.");
-        } catch (ValidationException | RepositoryException exception) {
-            showFailure(exception);
-        }
+        performMutation(
+                () -> categoryService.addCategory(name),
+                "Category added.");
     }
 
     private void renameSelectedCategory() {
@@ -142,13 +150,10 @@ final class CategoryManagerDialog extends JDialog {
         if (name == null) {
             return;
         }
-        try {
-            Category renamed = categoryService.renameCategory(
-                    selected.getIdentifier(), name);
-            mutationSucceeded(renamed, "Category renamed.");
-        } catch (ValidationException | RepositoryException exception) {
-            showFailure(exception);
-        }
+        performMutation(
+                () -> categoryService.renameCategory(
+                        selected.getIdentifier(), name),
+                "Category renamed.");
     }
 
     private void archiveSelectedCategory() {
@@ -169,12 +174,13 @@ final class CategoryManagerDialog extends JDialog {
                     return;
                 }
             }
-            Category archived = categoryService.archiveCategory(
-                    selected.getIdentifier());
-            mutationSucceeded(archived, "Category archived.");
-        } catch (ValidationException | RepositoryException exception) {
+        } catch (RuntimeException exception) {
             showFailure(exception);
+            return;
         }
+        performMutation(
+                () -> categoryService.archiveCategory(selected.getIdentifier()),
+                "Category archived.");
     }
 
     private void restoreSelectedCategory() {
@@ -182,29 +188,96 @@ final class CategoryManagerDialog extends JDialog {
         if (!actionStateFor(selected).restoreEnabled()) {
             return;
         }
-        try {
-            Category restored = categoryService.restoreCategory(
-                    selected.getIdentifier());
-            mutationSucceeded(restored, "Category restored.");
-        } catch (ValidationException | RepositoryException exception) {
-            showFailure(exception);
-        }
+        performMutation(
+                () -> categoryService.restoreCategory(selected.getIdentifier()),
+                "Category restored.");
     }
 
-    private void mutationSucceeded(Category category, String message) {
-        categoryChangeListener.run();
-        refreshCategories(category.getIdentifier(), message);
+    private void performMutation(
+            Supplier<Category> mutation, String successMessage) {
+        MutationResult result = executeMutation(
+                mutation,
+                category -> refreshCategories(
+                        category.getIdentifier(), successMessage),
+                categoryChangeListener);
+        if (!result.mutationSucceeded()) {
+            showFailure(result.mutationFailure());
+            return;
+        }
+        if (!result.refreshFailures().isEmpty()) {
+            reportRefreshWarning(successMessage, result);
+        }
     }
 
     private void refreshCategories(String selectedIdentifier, String message) {
+        tableModel.replaceCategories(categoryService.listAllCategories());
+        restoreSelection(selectedIdentifier);
+        statusLabel.setText(message);
+        updateActionState();
+    }
+
+    static MutationResult executeMutation(
+            Supplier<Category> mutation,
+            Consumer<Category> categoryManagerRefresh,
+            Runnable downstreamRefresh) {
+        Objects.requireNonNull(mutation, "Category mutation is required.");
+        Objects.requireNonNull(
+                categoryManagerRefresh, "Category manager refresh is required.");
+        Objects.requireNonNull(
+                downstreamRefresh, "Downstream category refresh is required.");
+
+        Category savedCategory;
         try {
-            tableModel.replaceCategories(categoryService.listAllCategories());
-            restoreSelection(selectedIdentifier);
-            statusLabel.setText(message);
-            updateActionState();
-        } catch (RepositoryException exception) {
-            showFailure(exception);
+            savedCategory = Objects.requireNonNull(
+                    mutation.get(), "Saved category is required.");
+        } catch (RuntimeException exception) {
+            return MutationResult.failed(exception);
         }
+
+        List<RuntimeException> refreshFailures = new ArrayList<>();
+        try {
+            categoryManagerRefresh.accept(savedCategory);
+        } catch (RuntimeException exception) {
+            refreshFailures.add(exception);
+        }
+        try {
+            downstreamRefresh.run();
+        } catch (RuntimeException exception) {
+            refreshFailures.add(exception);
+        }
+        return MutationResult.succeeded(savedCategory, refreshFailures);
+    }
+
+    static String feedbackMessage(
+            String successMessage, MutationResult result) {
+        Objects.requireNonNull(successMessage, "Success message is required.");
+        Objects.requireNonNull(result, "Mutation result is required.");
+        if (!result.mutationSucceeded()) {
+            return safeMessage(result.mutationFailure());
+        }
+        if (result.refreshFailures().isEmpty()) {
+            return successMessage;
+        }
+        return successMessage
+                + " One or more views could not refresh. "
+                + "Use Refresh on the affected view to try again.";
+    }
+
+    private void reportRefreshWarning(
+            String successMessage, MutationResult result) {
+        for (RuntimeException failure : result.refreshFailures()) {
+            LOGGER.log(
+                    Level.WARNING,
+                    "A view could not refresh after a saved category mutation.",
+                    failure);
+        }
+        String warningMessage = feedbackMessage(successMessage, result);
+        statusLabel.setText(warningMessage);
+        JOptionPane.showMessageDialog(
+                this,
+                warningMessage,
+                "Category Saved with Refresh Warning",
+                JOptionPane.WARNING_MESSAGE);
     }
 
     private void restoreSelection(String identifier) {
@@ -240,16 +313,20 @@ final class CategoryManagerDialog extends JDialog {
     }
 
     private void showFailure(RuntimeException exception) {
-        String message = exception.getMessage();
-        String safeMessage = message == null || message.isBlank()
-                ? "The category operation could not be completed safely."
-                : message;
-        statusLabel.setText(safeMessage);
+        String failureMessage = safeMessage(exception);
+        statusLabel.setText(failureMessage);
         JOptionPane.showMessageDialog(
                 this,
-                safeMessage,
+                failureMessage,
                 "Category Operation Failed",
                 JOptionPane.ERROR_MESSAGE);
+    }
+
+    private static String safeMessage(RuntimeException exception) {
+        String message = exception.getMessage();
+        return message == null || message.isBlank()
+                ? "The category operation could not be completed safely."
+                : message;
     }
 
     private static void requireEventDispatchThread() {
@@ -263,5 +340,34 @@ final class CategoryManagerDialog extends JDialog {
             boolean renameEnabled,
             boolean archiveEnabled,
             boolean restoreEnabled) {
+    }
+
+    record MutationResult(
+            Category savedCategory,
+            RuntimeException mutationFailure,
+            List<RuntimeException> refreshFailures) {
+
+        MutationResult {
+            refreshFailures = List.copyOf(refreshFailures);
+        }
+
+        static MutationResult succeeded(
+                Category category, List<RuntimeException> refreshFailures) {
+            return new MutationResult(
+                    Objects.requireNonNull(category, "Saved category is required."),
+                    null,
+                    refreshFailures);
+        }
+
+        static MutationResult failed(RuntimeException failure) {
+            return new MutationResult(
+                    null,
+                    Objects.requireNonNull(failure, "Mutation failure is required."),
+                    List.of());
+        }
+
+        boolean mutationSucceeded() {
+            return savedCategory != null;
+        }
     }
 }

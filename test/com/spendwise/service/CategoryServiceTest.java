@@ -30,6 +30,8 @@ public final class CategoryServiceTest {
         run("duplicate built-in name", CategoryServiceTest::builtInNameDuplicateIsRejected);
         run("duplicate active name", CategoryServiceTest::activeNameDuplicateIsRejected);
         run("duplicate archived name", CategoryServiceTest::archivedNameDuplicateIsRejected);
+        run("Unicode padded duplicate",
+                CategoryServiceTest::unicodePaddedDuplicateIsRejected);
         run("invalid name", CategoryServiceTest::invalidNameDoesNotWrite);
         run("built-in protection", CategoryServiceTest::builtInMutationsAreRejected);
         run("unknown identifier", CategoryServiceTest::unknownIdentifierIsRejected);
@@ -144,6 +146,12 @@ public final class CategoryServiceTest {
         expectThrows(ValidationException.class, () ->
             service(repositoryWith(custom("CUSTOM_001", "Travel", true)))
                     .addCategory("travel"));
+    }
+
+    private static void unicodePaddedDuplicateIsRejected() {
+        expectThrows(ValidationException.class, () ->
+            service(repositoryWith(custom("CUSTOM_001", "Travel", false)))
+                    .addCategory("\u2003tRaVeL\u2002"));
     }
 
     private static void invalidNameDoesNotWrite() {

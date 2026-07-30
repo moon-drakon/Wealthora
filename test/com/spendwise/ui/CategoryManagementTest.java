@@ -16,6 +16,8 @@ import com.spendwise.service.CategoryService;
 import com.spendwise.service.ExpenseAnalyticsService;
 import com.spendwise.service.ExpenseAnalyticsSnapshot;
 import com.spendwise.service.ExpenseService;
+import com.spendwise.validation.ValidationException;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -27,7 +29,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 
 public final class CategoryManagementTest {
@@ -52,6 +56,22 @@ public final class CategoryManagementTest {
         run("historical summary", CategoryManagementTest::archivedExpenseRemainsInSummary);
         run("historical report", CategoryManagementTest::archivedExpenseRemainsInDashboard);
         run("archived budget", CategoryManagementTest::archivedBudgetRemainsVisibleReadOnly);
+        run("drafts survive category add",
+                CategoryManagementTest::draftsSurviveCategoryAdd);
+        run("drafts survive category restore",
+                CategoryManagementTest::draftsSurviveCategoryRestore);
+        run("drafts survive category archive",
+                CategoryManagementTest::draftsSurviveCategoryArchive);
+        run("failed refresh preserves drafts",
+                CategoryManagementTest::failedRefreshPreservesDrafts);
+        run("wrapped refresh failure preserves success",
+                CategoryManagementTest::wrappedRefreshFailurePreservesSuccess);
+        run("runtime refresh failure is contained",
+                CategoryManagementTest::runtimeRefreshFailureIsContained);
+        run("refresh warning feedback",
+                CategoryManagementTest::refreshWarningFeedbackReportsSaved);
+        run("mutation failure remains failure",
+                CategoryManagementTest::mutationFailureRemainsFailure);
         run("renamed expense display", CategoryManagementTest::renamedCategoryResolvesForExpense);
         run("renamed budget display", CategoryManagementTest::renamedCategoryResolvesForBudget);
         run("construction side effects", CategoryManagementTest::panelConstructionCreatesNoCsv);
@@ -211,6 +231,193 @@ public final class CategoryManagementTest {
                 "Archived category accepted a new budget edit.");
     }
 
+    private static void draftsSurviveCategoryAdd() throws Exception {
+        InMemoryCategoryRepository repository = new InMemoryCategoryRepository();
+        CategoryService categories = new CategoryService(repository);
+        BudgetPanel panel = budgetPanel(categories);
+        YearMonth selectedPeriod = YearMonth.of(2026, 4);
+        onEdt(() -> {
+            panel.setOverallLimitText("700.00");
+            panel.setSelectedPeriod(selectedPeriod);
+            int foodRow = rowOf(panel.getBudgetTableModel(), Category.FOOD);
+            assertTrue(panel.getCategoryTable().editCellAt(foodRow, 2),
+                    "The active budget editor did not start.");
+            if (!(panel.getCategoryTable().getEditorComponent()
+                    instanceof JTextField editor)) {
+                throw new AssertionError("Budget limit editor is not a text field.");
+            }
+            editor.setText("125.00");
+        });
+
+        categories.addCategory("Travel");
+        onEdt(panel::refreshBudgetStatus);
+
+        assertEquals("700.00", panel.getOverallLimitEditorText(),
+                "Adding a category cleared the overall-limit draft.");
+        assertEquals("125.00", draftFor(panel, Category.FOOD),
+                "Adding a category detached the Food draft.");
+        assertEquals(selectedPeriod, panel.getSelectedPeriod(),
+                "Adding a category changed the selected month or year.");
+        assertTrue(panel.hasUnsavedChanges(),
+                "Adding a category cleared the unsaved-change state.");
+    }
+
+    private static void draftsSurviveCategoryRestore() throws Exception {
+        Category travel = custom("CUSTOM_001", "Travel", true);
+        InMemoryCategoryRepository repository = repositoryWith(travel);
+        CategoryService categories = new CategoryService(repository);
+        BudgetPanel panel = budgetPanel(categories);
+        onEdt(() -> panel.getBudgetTableModel().setValueAt(
+                "80.00", rowOf(panel.getBudgetTableModel(), Category.BILLS), 2));
+
+        categories.restoreCategory(travel.getIdentifier());
+        onEdt(panel::refreshBudgetStatus);
+
+        assertEquals("80.00", draftFor(panel, Category.BILLS),
+                "Restoring a category detached an existing draft.");
+        assertEquals("", draftFor(panel, travel),
+                "A restored category did not start with its loaded blank value.");
+    }
+
+    private static void draftsSurviveCategoryArchive() throws Exception {
+        Category travel = custom("CUSTOM_001", "Travel", false);
+        Category gifts = custom("CUSTOM_002", "Gifts", false);
+        InMemoryCategoryRepository repository = repositoryWith(travel, gifts);
+        CategoryService categories = new CategoryService(repository);
+        BudgetPanel panel = budgetPanel(categories);
+        onEdt(() -> {
+            panel.getBudgetTableModel().setValueAt(
+                    "45.00", rowOf(panel.getBudgetTableModel(), Category.HEALTH), 2);
+            panel.getBudgetTableModel().setValueAt(
+                    "60.00", rowOf(panel.getBudgetTableModel(), gifts), 2);
+        });
+
+        categories.archiveCategory(travel.getIdentifier());
+        onEdt(panel::refreshBudgetStatus);
+
+        assertEquals("45.00", draftFor(panel, Category.HEALTH),
+                "Archiving shifted the Health draft.");
+        assertEquals("60.00", draftFor(panel, gifts),
+                "Archiving shifted another custom-category draft.");
+        assertEquals(-1, rowOf(panel.getBudgetTableModel(), travel),
+                "Unreferenced archived category remained a new-budget row.");
+    }
+
+    private static void failedRefreshPreservesDrafts() throws Exception {
+        InMemoryCategoryRepository categoryRepository =
+                new InMemoryCategoryRepository();
+        CategoryService categories = new CategoryService(categoryRepository);
+        InMemoryBudgetRepository budgets = new InMemoryBudgetRepository();
+        BudgetPanel panel = budgetPanel(categories, budgets);
+        YearMonth selectedPeriod = YearMonth.of(2027, 8);
+        onEdt(() -> {
+            panel.setOverallLimitText("900.00");
+            panel.getBudgetTableModel().setValueAt(
+                    "75.00", rowOf(panel.getBudgetTableModel(), Category.EDUCATION), 2);
+            panel.setSelectedPeriod(selectedPeriod);
+        });
+        budgets.failure = new RepositoryException("Test refresh failure.");
+
+        onEdt(panel::refreshBudgetStatus);
+
+        assertEquals("900.00", panel.getOverallLimitEditorText(),
+                "Failed refresh cleared the overall-limit draft.");
+        assertEquals("75.00", draftFor(panel, Category.EDUCATION),
+                "Failed refresh cleared a category-limit draft.");
+        assertEquals(selectedPeriod, panel.getSelectedPeriod(),
+                "Failed refresh changed the selected month or year.");
+        assertTrue(panel.hasUnsavedChanges(),
+                "Failed refresh cleared the unsaved-change state.");
+    }
+
+    private static void wrappedRefreshFailurePreservesSuccess() {
+        Category saved = custom("CUSTOM_001", "Travel", false);
+        RepositoryException wrappedFailure = new RepositoryException(
+                "Wrapped view refresh failure.", new IOException("Test I/O failure."));
+        AtomicInteger managerRefreshes = new AtomicInteger();
+
+        CategoryManagerDialog.MutationResult result =
+                CategoryManagerDialog.executeMutation(
+                        () -> saved,
+                        category -> managerRefreshes.incrementAndGet(),
+                        () -> {
+                            throw wrappedFailure;
+                        });
+
+        assertTrue(result.mutationSucceeded(),
+                "A persisted mutation was changed into a failure.");
+        assertTrue(result.savedCategory() == saved,
+                "The saved category was not retained.");
+        assertEquals(1, managerRefreshes.get(),
+                "The category manager was not refreshed after persistence.");
+        assertEquals(List.of(wrappedFailure), result.refreshFailures(),
+                "The wrapped refresh failure was not retained.");
+        assertTrue(result.refreshFailures().get(0).getCause() instanceof IOException,
+                "The checked refresh cause was not preserved.");
+    }
+
+    private static void runtimeRefreshFailureIsContained() {
+        Category saved = custom("CUSTOM_001", "Travel", false);
+        RuntimeException refreshFailure =
+                new IllegalStateException("Test listener failure.");
+        CategoryManagerDialog.MutationResult result =
+                CategoryManagerDialog.executeMutation(
+                        () -> saved,
+                        category -> {
+                        },
+                        () -> {
+                            throw refreshFailure;
+                        });
+        assertTrue(result.mutationSucceeded(),
+                "Listener RuntimeException escaped the success boundary.");
+        assertEquals(List.of(refreshFailure), result.refreshFailures(),
+                "Listener RuntimeException was not retained.");
+    }
+
+    private static void refreshWarningFeedbackReportsSaved() {
+        Category saved = custom("CUSTOM_001", "Travel", false);
+        CategoryManagerDialog.MutationResult result =
+                CategoryManagerDialog.executeMutation(
+                        () -> saved,
+                        category -> {
+                        },
+                        () -> {
+                            throw new RepositoryException("Test refresh failure.");
+                        });
+        String message = CategoryManagerDialog.feedbackMessage(
+                "Category added.", result);
+        assertTrue(message.startsWith("Category added."),
+                "Refresh warning did not report the saved mutation.");
+        assertTrue(message.contains("could not refresh"),
+                "Refresh warning did not explain the view failure.");
+        assertFalse(message.contains("Operation Failed"),
+                "Refresh warning incorrectly reported mutation failure.");
+    }
+
+    private static void mutationFailureRemainsFailure() {
+        ValidationException mutationFailure =
+                new ValidationException("Duplicate category name.");
+        AtomicInteger refreshCalls = new AtomicInteger();
+        CategoryManagerDialog.MutationResult result =
+                CategoryManagerDialog.executeMutation(
+                        () -> {
+                            throw mutationFailure;
+                        },
+                        category -> refreshCalls.incrementAndGet(),
+                        refreshCalls::incrementAndGet);
+
+        assertFalse(result.mutationSucceeded(),
+                "An actual mutation failure was reported as success.");
+        assertTrue(result.mutationFailure() == mutationFailure,
+                "The mutation failure was not retained.");
+        assertEquals(0, refreshCalls.get(),
+                "Refresh ran after a failed mutation.");
+        assertEquals(
+                "Duplicate category name.",
+                CategoryManagerDialog.feedbackMessage("Category added.", result),
+                "Mutation failure feedback claimed success.");
+    }
+
     private static void renamedCategoryResolvesForExpense() throws Exception {
         withDirectory(directory -> {
             CsvCategoryRepository categoryRepository =
@@ -321,6 +528,32 @@ public final class CategoryManagementTest {
                 () -> {
                 })));
         return panelReference.get();
+    }
+
+    private static BudgetPanel budgetPanel(CategoryService categoryService)
+            throws Exception {
+        return budgetPanel(categoryService, new InMemoryBudgetRepository());
+    }
+
+    private static BudgetPanel budgetPanel(
+            CategoryService categoryService, InMemoryBudgetRepository budgetRepository)
+            throws Exception {
+        AtomicReference<BudgetPanel> panelReference = new AtomicReference<>();
+        ExpenseService expenses =
+                new ExpenseService(new InMemoryExpenseRepository());
+        ExpenseAnalyticsService analytics = new ExpenseAnalyticsService(expenses);
+        BudgetService budgets = new BudgetService(budgetRepository);
+        onEdt(() -> panelReference.set(
+                new BudgetPanel(analytics, budgets, categoryService, YearMonth.of(2025, 1))));
+        return panelReference.get();
+    }
+
+    private static String draftFor(BudgetPanel panel, Category category) {
+        int row = rowOf(panel.getBudgetTableModel(), category);
+        if (row < 0) {
+            throw new AssertionError("Missing budget row for " + category.getDisplayName());
+        }
+        return panel.getBudgetTableModel().getLimitTextAt(row);
     }
 
     private static int rowOf(BudgetLimitTableModel model, Category category) {
@@ -486,9 +719,13 @@ public final class CategoryManagementTest {
             implements BudgetRepository {
 
         private final Map<YearMonth, MonthlyBudget> saved = new LinkedHashMap<>();
+        private RuntimeException failure;
 
         @Override
         public Optional<MonthlyBudget> findByMonth(YearMonth month) {
+            if (failure != null) {
+                throw failure;
+            }
             return Optional.ofNullable(saved.get(month));
         }
 

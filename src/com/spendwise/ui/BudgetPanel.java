@@ -29,6 +29,7 @@ import java.time.format.TextStyle;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import javax.swing.BorderFactory;
@@ -128,15 +129,32 @@ public final class BudgetPanel extends JPanel {
 
         configureControls();
         buildInterface();
-        refreshStatus(false, false);
+        refreshStatus(false, null);
     }
 
     public void refreshBudgetStatus() {
         requireEventDispatchThread();
-        if (unsavedChanges && displayedMonth != null) {
+        if (!commitActiveCategoryEdit()) {
+            return;
+        }
+        try {
+            yearSpinner.commitEdit();
+        } catch (java.text.ParseException exception) {
+            showFailure("Enter a year from 1 through 9999.", true);
+            return;
+        }
+
+        BudgetDraftState preservedState = captureDraftState();
+        if (preservedState.unsavedChanges() && displayedMonth != null) {
             selectDisplayedMonth();
         }
-        refreshStatus(true, unsavedChanges);
+        try {
+            refreshStatus(
+                    true,
+                    preservedState.unsavedChanges() ? preservedState : null);
+        } finally {
+            restoreSelectedPeriod(preservedState);
+        }
     }
 
     YearMonth getDisplayedMonth() {
@@ -185,6 +203,21 @@ public final class BudgetPanel extends JPanel {
 
     boolean hasUnsavedChanges() {
         return unsavedChanges;
+    }
+
+    YearMonth getSelectedPeriod() {
+        return selectedYearMonth();
+    }
+
+    void setSelectedPeriod(YearMonth month) {
+        YearMonth requiredMonth = Objects.requireNonNull(
+                month, "Selected budget month is required.");
+        monthComboBox.setSelectedItem(requiredMonth.getMonth());
+        yearSpinner.setValue(requiredMonth.getYear());
+    }
+
+    JTable getCategoryTable() {
+        return categoryTable;
     }
 
     static Optional<BigDecimal> parseOptionalLimit(
@@ -406,7 +439,7 @@ public final class BudgetPanel extends JPanel {
             selectDisplayedMonth();
             return;
         }
-        refreshStatus(true, false);
+        refreshStatus(true, null);
     }
 
     private boolean confirmDiscardEdits() {
@@ -449,7 +482,7 @@ public final class BudgetPanel extends JPanel {
 
             budgetService.saveBudget(
                     new MonthlyBudget(month, overallLimit, categoryLimits));
-            refreshStatus(false, false);
+            refreshStatus(false, null);
             statusLabel.setText("Budget saved for " + month + ".");
         } catch (java.text.ParseException exception) {
             showFailure("Enter a year from 1 through 9999.", true);
@@ -492,7 +525,7 @@ public final class BudgetPanel extends JPanel {
 
         try {
             boolean cleared = budgetService.clearBudget(month);
-            refreshStatus(false, false);
+            refreshStatus(false, null);
             statusLabel.setText(cleared
                     ? "Budget cleared for " + month + "."
                     : "No budget was configured for " + month + ".");
@@ -502,7 +535,7 @@ public final class BudgetPanel extends JPanel {
     }
 
     private void refreshStatus(
-            boolean showFailureDialog, boolean preserveEditorValues) {
+            boolean showFailureDialog, BudgetDraftState preservedState) {
         YearMonth selectedMonth;
         try {
             yearSpinner.commitEdit();
@@ -512,27 +545,22 @@ public final class BudgetPanel extends JPanel {
             return;
         }
 
-        String preservedOverall = preserveEditorValues
-                ? overallLimitField.getText()
-                : null;
-        Object[] preservedCategories = preserveEditorValues
-                ? tableModel.copyLimitValues()
-                : null;
         try {
             ExpenseAnalyticsSnapshot analyticsSnapshot =
                     analyticsService.analyzeMonth(selectedMonth);
             BudgetStatusSnapshot budgetSnapshot =
                     budgetService.evaluate(analyticsSnapshot);
             applyStatus(budgetSnapshot);
-            if (preserveEditorValues) {
+            if (preservedState != null) {
                 replacingEditorValues = true;
                 try {
-                    overallLimitField.setText(preservedOverall);
-                    tableModel.restoreLimitValues(preservedCategories);
+                    overallLimitField.setText(preservedState.overallLimit());
+                    tableModel.restoreLimitValuesByIdentifier(
+                            preservedState.categoryLimitsByIdentifier());
                 } finally {
                     replacingEditorValues = false;
                 }
-                unsavedChanges = true;
+                unsavedChanges = preservedState.unsavedChanges();
                 statusLabel.setText(
                         selectedMonth + " status refreshed; unsaved changes remain.");
             }
@@ -540,6 +568,43 @@ public final class BudgetPanel extends JPanel {
             selectDisplayedMonth();
             showFailure(safeMessage(exception), showFailureDialog);
         }
+    }
+
+    private boolean commitActiveCategoryEdit() {
+        if (!categoryTable.isEditing()) {
+            return true;
+        }
+        try {
+            if (categoryTable.getCellEditor() != null
+                    && categoryTable.getCellEditor().stopCellEditing()) {
+                return true;
+            }
+        } catch (RuntimeException exception) {
+            showFailure(
+                    "Finish editing the category limit before refreshing.",
+                    true);
+            return false;
+        }
+        showFailure(
+                "Finish editing the category limit before refreshing.",
+                true);
+        return false;
+    }
+
+    private BudgetDraftState captureDraftState() {
+        return new BudgetDraftState(
+                overallLimitField.getText(),
+                tableModel.copyLimitValuesByIdentifier(),
+                (Month) monthComboBox.getSelectedItem(),
+                ((Number) yearSpinner.getValue()).intValue(),
+                unsavedChanges);
+    }
+
+    private void restoreSelectedPeriod(BudgetDraftState state) {
+        if (state.selectedMonth() != null) {
+            monthComboBox.setSelectedItem(state.selectedMonth());
+        }
+        yearSpinner.setValue(state.selectedYear());
     }
 
     private void applyStatus(BudgetStatusSnapshot snapshot) {
@@ -656,6 +721,14 @@ public final class BudgetPanel extends JPanel {
             throw new IllegalStateException(
                     "BudgetPanel must be created and updated on the Event Dispatch Thread.");
         }
+    }
+
+    private record BudgetDraftState(
+            String overallLimit,
+            Map<String, Object> categoryLimitsByIdentifier,
+            Month selectedMonth,
+            int selectedYear,
+            boolean unsavedChanges) {
     }
 
     private record BudgetPanelViewData(

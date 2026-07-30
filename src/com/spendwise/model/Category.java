@@ -195,10 +195,10 @@ public final class Category implements Comparable<Category> {
     }
 
     private static String validateDisplayName(String displayName) {
-        if (displayName == null || displayName.trim().isEmpty()) {
+        if (displayName == null || displayName.isBlank()) {
             throw new ValidationException("Category name is required.");
         }
-        String normalizedName = displayName.trim();
+        String normalizedName = displayName.strip();
         if (normalizedName.length() > MAX_NAME_LENGTH) {
             throw new ValidationException(
                     "Category name must not exceed " + MAX_NAME_LENGTH + " characters.");

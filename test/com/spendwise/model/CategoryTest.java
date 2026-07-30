@@ -22,6 +22,9 @@ public final class CategoryTest {
         run("archive stable ID", CategoryTest::archivePreservesIdentifier);
         run("name trimming", CategoryTest::customNameIsTrimmed);
         run("blank name", CategoryTest::blankNameIsRejected);
+        run("Unicode blank name", CategoryTest::unicodeBlankNameIsRejected);
+        run("mixed Unicode blank name", CategoryTest::mixedUnicodeBlankNameIsRejected);
+        run("Unicode name stripping", CategoryTest::unicodeSurroundingWhitespaceIsStripped);
         run("long name", CategoryTest::longNameIsRejected);
         run("control character", CategoryTest::controlCharacterIsRejected);
         run("invalid identifier", CategoryTest::invalidIdentifierIsRejected);
@@ -115,6 +118,21 @@ public final class CategoryTest {
         expectThrows(ValidationException.class, () -> custom("   "));
         expectThrows(ValidationException.class, () ->
             Category.createCustom("CUSTOM_001", null, false));
+    }
+
+    private static void unicodeBlankNameIsRejected() {
+        expectThrows(ValidationException.class, () -> custom("\u2003"));
+    }
+
+    private static void mixedUnicodeBlankNameIsRejected() {
+        expectThrows(ValidationException.class, () -> custom("\u2003\t\u2002"));
+    }
+
+    private static void unicodeSurroundingWhitespaceIsStripped() {
+        assertEquals(
+                "Study supplies",
+                custom("\u2003Study supplies\u2002").getDisplayName(),
+                "Unicode surrounding whitespace was not normalized.");
     }
 
     private static void longNameIsRejected() {

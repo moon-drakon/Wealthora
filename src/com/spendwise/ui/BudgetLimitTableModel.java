@@ -5,7 +5,7 @@ import com.spendwise.service.BudgetAlertLevel;
 import com.spendwise.service.BudgetStatusSnapshot;
 import com.spendwise.service.BudgetUsage;
 import java.math.BigDecimal;
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -82,26 +82,27 @@ final class BudgetLimitTableModel extends AbstractTableModel {
         return limitValues.get(getCategoryAt(rowIndex));
     }
 
-    void restoreLimitValues(Object[] values) {
-        Objects.requireNonNull(values, "Budget limit values are required.");
-        if (values.length != categories.size()) {
-            throw new IllegalArgumentException(
-                    "Budget limit value count is incorrect.");
-        }
-        for (int index = 0; index < values.length; index++) {
-            limitValues.put(categories.get(index), values[index]);
+    void restoreLimitValuesByIdentifier(Map<String, Object> valuesByIdentifier) {
+        Objects.requireNonNull(
+                valuesByIdentifier, "Budget limit values are required.");
+        for (Category category : categories) {
+            String identifier = category.getIdentifier();
+            if (valuesByIdentifier.containsKey(identifier)) {
+                Object value = valuesByIdentifier.get(identifier);
+                limitValues.put(category, value == null ? "" : value);
+            }
         }
         if (!categories.isEmpty()) {
             fireTableRowsUpdated(0, getRowCount() - 1);
         }
     }
 
-    Object[] copyLimitValues() {
-        List<Object> values = new ArrayList<>(categories.size());
+    Map<String, Object> copyLimitValuesByIdentifier() {
+        LinkedHashMap<String, Object> values = new LinkedHashMap<>();
         for (Category category : categories) {
-            values.add(limitValues.get(category));
+            values.put(category.getIdentifier(), limitValues.get(category));
         }
-        return values.toArray();
+        return Collections.unmodifiableMap(values);
     }
 
     @Override
