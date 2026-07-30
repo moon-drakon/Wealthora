@@ -2,7 +2,7 @@
 
 ## Current implementation status
 
-The project currently includes the core expense model and validation, a storage-independent `ExpenseRepository`, safe UTF-8 CSV persistence, and an `ExpenseService` for validated CRUD workflows, combined searching/filtering, stable sorting, and immutable summaries. The 23 model tests, 35 persistence tests, and service tests are dependency-free. The Swing interface and application startup wiring are not implemented. Charts, budgets, income, authentication, reports, backup UI, and import/export UI also remain unimplemented.
+The project currently includes the core expense model and validation, a storage-independent `ExpenseRepository`, safe UTF-8 CSV persistence, an `ExpenseService`, and a programmatic Swing expense-management interface. The GUI supports add, edit, confirmed delete, combined searching/filtering, stable sorting, refresh, and summaries for the displayed result. Startup wiring and cross-platform per-user data-path resolution are implemented. The 23 model tests, 35 persistence tests, 60 service tests, 12 path tests, and 25 GUI-foundation tests are dependency-free. Charts, budgets, income, authentication, advanced reports, backup UI, and import/export UI remain unimplemented.
 
 ## Problem statement
 
@@ -57,15 +57,15 @@ Advanced items are proposals, not implemented features or fixed delivery promise
 
 ### Main frame
 
-`MainFrame` will own the application window, navigation, and shared status area. It will switch between panels without creating multiple independent application windows.
+`SpendWiseFrame` now owns the application window and displays the expense-management panel. Future screens can be added without moving repository construction or business rules into the frame.
 
 ### Dashboard
 
 `DashboardPanel` will present the selected month's income, expenses, balance, budget progress, and concise category summaries.
 
-### Transactions
+### Expenses
 
-`TransactionsPanel` will display transactions in a table and provide add, edit, delete, search, and filter actions. `TransactionDialog` will collect and validate transaction input.
+`ExpensePanel` now displays service-supplied expenses, filtered summaries, search and filter controls, sorting, refresh, and selected-row actions. `ExpenseFormDialog` supports add and edit input while retaining service and model validation as the authoritative rules.
 
 ### Budgets
 
@@ -80,6 +80,8 @@ Advanced items are proposals, not implemented features or fixed delivery promise
 ```text
 com.spendwise.app
     SpendWiseApplication
+com.spendwise.config
+    AppPaths
 com.spendwise.model
     Expense, Category
     Additional income and budget models (planned)
@@ -91,8 +93,8 @@ com.spendwise.service
     ExpenseNotFoundException
     BudgetService (planned)
 com.spendwise.ui
-    MainFrame, DashboardPanel, TransactionsPanel, BudgetPanel,
-    CategoryPanel, TransactionDialog
+    SpendWiseFrame, ExpensePanel, ExpenseFormDialog, ExpenseTableModel
+    DashboardPanel, BudgetPanel, CategoryPanel (planned)
 com.spendwise.validation
     ExpenseValidator, ValidationException
 ```
@@ -128,11 +130,11 @@ The repository package now provides a storage-independent expense contract and a
 
 ### UI
 
-UI classes will create programmatic Swing components, translate user actions into service calls, and display results or validation messages. Swing startup and UI updates will run on the Event Dispatch Thread.
+The UI package now creates programmatic Swing components, translates user actions into `ExpenseService` calls, and displays results or validation messages. `ExpenseTableModel` keeps identifiers available for CRUD selection while showing only date, description, category, amount, and notes. Swing startup and UI updates run on the Event Dispatch Thread. Charts and the planned budget, income, and dashboard screens remain future work.
 
 ## CSV persistence plan
 
-Expense CSV persistence is implemented for a caller-supplied path rather than a hard-coded developer location. Additional storage for future income, category, and budget models remains planned.
+Expense CSV persistence is implemented for a caller-supplied path rather than a hard-coded developer location. `AppPaths` resolves `%LOCALAPPDATA%\SpendWiseExpenseTracker\data\expenses.csv` on Windows, with a `user.home` fallback, and supports standard per-user macOS and Linux locations. Path resolution and read-only startup do not create files; the repository creates the parent directory and CSV only after the first successful mutation. Additional storage for future income, category, and budget models remains planned.
 
 The implemented format uses UTF-8, a required header, stable column order, ISO dates, enum constant names, and decimal amounts produced with `BigDecimal.toPlainString()`. `CsvExpenseCodec` owns quoting and parsing rules, including quoted line breaks, LF and CRLF input, and an optional UTF-8 BOM before the header. Loading constructs each `Expense` through existing model validation. Mutations prepare the full snapshot before writing and use same-directory temporary-file replacement.
 
@@ -159,6 +161,8 @@ Testing will combine focused automated checks with repeatable manual GUI testing
 - Plain Java main-based tests with explicit `AssertionError` helpers for model invariants and validation
 - Temporary test directories for storage tests so real user data is not changed
 - Edge cases for decimal amounts, empty notes, quoted CSV fields, invalid rows, and month boundaries
+- Headless Swing checks for table mapping, immutable snapshots, parsing, events, and empty summaries
+- Isolated path-resolution checks that do not modify environment variables or production data
 - Manual checks for navigation, table updates, dialogs, keyboard focus, resizing, and error messages
 - A clean Ant build before each milestone is accepted
 - Regression checks for previously completed workflows
@@ -183,13 +187,19 @@ The service target reruns both earlier suites and then runs the dependency-free 
 C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-service
 ```
 
+The GUI target reruns all earlier suites, then runs path and headless Swing-foundation tests:
+
+```powershell
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-gui
+```
+
 ## Milestones
 
 1. **Foundation (complete):** establish the Java 21 NetBeans project, repository baseline, documentation, and repeatable build.
 2. **Domain model (in progress):** implement model classes, enums, validation rules, and calculation tests. The expense model, category enum, reusable validation, and core tests are complete.
 3. **CSV storage (complete for expenses):** implement encoding, loading, safe replacement, corruption handling, and round-trip tests.
 4. **Expense service layer (complete):** implement validated expense CRUD operations, combined text/category/date queries, stable sorting, and overall or filtered summaries. Budget calculations remain planned.
-5. **Transaction UI:** implement the main frame, transaction table, and add/edit/delete workflow.
+5. **Expense-management UI (complete):** implement the main frame, expense table, add/edit/confirmed-delete workflows, filtering, sorting, refresh, and displayed-result summaries.
 6. **Dashboard and supporting UI:** add summaries, budget progress, and category management.
 7. **Advanced selection:** choose and implement only advanced features that fit the remaining schedule.
 8. **Quality pass:** complete regression testing, usability fixes, documentation updates, and demo preparation.
@@ -214,6 +224,7 @@ C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-service
 - No cloud synchronization or multi-device support
 - No multi-process CSV file locking
 - No user-facing backup or import/export workflow
+- No charts or advanced reporting
 - No bank, payment-provider, or financial-account integration
 - No authentication, shared accounts, or role management
 - No encryption beyond protections provided by the local operating system

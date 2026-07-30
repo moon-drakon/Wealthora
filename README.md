@@ -1,6 +1,6 @@
 # SpendWise Expense Tracker
 
-SpendWise Expense Tracker is a planned Java Swing desktop application for a CSE215 Object-Oriented Programming semester project.
+SpendWise Expense Tracker is a Java Swing desktop application for a CSE215 Object-Oriented Programming semester project.
 
 ## Team
 
@@ -10,7 +10,7 @@ SpendWise Expense Tracker is a planned Java Swing desktop application for a CSE2
 
 ## Current status
 
-The project foundation has been initialized as a Java 21 Apache NetBeans project. The core expense model, reusable validation, storage-independent repository abstraction, safe UTF-8 CSV persistence, and `ExpenseService` business workflows are implemented. The service supports expense CRUD operations, combined text and date/category filtering, stable sorting, and immutable overall or filtered summaries. Dependency-free core-model, persistence, and service tests are available. The application entry point remains empty, and the Swing interface and startup wiring have not been implemented yet.
+The project now includes the core expense model, reusable validation, storage-independent repository abstraction, safe UTF-8 CSV persistence, `ExpenseService` business workflows, and a programmatic Swing expense-management interface. Users can add, edit, delete, search, filter by category or inclusive dates, sort, refresh, and view summaries for the displayed expenses. Application startup wires the CSV repository into the service and main window. Core-model, persistence, service, path-resolution, and GUI-foundation tests are dependency-free.
 
 Feature status in this document will be updated only after the corresponding behavior has been implemented and verified.
 
@@ -32,7 +32,7 @@ SpendWise is intended to help an individual record income and expenses, organize
 
 These features are candidates after the core workflow is complete:
 
-- Search and filter transactions by date, type, category, or text
+- Search and filter across future income and expense records
 - Category-based and monthly spending visualizations
 - Budget warning indicators
 - Recurring transaction templates
@@ -60,8 +60,9 @@ No external libraries are currently required.
 1. Open the project root as an existing Apache NetBeans project.
 2. Confirm that the project uses JDK 21.
 3. Select **Run > Clean and Build Project**.
+4. Select **Run > Run Project**, or press **F6**, to start the application.
 
-The generated JAR is placed in `dist/`.
+The generated JAR is `dist/SpendWiseExpenseTracker.jar`.
 
 ## Build from the command line
 
@@ -75,6 +76,12 @@ On the verified development machine, use this fallback when `ant` is unavailable
 
 ```powershell
 C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat clean jar
+```
+
+Run the generated application JAR with:
+
+```powershell
+java -jar dist\SpendWiseExpenseTracker.jar
 ```
 
 ## Run the core-model tests
@@ -101,6 +108,26 @@ The service target runs the core and persistence suites before the expense-servi
 C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-service
 ```
 
+## Run the GUI-foundation tests
+
+The GUI target runs all earlier suites, the path-resolution tests, and the Swing tests in headless mode:
+
+```powershell
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-gui
+```
+
+## Application data location
+
+On Windows, expense data is stored at:
+
+```text
+%LOCALAPPDATA%\SpendWiseExpenseTracker\data\expenses.csv
+```
+
+If `LOCALAPPDATA` is unavailable, SpendWise uses the equivalent location below `user.home\AppData\Local`. macOS uses `~/Library/Application Support`, while Linux and other Unix-like systems use `XDG_DATA_HOME` or the `~/.local/share` fallback.
+
+Resolving the path and starting the application are read-only operations. The CSV file and its parent directory are created only after the first successful expense mutation. Repository writes continue to use safe same-directory temporary-file replacement.
+
 ## Project structure
 
 ```text
@@ -115,6 +142,7 @@ SpendWiseExpenseTracker/
 |-- src/
 |   `-- com/spendwise/
 |       |-- app/SpendWiseApplication.java
+|       |-- config/AppPaths.java
 |       |-- model/
 |       |   |-- Category.java
 |       |   `-- Expense.java
@@ -128,14 +156,21 @@ SpendWiseExpenseTracker/
 |       |   |-- ExpenseService.java
 |       |   |-- ExpenseSortOrder.java
 |       |   `-- ExpenseSummary.java
+|       |-- ui/
+|       |   |-- ExpenseFormDialog.java
+|       |   |-- ExpensePanel.java
+|       |   |-- ExpenseTableModel.java
+|       |   `-- SpendWiseFrame.java
 |       `-- validation/
 |           |-- ExpenseValidator.java
 |           `-- ValidationException.java
 |-- test/
 |   `-- com/spendwise/
+|       |-- config/AppPathsTest.java
 |       |-- model/ExpenseTest.java
 |       |-- repository/CsvExpenseRepositoryTest.java
-|       `-- service/ExpenseServiceTest.java
+|       |-- service/ExpenseServiceTest.java
+|       `-- ui/SwingFoundationTest.java
 |-- docs/
 |   `-- PROJECT_PLAN.md
 |-- .gitattributes
@@ -148,4 +183,4 @@ The generated `build/` and `dist/` directories and the machine-specific `nbproje
 
 The CSV repository supports commas, doubled quotes, Unicode, and quoted line breaks. Mutations write a complete temporary file in the destination directory and replace the previous file only after the temporary content is closed and flushed. The service layer remains independent of CSV details and provides validated CRUD, combined description/notes/category text matching, category and inclusive date filtering, stable sorting, and exact `BigDecimal` summaries.
 
-The Swing interface, application startup wiring, charts, budgets, income, authentication, reports, backup UI, and import/export UI are not implemented. Multi-process file locking also remains outside the current scope.
+Charts, budgets, income, authentication, advanced reports, backup UI, and import/export UI are not implemented. Multi-process file locking also remains outside the current scope.

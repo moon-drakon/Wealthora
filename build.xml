@@ -114,4 +114,24 @@
             </classpath>
         </java>
     </target>
+    <target name="test-gui" depends="test-service"
+            description="Runs the dependency-free GUI foundation tests.">
+        <java classname="com.spendwise.config.AppPathsTest"
+              fork="true"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+        <java classname="com.spendwise.ui.SwingFoundationTest"
+              fork="true"
+              failonerror="true">
+            <sysproperty key="java.awt.headless" value="true"/>
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+    </target>
 </project>
