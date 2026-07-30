@@ -10,7 +10,7 @@ SpendWise Expense Tracker is a planned Java Swing desktop application for a CSE2
 
 ## Current status
 
-The project foundation has been initialized as a Java 21 Apache NetBeans project. It currently contains an empty application entry point and a working Ant build. Application features have not been implemented yet.
+The project foundation has been initialized as a Java 21 Apache NetBeans project. The core `Expense` model, `Category` enum, reusable expense validation, and dependency-free core-model tests are implemented. The application entry point remains empty, and CSV persistence, the service layer, and the Swing interface have not been implemented yet.
 
 Feature status in this document will be updated only after the corresponding behavior has been implemented and verified.
 
@@ -77,6 +77,14 @@ On the verified development machine, use this fallback when `ant` is unavailable
 C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat clean jar
 ```
 
+## Run the core-model tests
+
+The core-model tests use a plain Java runner and require no external testing library. Run:
+
+```powershell
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-core
+```
+
 ## Project structure
 
 ```text
@@ -89,7 +97,16 @@ SpendWiseExpenseTracker/
 |   |-- project.properties
 |   `-- project.xml
 |-- src/
-|   `-- com/spendwise/app/SpendWiseApplication.java
+|   `-- com/spendwise/
+|       |-- app/SpendWiseApplication.java
+|       |-- model/
+|       |   |-- Category.java
+|       |   `-- Expense.java
+|       `-- validation/
+|           |-- ExpenseValidator.java
+|           `-- ValidationException.java
+|-- test/
+|   `-- com/spendwise/model/ExpenseTest.java
 |-- docs/
 |   `-- PROJECT_PLAN.md
 |-- .gitattributes

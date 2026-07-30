@@ -1,5 +1,9 @@
 # SpendWise Expense Tracker Project Plan
 
+## Current implementation status
+
+The project currently includes the core `Expense` model, the `Category` enum, reusable expense validation, and 23 dependency-free model tests integrated through the Ant `test-core` target. CSV persistence, service classes, the Swing interface, budgets, reports, and other application workflows are not implemented yet.
+
 ## Problem statement
 
 People often record small daily expenses inconsistently and then struggle to understand where their money went. Spreadsheet-based tracking can work, but it may be inconvenient for users who want a focused desktop workflow with validation, summaries, and budget feedback.
@@ -77,16 +81,17 @@ Advanced items are proposals, not implemented features or fixed delivery promise
 com.spendwise.app
     SpendWiseApplication
 com.spendwise.model
-    Transaction, TransactionType, Category, Budget
+    Expense, Category
+    Additional income and budget models (planned)
 com.spendwise.storage
     CsvDataStore, CsvCodec, DataStoreException
 com.spendwise.service
-    TransactionService, BudgetService, SummaryService
+    ExpenseService, BudgetService, SummaryService
 com.spendwise.ui
     MainFrame, DashboardPanel, TransactionsPanel, BudgetPanel,
     CategoryPanel, TransactionDialog
 com.spendwise.validation
-    InputValidator, ValidationException
+    ExpenseValidator, ValidationException
 ```
 
 This structure separates responsibilities without introducing unnecessary frameworks, dependency injection containers, or enterprise layers.
@@ -97,10 +102,9 @@ This structure separates responsibilities without introducing unnecessary framew
 
 Model classes will represent the application's data and basic invariants:
 
-- `Transaction` will hold an identifier, date, type, amount, category, and note.
-- `TransactionType` will distinguish income from expense.
-- `Category` will represent a named transaction category.
-- `Budget` will represent a spending limit for a particular month.
+- `Expense` now represents an occurred expense with an identifier, description, amount, date, category, and notes.
+- `Category` now provides the supported expense categories and their readable display names.
+- Additional income and budget models remain planned for later milestones.
 
 Money will use `BigDecimal`, and dates will use `LocalDate` and `YearMonth`.
 
@@ -133,6 +137,8 @@ CSV is appropriate for the course scope because it is inspectable and requires n
 
 ## Validation and error handling
 
+`ExpenseValidator` now centralizes normalization and validation for expense IDs, descriptions, amounts, dates, categories, and notes. It rejects invalid values before an `Expense` is created or updated, and `Expense.updateDetails(...)` validates the complete proposed state before changing any field.
+
 - Require a transaction type, date, category, and amount.
 - Require amounts to be positive and within a practical numeric range.
 - Parse dates through `java.time` rather than manual string splitting.
@@ -147,7 +153,7 @@ CSV is appropriate for the course scope because it is inspectable and requires n
 
 Testing will combine focused automated checks with repeatable manual GUI testing:
 
-- Plain Java assertion-based tests for model invariants, calculations, validation, filtering, and CSV round trips
+- Plain Java main-based tests with explicit `AssertionError` helpers for model invariants and validation
 - Temporary test directories for storage tests so real user data is not changed
 - Edge cases for decimal amounts, empty notes, quoted CSV fields, invalid rows, and month boundaries
 - Manual checks for navigation, table updates, dialogs, keyboard focus, resizing, and error messages
@@ -156,10 +162,16 @@ Testing will combine focused automated checks with repeatable manual GUI testing
 
 No testing dependency will be introduced without explicit approval. If the team later wants JUnit, it will be considered separately.
 
+The implemented core-model tests can be run with:
+
+```powershell
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-core
+```
+
 ## Milestones
 
-1. **Foundation:** establish the Java 21 NetBeans project, repository baseline, documentation, and repeatable build.
-2. **Domain model:** implement model classes, enums, validation rules, and calculation tests.
+1. **Foundation (complete):** establish the Java 21 NetBeans project, repository baseline, documentation, and repeatable build.
+2. **Domain model (in progress):** implement model classes, enums, validation rules, and calculation tests. The expense model, category enum, reusable validation, and core tests are complete.
 3. **CSV storage:** implement encoding, loading, saving, error handling, and round-trip tests.
 4. **Service layer:** implement transaction operations, budget calculations, summaries, and filters.
 5. **Transaction UI:** implement the main frame, transaction table, and add/edit/delete workflow.

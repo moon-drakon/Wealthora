@@ -70,4 +70,26 @@
     nbproject/build-impl.xml file. 
 
     -->
+    <target name="test-core" depends="compile"
+            description="Compiles and runs the dependency-free core model tests.">
+        <mkdir dir="${build.test.classes.dir}"/>
+        <javac srcdir="${test.src.dir}"
+               destdir="${build.test.classes.dir}"
+               source="${javac.source}"
+               target="${javac.target}"
+               encoding="${source.encoding}"
+               includeantruntime="false">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+            </classpath>
+        </javac>
+        <java classname="com.spendwise.model.ExpenseTest"
+              fork="true"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+    </target>
 </project>
