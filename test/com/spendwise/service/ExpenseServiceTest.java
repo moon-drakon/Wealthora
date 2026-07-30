@@ -9,7 +9,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -720,7 +720,7 @@ public class ExpenseServiceTest {
     }
 
     private static void summaryDefensivelyCopiesCategoryTotals() {
-        Map<Category, BigDecimal> sourceTotals = new EnumMap<>(Category.class);
+        Map<Category, BigDecimal> sourceTotals = new LinkedHashMap<>();
         sourceTotals.put(Category.FOOD, new BigDecimal("3.00"));
         ExpenseSummary summary = new ExpenseSummary(
                 1,

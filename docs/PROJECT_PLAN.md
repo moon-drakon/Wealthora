@@ -2,7 +2,7 @@
 
 ## Current implementation status
 
-The project currently includes validated expense and monthly-budget models, storage-independent repositories, safe UTF-8 CSV persistence, expense and budget services, and a programmatic Swing application with Expenses, Dashboard, and Budgets tabs. The expense workspace and analytics dashboard retain their existing CRUD, query, summary, chart, and monthly-report behavior. Monthly overall budgets, optional independent category limits, exact usage calculations, and informational warnings are implemented. The dependency-free suites contain 23 expense-model, 35 expense-persistence, 60 expense-service, 15 path, 25 Swing-foundation, 48 analytics-service, 43 dashboard-foundation, 20 budget-model, 35 budget-repository, 40 budget-service, and 40 budget-foundation tests.
+The project currently includes validated expense, category, and monthly-budget models; storage-independent repositories; safe UTF-8 CSV persistence; expense, category, and budget services; and a programmatic Swing application with Expenses, Dashboard, and Budgets tabs. The expense workspace and analytics dashboard retain their existing CRUD, query, summary, chart, and monthly-report behavior. Monthly budgets and custom-category add, rename, archive, restore, historical resolution, and selector refresh are implemented. The dependency-free suites contain 23 expense-model, 35 expense-persistence, 60 expense-service, 18 path, 25 Swing-foundation, 48 analytics-service, 43 dashboard-foundation, 20 budget-model, 35 budget-repository, 40 budget-service, 40 budget-foundation, 18 category-model, 29 category-persistence, 23 category-service, and 18 category-management tests.
 
 ## Problem statement
 
@@ -72,7 +72,7 @@ Advanced items are proposals, not implemented features or fixed delivery promise
 
 ### Categories
 
-`CategoryPanel` will display available categories and support safe creation, renaming, and deletion rules.
+The Expenses header opens a modal category manager with Name, Type, and Status columns. It supports adding and renaming custom categories and archiving or restoring them without hard deletion. Built-ins remain protected, and referenced categories require confirmation before archiving.
 
 ## Proposed Java package architecture
 
@@ -86,18 +86,19 @@ com.spendwise.model
     Additional income models (planned)
 com.spendwise.repository
     ExpenseRepository, CsvExpenseRepository, CsvExpenseCodec,
-    BudgetRepository, CsvBudgetRepository, RepositoryException
+    BudgetRepository, CsvBudgetRepository,
+    CategoryRepository, CsvCategoryRepository, RepositoryException
 com.spendwise.service
     BudgetService, BudgetUsage, BudgetStatusSnapshot, BudgetAlertLevel
+    CategoryService
     ExpenseAnalyticsService, ExpenseAnalyticsSnapshot,
     ExpenseService, ExpenseSummary, ExpenseSortOrder,
     ExpenseNotFoundException
-    BudgetService (planned)
 com.spendwise.ui
     SpendWiseFrame, ExpensePanel, ExpenseFormDialog, ExpenseTableModel
     DashboardPanel, MonthlyBarChartPanel, CategoryDonutChartPanel
-    BudgetPanel, BudgetLimitTableModel
-    CategoryPanel (planned)
+    BudgetPanel, BudgetLimitTableModel,
+    CategoryManagerDialog, CategoryTableModel
 com.spendwise.validation
     ExpenseValidator, ValidationException
 ```
@@ -111,7 +112,7 @@ This structure separates responsibilities without introducing unnecessary framew
 Model classes will represent the application's data and basic invariants:
 
 - `Expense` now represents an occurred expense with an identifier, description, amount, date, category, and notes.
-- `Category` now provides the supported expense categories and their readable display names.
+- `Category` is now an immutable category definition with a stable identifier, display name, built-in/custom classification, and active/archived status. Its original built-in constants, identifiers, names, and order remain compatible.
 - `MonthlyBudget` now represents one month, an optional overall limit, and configured category limits as immutable two-decimal values.
 - Additional income models remain planned for later milestones.
 
@@ -124,11 +125,13 @@ The repository package now provides a storage-independent expense contract and a
 - Keeps file-format knowledge out of the UI.
 - Writes the exact `id,description,amount,date,category,notes` header and column order.
 - Escapes commas, doubled quotes, Unicode text, and quoted line breaks.
-- Uses UTF-8, ISO `LocalDate` text, plain `BigDecimal` text, and enum constant names.
+- Uses UTF-8, ISO `LocalDate` text, plain `BigDecimal` text, and stable category identifiers.
 - Rejects malformed records and duplicate IDs without returning partial results.
 - Writes through a same-directory temporary file and replaces the target only after a complete flush and close.
-- Stores budgets separately with the exact `month,scope,category,amount` header, chronological months, and enum-ordered categories.
+- Stores budgets separately with the exact `month,scope,category,amount` header, chronological months, and stable category order.
+- Stores only custom category definitions in `categories.csv` with the exact `id,name,status` header; built-ins remain defined once in code.
 - Refuses to overwrite malformed existing budget data.
+- Resolves stable category identifiers through the current catalog and rejects unknown identifiers instead of using a fallback category.
 
 ### Service
 
@@ -136,19 +139,21 @@ The repository package now provides a storage-independent expense contract and a
 
 `BudgetService` stores or clears monthly plans through `BudgetRepository` and evaluates an existing analytics snapshot without reloading expenses. `BudgetUsage` calculates exact remaining amounts and two-decimal `HALF_UP` percentages, while exact comparisons classify within-limit, near-limit, reached, and over-limit states.
 
+`CategoryService` merges the protected built-in catalog with persisted custom definitions and owns name uniqueness, add, rename, archive, restore, selectable-category, and stable-ID resolution rules. Archived categories remain resolvable for existing expense and budget history but are excluded from new selections.
+
 ### UI
 
-The UI package creates programmatic Swing components, translates user actions into service calls, and displays results or validation messages. `SpendWiseFrame` exposes Expenses, Dashboard, and Budgets tabs. `BudgetLimitTableModel` permits editing only the limit column, and `BudgetPanel` keeps invalid or unsaved text visible until the user resolves it. Dashboard and budget refreshes replace their last successful display only after analytics and budget loading both succeed. The Java2D charts and all previous expense workflows remain available. Income, category-management, and export screens remain future work.
+The UI package creates programmatic Swing components, translates user actions into service calls, and displays results or validation messages. `SpendWiseFrame` exposes Expenses, Dashboard, and Budgets tabs. The Expenses area also opens the category manager and refreshes expense selectors and filters after mutations. `BudgetLimitTableModel` permits editing active-category limits while keeping archived categories visible when historical spending or a configured limit requires them. Dashboard reports and charts resolve current display names without losing archived data. Income and export screens remain future work.
 
 ## CSV persistence plan
 
-Expense and budget CSV persistence use caller-supplied paths rather than a hard-coded developer location. `AppPaths` resolves sibling `expenses.csv` and `budgets.csv` files below `%LOCALAPPDATA%\SpendWiseExpenseTracker\data` on Windows, with the existing `user.home` fallback and standard per-user macOS and Linux locations. Path resolution, startup, and viewing Dashboard or Budgets do not create files. `budgets.csv` is created only after the first successful budget save.
+Expense, budget, and category CSV persistence use caller-supplied paths rather than a hard-coded developer location. `AppPaths` resolves sibling `expenses.csv`, `budgets.csv`, and `categories.csv` files below `%LOCALAPPDATA%\SpendWiseExpenseTracker\data` on Windows, with the existing `user.home` fallback and standard per-user macOS and Linux locations. Path resolution, startup, construction, viewing, and refresh do not create files. `categories.csv` is created only after the first successful custom-category mutation.
 
-The implemented format uses UTF-8, a required header, stable column order, ISO dates, enum constant names, and decimal amounts produced with `BigDecimal.toPlainString()`. `CsvExpenseCodec` owns quoting and parsing rules, including quoted line breaks, LF and CRLF input, and an optional UTF-8 BOM before the header. Loading constructs each `Expense` through existing model validation. Mutations prepare the full snapshot before writing and use same-directory temporary-file replacement.
+The implemented format uses UTF-8, a required header, stable column order, ISO dates, stable category identifiers, and decimal amounts produced with `BigDecimal.toPlainString()`. `CsvExpenseCodec` owns quoting and parsing rules, including quoted line breaks, LF and CRLF input, and an optional UTF-8 BOM before the header. Loading constructs each `Expense` through existing model validation. Mutations prepare the full snapshot before writing and use same-directory temporary-file replacement.
 
 CSV is appropriate for the course scope because it is inspectable and requires no external database dependency. It is not intended for high-volume or multi-user data.
 
-Budget CSV rows use ISO `YearMonth`, `OVERALL` or `CATEGORY` scope, enum category names, and exact two-decimal limits. Other months survive replacement or deletion, and both repositories use complete same-directory temporary files before target replacement.
+Budget CSV rows use ISO `YearMonth`, `OVERALL` or `CATEGORY` scope, stable category identifiers, and exact two-decimal limits. Custom category rows use stable IDs, CSV-escaped display names, and `ACTIVE` or `ARCHIVED` status. Existing built-in category values require no migration. Other months survive replacement or deletion, and all repositories use complete same-directory temporary files before target replacement.
 
 ## Validation and error handling
 
@@ -158,6 +163,7 @@ Budget CSV rows use ISO `YearMonth`, `OVERALL` or `CATEGORY` scope, enum categor
 - Require amounts to be positive and within a practical numeric range.
 - Parse dates through `java.time` rather than manual string splitting.
 - Prevent blank or duplicate category names after trimming.
+- Reject category control characters, invalid stable identifiers, and case-insensitive duplicate names across active, archived, and built-in definitions.
 - Prevent invalid budget values.
 - Treat blank budget fields as unconfigured limits and require configured limits to be positive with no more than two meaningful decimals.
 - Classify budget warnings with exact comparisons: below 80%, 80% to below 100%, exactly 100%, and above 100%.
@@ -177,6 +183,7 @@ Testing will combine focused automated checks with repeatable manual GUI testing
 - Deterministic analytics checks for month boundaries, previous-month change, chronological trends, immutable snapshots, and single-snapshot loading
 - Headless `BufferedImage` rendering checks for empty and populated Java2D charts and dashboard refresh safety
 - Budget model, CSV corruption, safe-replacement, calculation-boundary, and headless editor/status checks
+- Category immutability, built-in compatibility, CSV corruption/replacement, service mutation, archived-history, selector-refresh, and headless manager-state checks
 - Isolated path-resolution checks that do not modify environment variables or production data
 - Manual checks for navigation, table updates, dialogs, keyboard focus, resizing, and error messages
 - A clean Ant build before each milestone is accepted
@@ -226,6 +233,12 @@ The budget target reruns the complete earlier chain, then runs the budget model,
 C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-budget
 ```
 
+The category target reruns the complete earlier chain, then runs category model, repository, service, and headless UI integration tests:
+
+```powershell
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-category
+```
+
 ## Milestones
 
 1. **Foundation (complete):** establish the Java 21 NetBeans project, repository baseline, documentation, and repeatable build.
@@ -235,8 +248,9 @@ C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-budget
 5. **Expense-management UI (complete):** implement the main frame, expense table, add/edit/confirmed-delete workflows, filtering, sorting, refresh, and displayed-result summaries.
 6. **Expense analytics dashboard (complete):** add selected-month summaries, previous-month comparison, six-month and category charts, and a read-only monthly report.
 7. **Monthly budgets (complete):** persist monthly overall and category limits, calculate exact usage warnings, add the Budgets tab, and integrate status into Dashboard.
-8. **Advanced selection:** choose and implement only advanced features that fit the remaining schedule.
-9. **Quality pass:** complete regression testing, usability fixes, documentation updates, and demo preparation.
+8. **Custom category management (complete):** persist stable custom definitions, support add, rename, archive, and restore, and preserve historical expense, analytics, and budget behavior.
+9. **Advanced selection:** choose and implement only advanced features that fit the remaining schedule.
+10. **Quality pass:** complete regression testing, usability fixes, documentation updates, and demo preparation.
 
 ## Demo and viva preparation checklist
 

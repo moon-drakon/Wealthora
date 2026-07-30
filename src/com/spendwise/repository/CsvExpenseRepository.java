@@ -1,5 +1,6 @@
 package com.spendwise.repository;
 
+import com.spendwise.model.Category;
 import com.spendwise.model.Expense;
 import com.spendwise.validation.ExpenseValidator;
 import java.io.BufferedWriter;
@@ -15,15 +16,24 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
 
 public class CsvExpenseRepository implements ExpenseRepository {
 
     private final Path csvPath;
+    private final Function<String, Category> categoryResolver;
 
     public CsvExpenseRepository(Path csvPath) {
+        this(csvPath, Category::valueOf);
+    }
+
+    public CsvExpenseRepository(
+            Path csvPath, Function<String, Category> categoryResolver) {
         this.csvPath = Objects.requireNonNull(csvPath, "CSV path is required.")
                 .toAbsolutePath()
                 .normalize();
+        this.categoryResolver = Objects.requireNonNull(
+                categoryResolver, "Category resolver is required.");
     }
 
     @Override
@@ -36,7 +46,7 @@ public class CsvExpenseRepository implements ExpenseRepository {
             if (csvText.isEmpty()) {
                 return List.of();
             }
-            return CsvExpenseCodec.decode(csvText);
+            return CsvExpenseCodec.decode(csvText, categoryResolver);
         } catch (IOException | SecurityException exception) {
             throw new RepositoryException("Could not read expense CSV data.", exception);
         }

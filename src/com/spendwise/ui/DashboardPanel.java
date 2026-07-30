@@ -26,6 +26,7 @@ import java.time.Month;
 import java.time.YearMonth;
 import java.time.format.TextStyle;
 import java.util.Locale;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import javax.swing.BorderFactory;
@@ -742,10 +743,11 @@ public final class DashboardPanel extends JPanel {
             extends AbstractTableModel {
 
         private Map<Category, BudgetUsage> usageByCategory = Map.of();
+        private List<Category> categories = List.of(Category.values());
 
         CategoryBreakdownTableModel() {
-            java.util.EnumMap<Category, BudgetUsage> emptyUsage =
-                    new java.util.EnumMap<>(Category.class);
+            java.util.LinkedHashMap<Category, BudgetUsage> emptyUsage =
+                    new java.util.LinkedHashMap<>();
             for (Category category : Category.values()) {
                 emptyUsage.put(
                         category,
@@ -758,19 +760,15 @@ public final class DashboardPanel extends JPanel {
 
         void replaceStatus(BudgetStatusSnapshot snapshot) {
             Objects.requireNonNull(snapshot, "Budget status is required.");
-            java.util.EnumMap<Category, BudgetUsage> copiedUsage =
-                    new java.util.EnumMap<>(Category.class);
-            for (Category category : Category.values()) {
-                copiedUsage.put(
-                        category,
-                        snapshot.getUsageForCategory(category));
-            }
+            java.util.LinkedHashMap<Category, BudgetUsage> copiedUsage =
+                    new java.util.LinkedHashMap<>(snapshot.getCategoryUsage());
             usageByCategory = java.util.Collections.unmodifiableMap(copiedUsage);
+            categories = List.copyOf(copiedUsage.keySet());
             fireTableDataChanged();
         }
 
         Category getCategoryAt(int rowIndex) {
-            return Category.values()[rowIndex];
+            return categories.get(rowIndex);
         }
 
         BigDecimal getTotalAt(int rowIndex) {
@@ -783,7 +781,7 @@ public final class DashboardPanel extends JPanel {
 
         @Override
         public int getRowCount() {
-            return Category.values().length;
+            return categories.size();
         }
 
         @Override

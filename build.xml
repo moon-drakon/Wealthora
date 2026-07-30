@@ -201,4 +201,44 @@
             </classpath>
         </java>
     </target>
+    <target name="test-category" depends="test-budget"
+            description="Runs the dependency-free custom-category model, persistence, service, and GUI tests.">
+        <java classname="com.spendwise.model.CategoryTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+        <java classname="com.spendwise.repository.CsvCategoryRepositoryTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+        <java classname="com.spendwise.service.CategoryServiceTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+        <java classname="com.spendwise.ui.CategoryManagementTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <sysproperty key="java.awt.headless" value="true"/>
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+    </target>
 </project>

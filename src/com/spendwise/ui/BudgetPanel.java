@@ -7,6 +7,7 @@ import com.spendwise.service.BudgetAlertLevel;
 import com.spendwise.service.BudgetService;
 import com.spendwise.service.BudgetStatusSnapshot;
 import com.spendwise.service.BudgetUsage;
+import com.spendwise.service.CategoryService;
 import com.spendwise.service.ExpenseAnalyticsService;
 import com.spendwise.service.ExpenseAnalyticsSnapshot;
 import com.spendwise.validation.ValidationException;
@@ -25,7 +26,8 @@ import java.math.BigDecimal;
 import java.time.Month;
 import java.time.YearMonth;
 import java.time.format.TextStyle;
-import java.util.EnumMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
@@ -68,6 +70,7 @@ public final class BudgetPanel extends JPanel {
 
     private final ExpenseAnalyticsService analyticsService;
     private final BudgetService budgetService;
+    private final CategoryService categoryService;
     private final JComboBox<Month> monthComboBox = new JComboBox<>(Month.values());
     private final JSpinner yearSpinner;
     private final JTextField overallLimitField = new JTextField(16);
@@ -87,18 +90,34 @@ public final class BudgetPanel extends JPanel {
     public BudgetPanel(
             ExpenseAnalyticsService analyticsService,
             BudgetService budgetService) {
-        this(analyticsService, budgetService, YearMonth.now());
+        this(analyticsService, budgetService, null, YearMonth.now());
+    }
+
+    public BudgetPanel(
+            ExpenseAnalyticsService analyticsService,
+            BudgetService budgetService,
+            CategoryService categoryService) {
+        this(analyticsService, budgetService, categoryService, YearMonth.now());
     }
 
     BudgetPanel(
             ExpenseAnalyticsService analyticsService,
             BudgetService budgetService,
             YearMonth initialMonth) {
+        this(analyticsService, budgetService, null, initialMonth);
+    }
+
+    BudgetPanel(
+            ExpenseAnalyticsService analyticsService,
+            BudgetService budgetService,
+            CategoryService categoryService,
+            YearMonth initialMonth) {
         requireEventDispatchThread();
         this.analyticsService = Objects.requireNonNull(
                 analyticsService, "Expense analytics service is required.");
         this.budgetService = Objects.requireNonNull(
                 budgetService, "Budget service is required.");
+        this.categoryService = categoryService;
         YearMonth requiredInitialMonth = Objects.requireNonNull(
                 initialMonth, "Initial budget month is required.");
 
@@ -418,8 +437,8 @@ public final class BudgetPanel extends JPanel {
             }
             Optional<BigDecimal> overallLimit = parseOptionalLimit(
                     overallLimitField.getText(), "Overall limit");
-            EnumMap<Category, BigDecimal> categoryLimits =
-                    new EnumMap<>(Category.class);
+            LinkedHashMap<Category, BigDecimal> categoryLimits =
+                    new LinkedHashMap<>();
             for (int row = 0; row < tableModel.getRowCount(); row++) {
                 Category category = tableModel.getCategoryAt(row);
                 parseOptionalLimit(
@@ -534,7 +553,7 @@ public final class BudgetPanel extends JPanel {
                             .getLimit()
                             .map(BigDecimal::toPlainString)
                             .orElse(""));
-            tableModel.replaceStatus(snapshot);
+            tableModel.replaceStatus(snapshot, selectableCategories());
         } finally {
             replacingEditorValues = false;
         }
@@ -551,6 +570,12 @@ public final class BudgetPanel extends JPanel {
         warningValue.setForeground(warningColor);
         unsavedChanges = false;
         statusLabel.setText(displayedMonth + " budget status refreshed.");
+    }
+
+    private List<Category> selectableCategories() {
+        return categoryService == null
+                ? List.of(Category.values())
+                : categoryService.listSelectableCategories();
     }
 
     private YearMonth selectedYearMonth() {

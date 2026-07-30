@@ -10,7 +10,7 @@ SpendWise Expense Tracker is a Java Swing desktop application for a CSE215 Objec
 
 ## Current status
 
-The project now includes the core expense model, reusable validation, storage-independent repositories, safe UTF-8 CSV persistence, expense and budget services, and a programmatic Swing interface with Expenses, Dashboard, and Budgets tabs. Users can manage expenses, analyze a selected month, and configure an overall monthly budget plus optional independent category limits. The Dashboard shows budget status beside the existing charts and monthly report. All automated tests remain dependency-free.
+The project now includes the core expense model, reusable validation, storage-independent repositories, safe UTF-8 CSV persistence, expense, budget, and category services, and a programmatic Swing interface with Expenses, Dashboard, and Budgets tabs. Users can manage expenses and custom categories, analyze a selected month, and configure an overall monthly budget plus optional independent category limits. The Dashboard shows budget status beside the existing charts and monthly report. All automated tests remain dependency-free.
 
 Feature status in this document will be updated only after the corresponding behavior has been implemented and verified.
 
@@ -22,7 +22,7 @@ SpendWise is intended to help an individual record income and expenses, organize
 
 - Add, edit, and delete income and expense transactions
 - Assign dates, categories, amounts, and notes to transactions
-- Manage practical spending categories
+- Add, rename, archive, and restore custom spending categories (implemented)
 - Set and monitor monthly overall and optional category budgets (implemented)
 - View balances and monthly income and expense summaries
 - Save and reload application data using local CSV files
@@ -45,7 +45,7 @@ These features are candidates after the core workflow is complete:
 - Java standard libraries, including `java.time`, `java.math`, and `java.nio`
 - Apache Ant
 - Apache NetBeans project structure
-- UTF-8 CSV files for local expense and budget persistence
+- UTF-8 CSV files for local expense, budget, and custom-category persistence
 
 No external libraries are currently required.
 
@@ -131,6 +131,14 @@ The budget target reruns the complete earlier chain before the budget model, rep
 C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-budget
 ```
 
+## Run the category-management tests
+
+The category target reruns every earlier suite before the category model, persistence, service, and headless Swing integration suites:
+
+```powershell
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-category
+```
+
 ## Application data location
 
 On Windows, expense data is stored at:
@@ -145,11 +153,23 @@ Budget settings are stored beside it at:
 %LOCALAPPDATA%\SpendWiseExpenseTracker\data\budgets.csv
 ```
 
+Custom category definitions are stored beside both files at:
+
+```text
+%LOCALAPPDATA%\SpendWiseExpenseTracker\data\categories.csv
+```
+
 If `LOCALAPPDATA` is unavailable, SpendWise uses the equivalent location below `user.home\AppData\Local`. macOS uses `~/Library/Application Support`, while Linux and other Unix-like systems use `XDG_DATA_HOME` or the `~/.local/share` fallback.
 
-Resolving either path and starting the application are read-only operations. `expenses.csv` is created only after the first successful expense mutation, while `budgets.csv` is created only after the first successful budget save. Repository writes use safe same-directory temporary-file replacement.
+Resolving these paths and starting the application are read-only operations. `expenses.csv` is created only after the first successful expense mutation, `budgets.csv` only after the first successful budget save, and `categories.csv` only after the first successful custom-category mutation. Repository writes use safe same-directory temporary-file replacement.
 
-Opening or refreshing the Dashboard or Budgets tab is also read-only. These views do not create or rewrite either production CSV file.
+Opening or refreshing Expenses, Dashboard, Budgets, or Manage Categories is also read-only. These views do not create or rewrite any production CSV file.
+
+## Custom category management
+
+**Manage Categories** in the Expenses workspace lists every built-in and custom category with its current status. Built-in categories, including Other, keep their original identifiers, names, and ordering and cannot be renamed or archived. Custom categories can be added, renamed, archived, and restored; hard deletion is not supported.
+
+Each custom category has a stable identifier stored in expenses and budgets. Renaming changes only its display name. Archiving removes it from new expense and budget choices, while historical expenses, filters, analytics, reports, and existing budget limits continue to resolve and display it. Archiving a referenced category requires confirmation. Legacy expense and budget files using the original built-in identifiers remain compatible.
 
 ## Expense analytics dashboard
 
@@ -190,7 +210,9 @@ SpendWiseExpenseTracker/
 |       |   `-- MonthlyBudget.java
 |       |-- repository/
 |       |   |-- BudgetRepository.java
+|       |   |-- CategoryRepository.java
 |       |   |-- CsvBudgetRepository.java
+|       |   |-- CsvCategoryRepository.java
 |       |   |-- CsvExpenseCodec.java
 |       |   |-- CsvExpenseRepository.java
 |       |   |-- ExpenseRepository.java
@@ -200,6 +222,7 @@ SpendWiseExpenseTracker/
 |       |   |-- BudgetService.java
 |       |   |-- BudgetStatusSnapshot.java
 |       |   |-- BudgetUsage.java
+|       |   |-- CategoryService.java
 |       |   |-- ExpenseAnalyticsService.java
 |       |   |-- ExpenseAnalyticsSnapshot.java
 |       |   |-- ExpenseNotFoundException.java
@@ -210,6 +233,8 @@ SpendWiseExpenseTracker/
 |       |   |-- BudgetLimitTableModel.java
 |       |   |-- BudgetPanel.java
 |       |   |-- CategoryDonutChartPanel.java
+|       |   |-- CategoryManagerDialog.java
+|       |   |-- CategoryTableModel.java
 |       |   |-- DashboardPanel.java
 |       |   |-- ExpenseFormDialog.java
 |       |   |-- ExpensePanel.java
@@ -223,17 +248,21 @@ SpendWiseExpenseTracker/
 |   `-- com/spendwise/
 |       |-- config/AppPathsTest.java
 |       |-- model/
+|       |   |-- CategoryTest.java
 |       |   |-- ExpenseTest.java
 |       |   `-- MonthlyBudgetTest.java
 |       |-- repository/
 |       |   |-- CsvBudgetRepositoryTest.java
+|       |   |-- CsvCategoryRepositoryTest.java
 |       |   `-- CsvExpenseRepositoryTest.java
 |       |-- service/
 |       |   |-- BudgetServiceTest.java
+|       |   |-- CategoryServiceTest.java
 |       |   |-- ExpenseAnalyticsServiceTest.java
 |       |   `-- ExpenseServiceTest.java
 |       `-- ui/
 |           |-- BudgetFoundationTest.java
+|           |-- CategoryManagementTest.java
 |           |-- DashboardFoundationTest.java
 |           `-- SwingFoundationTest.java
 |-- docs/
@@ -246,6 +275,6 @@ SpendWiseExpenseTracker/
 
 The generated `build/` and `dist/` directories and the machine-specific `nbproject/private/` directory are intentionally excluded from version control.
 
-The expense CSV repository supports commas, doubled quotes, Unicode, and quoted line breaks. Budget settings use the separate `month,scope,category,amount` format. Mutations write a complete temporary file in the destination directory and replace the previous file only after the temporary content is closed and flushed. Corrupt budget data is never silently reset or overwritten.
+The expense CSV repository supports commas, doubled quotes, Unicode, and quoted line breaks. Budget settings use the separate `month,scope,category,amount` format, while custom categories use `id,name,status`. Mutations write a complete temporary file in the destination directory and replace the previous file only after the temporary content is closed, flushed, and forced to storage. Corrupt expense, budget, or category data is never silently reset or overwritten.
 
 Income, recurring transactions, authentication, dark mode, backup/restore, import/export, printing, cloud synchronization, and website functionality are not implemented. Exported reports and multi-process file locking also remain outside the current scope.

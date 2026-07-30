@@ -10,7 +10,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -114,9 +114,7 @@ public final class ExpenseService {
             }
             totalAmount = totalAmount.add(expense.getAmount());
             Category category = expense.getCategory();
-            totalsByCategory.put(
-                    category,
-                    totalsByCategory.get(category).add(expense.getAmount()));
+            totalsByCategory.merge(category, expense.getAmount(), BigDecimal::add);
         }
 
         BigDecimal averageAmount = expenses.isEmpty()
@@ -152,7 +150,7 @@ public final class ExpenseService {
     }
 
     private static boolean matchesCategory(Expense expense, Category category) {
-        return category == null || expense.getCategory() == category;
+        return category == null || expense.getCategory().equals(category);
     }
 
     private static boolean matchesDateRange(
@@ -186,7 +184,7 @@ public final class ExpenseService {
     }
 
     private static Map<Category, BigDecimal> emptyCategoryTotals() {
-        EnumMap<Category, BigDecimal> totals = new EnumMap<>(Category.class);
+        LinkedHashMap<Category, BigDecimal> totals = new LinkedHashMap<>();
         for (Category category : Category.values()) {
             totals.put(category, ZERO_AMOUNT);
         }

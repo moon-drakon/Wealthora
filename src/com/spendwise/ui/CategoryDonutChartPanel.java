@@ -11,7 +11,7 @@ import java.awt.RenderingHints;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Collections;
-import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import javax.swing.JPanel;
@@ -110,9 +110,11 @@ final class CategoryDonutChartPanel extends JPanel {
         int startAngle = 90;
         int remainingAngle = 360;
         int remainingPositiveCategories = positiveCategoryCount();
-        for (Category category : Category.values()) {
-            BigDecimal amount = categoryTotals.get(category);
+        int colorIndex = 0;
+        for (Map.Entry<Category, BigDecimal> entry : categoryTotals.entrySet()) {
+            BigDecimal amount = entry.getValue();
             if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+                colorIndex++;
                 continue;
             }
 
@@ -127,10 +129,11 @@ final class CategoryDonutChartPanel extends JPanel {
                 arcAngle = Math.max(
                         1, Math.min(maximumAngle, (int) Math.round(angle)));
             }
-            graphics.setColor(CATEGORY_COLORS[category.ordinal()]);
+            graphics.setColor(CATEGORY_COLORS[colorIndex % CATEGORY_COLORS.length]);
             graphics.fillArc(donutX, donutY, diameter, diameter, startAngle, -arcAngle);
             startAngle -= arcAngle;
             remainingAngle -= arcAngle;
+            colorIndex++;
         }
 
         int holeDiameter = (int) (diameter * 0.58);
@@ -147,24 +150,29 @@ final class CategoryDonutChartPanel extends JPanel {
     private void drawLegend(Graphics2D graphics) {
         int legendX = Math.max(270, (int) (getWidth() * 0.53));
         int legendY = 58;
-        int rowHeight = Math.max(25, (getHeight() - legendY - 14) / Category.values().length);
+        int rowHeight = Math.max(
+                20,
+                (getHeight() - legendY - 14) / Math.max(1, categoryTotals.size()));
         graphics.setFont(getFont().deriveFont(12f));
 
-        for (Category category : Category.values()) {
-            int rowY = legendY + category.ordinal() * rowHeight;
-            graphics.setColor(CATEGORY_COLORS[category.ordinal()]);
+        int categoryIndex = 0;
+        for (Map.Entry<Category, BigDecimal> entry : categoryTotals.entrySet()) {
+            Category category = entry.getKey();
+            int rowY = legendY + categoryIndex * rowHeight;
+            graphics.setColor(CATEGORY_COLORS[categoryIndex % CATEGORY_COLORS.length]);
             graphics.fillRoundRect(legendX, rowY, 12, 12, 3, 3);
 
             graphics.setColor(TEXT_COLOR);
             graphics.drawString(category.getDisplayName(), legendX + 20, rowY + 11);
 
-            String amountText = categoryTotals.get(category).toPlainString();
+            String amountText = entry.getValue().toPlainString();
             FontMetrics metrics = graphics.getFontMetrics();
             int amountX = Math.max(
                     legendX + 135,
                     getWidth() - 22 - metrics.stringWidth(amountText));
             graphics.setColor(SECONDARY_TEXT);
             graphics.drawString(amountText, amountX, rowY + 11);
+            categoryIndex++;
         }
     }
 
@@ -207,16 +215,22 @@ final class CategoryDonutChartPanel extends JPanel {
                     entry.getValue(), "Category chart data cannot contain null values.");
         }
 
-        EnumMap<Category, BigDecimal> copiedTotals = new EnumMap<>(Category.class);
+        LinkedHashMap<Category, BigDecimal> copiedTotals = new LinkedHashMap<>();
         for (Category category : Category.values()) {
             BigDecimal amount = suppliedTotals.getOrDefault(category, ZERO_AMOUNT);
             copiedTotals.put(category, amount.setScale(2, RoundingMode.UNNECESSARY));
         }
+        suppliedTotals.entrySet().stream()
+                .filter(entry -> !entry.getKey().isBuiltIn())
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(entry -> copiedTotals.put(
+                        entry.getKey(),
+                        entry.getValue().setScale(2, RoundingMode.UNNECESSARY)));
         return Collections.unmodifiableMap(copiedTotals);
     }
 
     private static Map<Category, BigDecimal> emptyCategoryTotals() {
-        EnumMap<Category, BigDecimal> totals = new EnumMap<>(Category.class);
+        LinkedHashMap<Category, BigDecimal> totals = new LinkedHashMap<>();
         for (Category category : Category.values()) {
             totals.put(category, ZERO_AMOUNT);
         }

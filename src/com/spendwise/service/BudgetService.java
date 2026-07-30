@@ -6,7 +6,9 @@ import com.spendwise.repository.BudgetRepository;
 import com.spendwise.validation.ValidationException;
 import java.math.BigDecimal;
 import java.time.YearMonth;
-import java.util.EnumMap;
+import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
+import java.util.Set;
 import java.util.Objects;
 
 public final class BudgetService {
@@ -40,6 +42,11 @@ public final class BudgetService {
                 Objects.requireNonNull(month, "Budget month is required."));
     }
 
+    public boolean isCategoryReferenced(Category category) {
+        return budgetRepository.isCategoryReferenced(
+                Objects.requireNonNull(category, "Budget category is required."));
+    }
+
     public BudgetStatusSnapshot evaluate(
             ExpenseAnalyticsSnapshot analyticsSnapshot) {
         ExpenseAnalyticsSnapshot requiredSnapshot = Objects.requireNonNull(
@@ -49,9 +56,12 @@ public final class BudgetService {
 
         BudgetUsage overallUsage = new BudgetUsage(
                 summary.getTotalAmount(), budget.getOverallLimit());
-        EnumMap<Category, BudgetUsage> categoryUsage =
-                new EnumMap<>(Category.class);
-        for (Category category : Category.values()) {
+        LinkedHashMap<Category, BudgetUsage> categoryUsage = new LinkedHashMap<>();
+        Set<Category> categories = new LinkedHashSet<>();
+        categories.addAll(java.util.List.of(Category.values()));
+        categories.addAll(summary.getTotalsByCategory().keySet());
+        categories.addAll(budget.getCategoryLimits().keySet());
+        for (Category category : categories) {
             categoryUsage.put(
                     category,
                     new BudgetUsage(

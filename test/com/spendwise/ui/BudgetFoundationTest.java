@@ -26,7 +26,7 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
-import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -447,7 +447,7 @@ public class BudgetFoundationTest {
             Map<Category, String> categoryTotals) {
         BudgetUsage overall = new BudgetUsage(
                 new BigDecimal(total), budget.getOverallLimit());
-        EnumMap<Category, BudgetUsage> usages = new EnumMap<>(Category.class);
+        LinkedHashMap<Category, BudgetUsage> usages = new LinkedHashMap<>();
         for (Category category : Category.values()) {
             usages.put(
                     category,

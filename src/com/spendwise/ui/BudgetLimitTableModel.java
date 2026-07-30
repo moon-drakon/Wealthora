@@ -5,9 +5,13 @@ import com.spendwise.service.BudgetAlertLevel;
 import com.spendwise.service.BudgetStatusSnapshot;
 import com.spendwise.service.BudgetUsage;
 import java.math.BigDecimal;
-import java.util.EnumMap;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import javax.swing.table.AbstractTableModel;
 
 final class BudgetLimitTableModel extends AbstractTableModel {
@@ -17,27 +21,42 @@ final class BudgetLimitTableModel extends AbstractTableModel {
         "Category", "Spent", "Limit", "Remaining", "Status"
     };
 
+    private List<Category> categories = List.of(Category.values());
     private final Map<Category, BudgetUsage> usageByCategory =
-            new EnumMap<>(Category.class);
-    private final Object[] limitValues = new Object[Category.values().length];
+            new LinkedHashMap<>();
+    private final Map<Category, Object> limitValues = new LinkedHashMap<>();
 
     BudgetLimitTableModel() {
-        for (Category category : Category.values()) {
-            usageByCategory.put(
-                    category,
-                    new BudgetUsage(new BigDecimal("0.00"), java.util.Optional.empty()));
-            limitValues[category.ordinal()] = "";
+        for (Category category : categories) {
+            usageByCategory.put(category, emptyUsage());
+            limitValues.put(category, "");
         }
     }
 
     void replaceStatus(BudgetStatusSnapshot snapshot) {
+        replaceStatus(snapshot, List.of(Category.values()));
+    }
+
+    void replaceStatus(
+            BudgetStatusSnapshot snapshot, List<Category> selectableCategories) {
         BudgetStatusSnapshot requiredSnapshot = Objects.requireNonNull(
                 snapshot, "Budget status snapshot is required.");
-        for (Category category : Category.values()) {
-            BudgetUsage usage = requiredSnapshot.getUsageForCategory(category);
+        Objects.requireNonNull(
+                selectableCategories, "Selectable categories are required.");
+
+        LinkedHashSet<Category> orderedCategories =
+                new LinkedHashSet<>(selectableCategories);
+        orderedCategories.addAll(requiredSnapshot.getCategoryUsage().keySet());
+        categories = List.copyOf(orderedCategories);
+        usageByCategory.clear();
+        limitValues.clear();
+        for (Category category : categories) {
+            BudgetUsage usage = requiredSnapshot.getCategoryUsage()
+                    .getOrDefault(category, emptyUsage());
             usageByCategory.put(category, usage);
-            limitValues[category.ordinal()] =
-                    usage.getLimit().<Object>map(value -> value).orElse("");
+            limitValues.put(
+                    category,
+                    usage.getLimit().<Object>map(value -> value).orElse(""));
         }
         fireTableDataChanged();
     }
@@ -47,7 +66,7 @@ final class BudgetLimitTableModel extends AbstractTableModel {
             throw new IndexOutOfBoundsException(
                     "Budget row index is out of range: " + rowIndex);
         }
-        return Category.values()[rowIndex];
+        return categories.get(rowIndex);
     }
 
     BudgetUsage getUsageAt(int rowIndex) {
@@ -55,31 +74,39 @@ final class BudgetLimitTableModel extends AbstractTableModel {
     }
 
     String getLimitTextAt(int rowIndex) {
-        Object value = limitValues[getCategoryAt(rowIndex).ordinal()];
+        Object value = limitValues.get(getCategoryAt(rowIndex));
         return value == null ? "" : value.toString();
     }
 
     Object getLimitValueAt(int rowIndex) {
-        return limitValues[getCategoryAt(rowIndex).ordinal()];
+        return limitValues.get(getCategoryAt(rowIndex));
     }
 
     void restoreLimitValues(Object[] values) {
         Objects.requireNonNull(values, "Budget limit values are required.");
-        if (values.length != limitValues.length) {
+        if (values.length != categories.size()) {
             throw new IllegalArgumentException(
                     "Budget limit value count is incorrect.");
         }
-        System.arraycopy(values, 0, limitValues, 0, values.length);
-        fireTableRowsUpdated(0, getRowCount() - 1);
+        for (int index = 0; index < values.length; index++) {
+            limitValues.put(categories.get(index), values[index]);
+        }
+        if (!categories.isEmpty()) {
+            fireTableRowsUpdated(0, getRowCount() - 1);
+        }
     }
 
     Object[] copyLimitValues() {
-        return limitValues.clone();
+        List<Object> values = new ArrayList<>(categories.size());
+        for (Category category : categories) {
+            values.add(limitValues.get(category));
+        }
+        return values.toArray();
     }
 
     @Override
     public int getRowCount() {
-        return Category.values().length;
+        return categories.size();
     }
 
     @Override
@@ -111,7 +138,7 @@ final class BudgetLimitTableModel extends AbstractTableModel {
         return switch (columnIndex) {
             case 0 -> category.getDisplayName();
             case 1 -> usage.getSpent();
-            case 2 -> limitValues[rowIndex];
+            case 2 -> limitValues.get(category);
             case 3 -> usage.getRemaining().<Object>map(value -> value).orElse("Not set");
             case 4 -> usage.getAlertLevel();
             default -> throw new IndexOutOfBoundsException(
@@ -121,16 +148,21 @@ final class BudgetLimitTableModel extends AbstractTableModel {
 
     @Override
     public boolean isCellEditable(int rowIndex, int columnIndex) {
-        return columnIndex == LIMIT_COLUMN;
+        return columnIndex == LIMIT_COLUMN
+                && getCategoryAt(rowIndex).isActive();
     }
 
     @Override
     public void setValueAt(Object value, int rowIndex, int columnIndex) {
-        getCategoryAt(rowIndex);
-        if (columnIndex != LIMIT_COLUMN) {
+        Category category = getCategoryAt(rowIndex);
+        if (columnIndex != LIMIT_COLUMN || category.isArchived()) {
             return;
         }
-        limitValues[rowIndex] = value == null ? "" : value;
+        limitValues.put(category, value == null ? "" : value);
         fireTableCellUpdated(rowIndex, columnIndex);
+    }
+
+    private static BudgetUsage emptyUsage() {
+        return new BudgetUsage(new BigDecimal("0.00"), Optional.empty());
     }
 }

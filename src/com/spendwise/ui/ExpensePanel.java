@@ -6,6 +6,7 @@ import com.spendwise.repository.RepositoryException;
 import com.spendwise.service.ExpenseService;
 import com.spendwise.service.ExpenseSortOrder;
 import com.spendwise.service.ExpenseSummary;
+import com.spendwise.service.CategoryService;
 import com.spendwise.validation.ValidationException;
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -23,6 +24,8 @@ import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Objects;
+import java.util.ArrayList;
+import java.util.function.Predicate;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -49,6 +52,9 @@ public final class ExpensePanel extends JPanel {
     private static final Color SECONDARY_TEXT = new Color(80, 90, 100);
 
     private final ExpenseService expenseService;
+    private final CategoryService categoryService;
+    private final Predicate<Category> categoryReferenceChecker;
+    private final Runnable categoryChangeListener;
     private final ExpenseTableModel tableModel = new ExpenseTableModel();
     private final JTable expenseTable = new JTable(tableModel);
     private final JTextField searchField = new JTextField(20);
@@ -62,9 +68,23 @@ public final class ExpensePanel extends JPanel {
     private final JLabel statusLabel = new JLabel("Loading expenses...");
 
     public ExpensePanel(ExpenseService expenseService) {
+        this(expenseService, null, category -> false, () -> {
+        });
+    }
+
+    public ExpensePanel(
+            ExpenseService expenseService,
+            CategoryService categoryService,
+            Predicate<Category> categoryReferenceChecker,
+            Runnable categoryChangeListener) {
         requireEventDispatchThread();
         this.expenseService = Objects.requireNonNull(
                 expenseService, "Expense service is required.");
+        this.categoryService = categoryService;
+        this.categoryReferenceChecker = Objects.requireNonNull(
+                categoryReferenceChecker, "Category reference checker is required.");
+        this.categoryChangeListener = Objects.requireNonNull(
+                categoryChangeListener, "Category change listener is required.");
 
         populateFilterChoices();
         buildInterface();
@@ -83,35 +103,66 @@ public final class ExpensePanel extends JPanel {
         return averageAmountValue.getText();
     }
 
+    int getCategoryFilterChoiceCount() {
+        return categoryComboBox.getItemCount();
+    }
+
+    Category getCategoryFilterChoiceAt(int index) {
+        return categoryComboBox.getItemAt(index).category();
+    }
+
+    List<Category> getSelectableCategorySnapshot(Expense expenseToEdit) {
+        return selectableCategories(expenseToEdit);
+    }
+
+    public void refreshCategoryChoices() {
+        requireEventDispatchThread();
+        String selectedIdentifier = selectedCategory() == null
+                ? null
+                : selectedCategory().getIdentifier();
+        populateFilterChoices();
+        if (selectedIdentifier != null) {
+            selectCategoryFilter(selectedIdentifier);
+        }
+        loadCurrentView("Categories refreshed.", false);
+    }
+
     private void populateFilterChoices() {
+        categoryComboBox.removeAllItems();
         categoryComboBox.addItem(new CategoryChoice(null, "All Categories"));
-        for (Category category : Category.values()) {
+        for (Category category : availableCategories()) {
             categoryComboBox.addItem(
                     new CategoryChoice(category, category.getDisplayName()));
         }
 
-        sortComboBox.addItem(
-                new SortChoice(ExpenseSortOrder.ORIGINAL_ORDER, "Original Order"));
-        sortComboBox.addItem(
-                new SortChoice(ExpenseSortOrder.DATE_NEWEST_FIRST, "Date: Newest First"));
-        sortComboBox.addItem(
-                new SortChoice(ExpenseSortOrder.DATE_OLDEST_FIRST, "Date: Oldest First"));
-        sortComboBox.addItem(
-                new SortChoice(
-                        ExpenseSortOrder.AMOUNT_HIGHEST_FIRST,
-                        "Amount: Highest First"));
-        sortComboBox.addItem(
-                new SortChoice(
-                        ExpenseSortOrder.AMOUNT_LOWEST_FIRST,
-                        "Amount: Lowest First"));
-        sortComboBox.addItem(
-                new SortChoice(
-                        ExpenseSortOrder.DESCRIPTION_A_TO_Z,
-                        "Description: A to Z"));
-        sortComboBox.addItem(
-                new SortChoice(
-                        ExpenseSortOrder.DESCRIPTION_Z_TO_A,
-                        "Description: Z to A"));
+        if (sortComboBox.getItemCount() == 0) {
+            sortComboBox.addItem(
+                    new SortChoice(ExpenseSortOrder.ORIGINAL_ORDER, "Original Order"));
+            sortComboBox.addItem(
+                    new SortChoice(
+                            ExpenseSortOrder.DATE_NEWEST_FIRST,
+                            "Date: Newest First"));
+            sortComboBox.addItem(
+                    new SortChoice(
+                            ExpenseSortOrder.DATE_OLDEST_FIRST,
+                            "Date: Oldest First"));
+            sortComboBox.addItem(
+                    new SortChoice(
+                            ExpenseSortOrder.AMOUNT_HIGHEST_FIRST,
+                            "Amount: Highest First"));
+            sortComboBox.addItem(
+                    new SortChoice(
+                            ExpenseSortOrder.AMOUNT_LOWEST_FIRST,
+                            "Amount: Lowest First"));
+            sortComboBox.addItem(
+                    new SortChoice(
+                            ExpenseSortOrder.DESCRIPTION_A_TO_Z,
+                            "Description: A to Z"));
+            sortComboBox.addItem(
+                    new SortChoice(
+                            ExpenseSortOrder.DESCRIPTION_Z_TO_A,
+                            "Description: Z to A"));
+        }
     }
 
     private void buildInterface() {
@@ -165,8 +216,18 @@ public final class ExpensePanel extends JPanel {
                 "Open the form for a new expense");
         addButton.addActionListener(event -> addExpense());
 
+        JPanel headerActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        headerActions.setOpaque(false);
+        if (categoryService != null) {
+            JButton manageCategoriesButton = new JButton("Manage Categories");
+            manageCategoriesButton.addActionListener(
+                    event -> manageCategories());
+            headerActions.add(manageCategoriesButton);
+        }
+        headerActions.add(addButton);
+
         headerPanel.add(titlePanel, BorderLayout.CENTER);
-        headerPanel.add(addButton, BorderLayout.EAST);
+        headerPanel.add(headerActions, BorderLayout.EAST);
         return headerPanel;
     }
 
@@ -316,7 +377,8 @@ public final class ExpensePanel extends JPanel {
     private void addExpense() {
         Window owner = SwingUtilities.getWindowAncestor(this);
         ExpenseFormDialog dialog =
-                new ExpenseFormDialog(owner, expenseService, null);
+                new ExpenseFormDialog(
+                        owner, expenseService, null, selectableCategories(null));
         if (dialog.showDialog()) {
             loadCurrentView("Expense added.", true);
         }
@@ -335,10 +397,27 @@ public final class ExpensePanel extends JPanel {
 
         Window owner = SwingUtilities.getWindowAncestor(this);
         ExpenseFormDialog dialog =
-                new ExpenseFormDialog(owner, expenseService, selectedExpense);
+                new ExpenseFormDialog(
+                        owner,
+                        expenseService,
+                        selectedExpense,
+                        selectableCategories(selectedExpense));
         if (dialog.showDialog()) {
             loadCurrentView("Expense updated.", true);
         }
+    }
+
+    private void manageCategories() {
+        Window owner = SwingUtilities.getWindowAncestor(this);
+        CategoryManagerDialog dialog = new CategoryManagerDialog(
+                owner,
+                categoryService,
+                categoryReferenceChecker,
+                () -> {
+                    refreshCategoryChoices();
+                    categoryChangeListener.run();
+                });
+        dialog.showDialog();
     }
 
     private void deleteSelectedExpense() {
@@ -475,6 +554,34 @@ public final class ExpensePanel extends JPanel {
         CategoryChoice selectedChoice =
                 (CategoryChoice) categoryComboBox.getSelectedItem();
         return selectedChoice == null ? null : selectedChoice.category();
+    }
+
+    private List<Category> availableCategories() {
+        return categoryService == null
+                ? List.of(Category.values())
+                : categoryService.listAllCategories();
+    }
+
+    private List<Category> selectableCategories(Expense expenseToEdit) {
+        List<Category> categories = new ArrayList<>(categoryService == null
+                ? List.of(Category.values())
+                : categoryService.listSelectableCategories());
+        if (expenseToEdit != null
+                && !categories.contains(expenseToEdit.getCategory())) {
+            categories.add(expenseToEdit.getCategory());
+        }
+        return List.copyOf(categories);
+    }
+
+    private void selectCategoryFilter(String identifier) {
+        for (int index = 1; index < categoryComboBox.getItemCount(); index++) {
+            CategoryChoice choice = categoryComboBox.getItemAt(index);
+            if (choice.category().getIdentifier().equals(identifier)) {
+                categoryComboBox.setSelectedIndex(index);
+                return;
+            }
+        }
+        categoryComboBox.setSelectedIndex(0);
     }
 
     private ExpenseSortOrder selectedSortOrder() {

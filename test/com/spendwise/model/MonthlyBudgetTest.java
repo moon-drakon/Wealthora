@@ -3,7 +3,6 @@ package com.spendwise.model;
 import com.spendwise.validation.ValidationException;
 import java.math.BigDecimal;
 import java.time.YearMonth;
-import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -63,7 +62,7 @@ public class MonthlyBudgetTest {
     }
 
     private static void nullAmountIsRejected() {
-        Map<Category, BigDecimal> limits = new EnumMap<>(Category.class);
+        Map<Category, BigDecimal> limits = new LinkedHashMap<>();
         limits.put(Category.FOOD, null);
         expectThrows(NullPointerException.class,
                 () -> new MonthlyBudget(MONTH, Optional.empty(), limits));
@@ -111,7 +110,7 @@ public class MonthlyBudgetTest {
     }
 
     private static void inputMapIsCopied() {
-        EnumMap<Category, BigDecimal> input = new EnumMap<>(Category.class);
+        LinkedHashMap<Category, BigDecimal> input = new LinkedHashMap<>();
         input.put(Category.FOOD, new BigDecimal("10.00"));
         MonthlyBudget budget =
                 new MonthlyBudget(MONTH, Optional.empty(), input);

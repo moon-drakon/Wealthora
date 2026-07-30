@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 
 final class CsvExpenseCodec {
 
@@ -54,8 +55,16 @@ final class CsvExpenseCodec {
     }
 
     static List<Expense> decode(String csvText) {
+        return decode(csvText, Category::valueOf);
+    }
+
+    static List<Expense> decode(
+            String csvText, Function<String, Category> categoryResolver) {
         if (csvText == null) {
             throw new RepositoryException("CSV text is required.");
+        }
+        if (categoryResolver == null) {
+            throw new RepositoryException("Category resolver is required.");
         }
         if (csvText.isEmpty()) {
             return List.of();
@@ -92,7 +101,7 @@ final class CsvExpenseCodec {
                         + COLUMN_COUNT + " columns.");
             }
 
-            Expense expense = decodeExpense(fields, recordNumber);
+            Expense expense = decodeExpense(fields, recordNumber, categoryResolver);
             if (!expenseIds.add(expense.getId())) {
                 throw new RepositoryException(
                         "CSV record " + recordNumber + " contains duplicate expense ID: "
@@ -109,7 +118,10 @@ final class CsvExpenseCodec {
                 || content.startsWith(HEADER + "\r\n");
     }
 
-    private static Expense decodeExpense(List<String> fields, int recordNumber) {
+    private static Expense decodeExpense(
+            List<String> fields,
+            int recordNumber,
+            Function<String, Category> categoryResolver) {
         BigDecimal amount;
         try {
             amount = new BigDecimal(fields.get(2));
@@ -126,8 +138,8 @@ final class CsvExpenseCodec {
 
         Category category;
         try {
-            category = Category.valueOf(fields.get(4));
-        } catch (IllegalArgumentException exception) {
+            category = categoryResolver.apply(fields.get(4));
+        } catch (RuntimeException exception) {
             throw invalidField(recordNumber, "category", exception);
         }
 

@@ -25,6 +25,9 @@ public class AppPathsTest {
         runTest("budget sibling path", AppPathsTest::budgetPathIsExpenseSibling);
         runTest("budget filename", AppPathsTest::budgetPathHasExpectedSuffix);
         runTest("budget resolution side effects", AppPathsTest::budgetResolutionCreatesNothing);
+        runTest("category sibling path", AppPathsTest::categoryPathIsDataSibling);
+        runTest("category filename", AppPathsTest::categoryPathHasExpectedSuffix);
+        runTest("category resolution side effects", AppPathsTest::categoryResolutionCreatesNothing);
 
         System.out.println("All " + passedTests + " AppPaths tests passed.");
     }
@@ -203,6 +206,40 @@ public class AppPathsTest {
 
         assertFalse(Files.exists(root), "Budget path resolution created a directory.");
         assertFalse(Files.exists(resolved), "Budget path resolution created the CSV file.");
+    }
+
+    private static void categoryPathIsDataSibling() {
+        Path root = syntheticRoot("category-sibling");
+        Path expensePath = AppPaths.resolveExpenseCsvPath(
+                "Windows 11", root.toString(), null, null);
+        Path budgetPath = AppPaths.resolveBudgetCsvPath(
+                "Windows 11", root.toString(), null, null);
+        Path categoryPath = AppPaths.resolveCategoryCsvPath(
+                "Windows 11", root.toString(), null, null);
+
+        assertEquals(expensePath.getParent(), categoryPath.getParent(),
+                "Category and expense CSV files should be siblings.");
+        assertEquals(budgetPath.getParent(), categoryPath.getParent(),
+                "Category and budget CSV files should be siblings.");
+    }
+
+    private static void categoryPathHasExpectedSuffix() {
+        Path actual = AppPaths.resolveCategoryCsvPath(
+                "Linux", null, syntheticRoot("category-suffix").toString(), null);
+
+        assertTrue(
+                actual.endsWith(Path.of(
+                        "SpendWiseExpenseTracker", "data", "categories.csv")),
+                "Category path has the wrong application-data suffix.");
+    }
+
+    private static void categoryResolutionCreatesNothing() {
+        Path root = syntheticRoot("category-no-side-effects");
+        Path resolved = AppPaths.resolveCategoryCsvPath(
+                "Windows 11", root.resolve("local").toString(), null, null);
+
+        assertFalse(Files.exists(root), "Category path resolution created a directory.");
+        assertFalse(Files.exists(resolved), "Category path resolution created the CSV file.");
     }
 
     private static Path expectedExpensePath(Path dataRoot) {

@@ -28,6 +28,15 @@ public final class AppPaths {
                 "budgets.csv");
     }
 
+    public static Path getCategoryCsvPath() {
+        return resolveDataFilePath(
+                System.getProperty("os.name"),
+                System.getenv("LOCALAPPDATA"),
+                System.getenv("XDG_DATA_HOME"),
+                System.getProperty("user.home"),
+                "categories.csv");
+    }
+
     static Path resolveExpenseCsvPath(
             String operatingSystemName,
             String localAppData,
@@ -52,6 +61,19 @@ public final class AppPaths {
                 xdgDataHome,
                 userHome,
                 "budgets.csv");
+    }
+
+    static Path resolveCategoryCsvPath(
+            String operatingSystemName,
+            String localAppData,
+            String xdgDataHome,
+            String userHome) {
+        return resolveDataFilePath(
+                operatingSystemName,
+                localAppData,
+                xdgDataHome,
+                userHome,
+                "categories.csv");
     }
 
     private static Path resolveDataFilePath(

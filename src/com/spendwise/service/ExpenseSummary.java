@@ -5,7 +5,7 @@ import com.spendwise.validation.ExpenseValidator;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Collections;
-import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -30,13 +30,21 @@ public final class ExpenseSummary {
 
         Map<Category, BigDecimal> requiredTotals = Objects.requireNonNull(
                 totalsByCategory, "Category totals are required.");
-        EnumMap<Category, BigDecimal> copiedTotals = new EnumMap<>(Category.class);
+        LinkedHashMap<Category, BigDecimal> copiedTotals = new LinkedHashMap<>();
         for (Category category : Category.values()) {
             BigDecimal categoryTotal = requiredTotals.getOrDefault(category, ZERO_AMOUNT);
             copiedTotals.put(
                     category,
                     normalizeMoney(categoryTotal, "Category total for " + category.name()));
         }
+        requiredTotals.entrySet().stream()
+                .filter(entry -> !entry.getKey().isBuiltIn())
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(entry -> copiedTotals.put(
+                        entry.getKey(),
+                        normalizeMoney(
+                                entry.getValue(),
+                                "Category total for " + entry.getKey().name())));
         this.totalsByCategory = Collections.unmodifiableMap(copiedTotals);
     }
 
@@ -57,7 +65,8 @@ public final class ExpenseSummary {
     }
 
     public BigDecimal getTotalForCategory(Category category) {
-        return totalsByCategory.get(ExpenseValidator.validateCategory(category));
+        return totalsByCategory.getOrDefault(
+                ExpenseValidator.validateCategory(category), ZERO_AMOUNT);
     }
 
     private static BigDecimal normalizeMoney(BigDecimal amount, String fieldName) {

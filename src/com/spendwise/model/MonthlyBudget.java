@@ -5,7 +5,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.YearMonth;
 import java.util.Collections;
-import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -65,7 +65,7 @@ public final class MonthlyBudget {
                     entry.getValue(), "Category limits cannot contain a null amount.");
         }
 
-        EnumMap<Category, BigDecimal> copiedLimits = new EnumMap<>(Category.class);
+        LinkedHashMap<Category, BigDecimal> copiedLimits = new LinkedHashMap<>();
         for (Category category : Category.values()) {
             if (suppliedLimits.containsKey(category)) {
                 copiedLimits.put(
@@ -75,6 +75,14 @@ public final class MonthlyBudget {
                                 category.getDisplayName() + " limit"));
             }
         }
+        suppliedLimits.entrySet().stream()
+                .filter(entry -> !entry.getKey().isBuiltIn())
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(entry -> copiedLimits.put(
+                        entry.getKey(),
+                        normalizeLimit(
+                                entry.getValue(),
+                                entry.getKey().getDisplayName() + " limit")));
         return Collections.unmodifiableMap(copiedLimits);
     }
 

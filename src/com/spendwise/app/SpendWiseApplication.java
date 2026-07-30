@@ -2,8 +2,10 @@ package com.spendwise.app;
 
 import com.spendwise.config.AppPaths;
 import com.spendwise.repository.CsvBudgetRepository;
+import com.spendwise.repository.CsvCategoryRepository;
 import com.spendwise.repository.CsvExpenseRepository;
 import com.spendwise.service.BudgetService;
+import com.spendwise.service.CategoryService;
 import com.spendwise.service.ExpenseAnalyticsService;
 import com.spendwise.service.ExpenseService;
 import com.spendwise.ui.SpendWiseFrame;
@@ -25,19 +27,29 @@ public final class SpendWiseApplication {
     private static void startApplication() {
         applySystemLookAndFeel();
         try {
+            Path categoryCsvPath = AppPaths.getCategoryCsvPath();
+            CsvCategoryRepository categoryRepository =
+                    new CsvCategoryRepository(categoryCsvPath);
+            CategoryService categoryService =
+                    new CategoryService(categoryRepository);
             Path expenseCsvPath = AppPaths.getExpenseCsvPath();
             CsvExpenseRepository repository =
-                    new CsvExpenseRepository(expenseCsvPath);
+                    new CsvExpenseRepository(
+                            expenseCsvPath, categoryService::resolveCategory);
             ExpenseService expenseService = new ExpenseService(repository);
             ExpenseAnalyticsService analyticsService =
                     new ExpenseAnalyticsService(expenseService);
             Path budgetCsvPath = AppPaths.getBudgetCsvPath();
             CsvBudgetRepository budgetRepository =
-                    new CsvBudgetRepository(budgetCsvPath);
+                    new CsvBudgetRepository(
+                            budgetCsvPath, categoryService::resolveCategory);
             BudgetService budgetService = new BudgetService(budgetRepository);
             SpendWiseFrame frame =
                     new SpendWiseFrame(
-                            expenseService, analyticsService, budgetService);
+                            expenseService,
+                            analyticsService,
+                            budgetService,
+                            categoryService);
             frame.setVisible(true);
         } catch (RuntimeException exception) {
             JOptionPane.showMessageDialog(

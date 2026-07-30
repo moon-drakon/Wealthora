@@ -9,7 +9,6 @@ import com.spendwise.validation.ValidationException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
-import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -424,8 +423,8 @@ public class BudgetServiceTest {
             String total,
             Map<Category, String> suppliedCategoryTotals,
             List<Expense> expenses) {
-        EnumMap<Category, BigDecimal> categoryTotals =
-                new EnumMap<>(Category.class);
+        LinkedHashMap<Category, BigDecimal> categoryTotals =
+                new LinkedHashMap<>();
         for (Category category : Category.values()) {
             categoryTotals.put(
                     category,

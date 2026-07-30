@@ -14,11 +14,12 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
-import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.function.Function;
 
 public class CsvBudgetRepository implements BudgetRepository {
 
@@ -27,11 +28,19 @@ public class CsvBudgetRepository implements BudgetRepository {
     private static final String CATEGORY_SCOPE = "CATEGORY";
 
     private final Path csvPath;
+    private final Function<String, Category> categoryResolver;
 
     public CsvBudgetRepository(Path csvPath) {
+        this(csvPath, Category::valueOf);
+    }
+
+    public CsvBudgetRepository(
+            Path csvPath, Function<String, Category> categoryResolver) {
         this.csvPath = Objects.requireNonNull(csvPath, "Budget CSV path is required.")
                 .toAbsolutePath()
                 .normalize();
+        this.categoryResolver = Objects.requireNonNull(
+                categoryResolver, "Category resolver is required.");
     }
 
     @Override
@@ -62,19 +71,29 @@ public class CsvBudgetRepository implements BudgetRepository {
         return true;
     }
 
+    @Override
+    public boolean isCategoryReferenced(Category category) {
+        Category requiredCategory = Objects.requireNonNull(
+                category, "Budget category is required.");
+        return readAll().values().stream()
+                .anyMatch(budget ->
+                    budget.getCategoryLimits().containsKey(requiredCategory));
+    }
+
     private TreeMap<YearMonth, MonthlyBudget> readAll() {
         try {
             if (Files.notExists(csvPath)) {
                 return new TreeMap<>();
             }
             String csvText = Files.readString(csvPath, StandardCharsets.UTF_8);
-            return decode(csvText);
+            return decode(csvText, categoryResolver);
         } catch (IOException | SecurityException exception) {
             throw new RepositoryException("Could not read budget CSV data.", exception);
         }
     }
 
-    private static TreeMap<YearMonth, MonthlyBudget> decode(String csvText) {
+    private static TreeMap<YearMonth, MonthlyBudget> decode(
+            String csvText, Function<String, Category> categoryResolver) {
         TreeMap<YearMonth, MonthlyBudget> budgets = new TreeMap<>();
         if (csvText.isEmpty()) {
             throw new RepositoryException(
@@ -116,7 +135,7 @@ public class CsvBudgetRepository implements BudgetRepository {
             YearMonth month = parseMonth(fields[0], recordNumber);
             BigDecimal amount = parseAmount(fields[3], recordNumber);
             BudgetBuilder builder = builders.computeIfAbsent(
-                    month, ignored -> new BudgetBuilder());
+                    month, ignored -> new BudgetBuilder(categoryResolver));
             switch (fields[1]) {
                 case OVERALL_SCOPE ->
                     builder.setOverall(fields[2], amount, recordNumber);
@@ -216,14 +235,16 @@ public class CsvBudgetRepository implements BudgetRepository {
                             OVERALL_SCOPE,
                             "",
                             limit));
-            for (Category category : Category.values()) {
-                budget.getCategoryLimit(category).ifPresent(limit ->
-                        appendRow(
-                                csvText,
-                                budget.getMonth(),
-                                CATEGORY_SCOPE,
-                                category.name(),
-                                limit));
+            for (Map.Entry<Category, BigDecimal> entry
+                    : budget.getCategoryLimits().entrySet()) {
+                Category category = entry.getKey();
+                BigDecimal limit = entry.getValue();
+                appendRow(
+                        csvText,
+                        budget.getMonth(),
+                        CATEGORY_SCOPE,
+                        category.name(),
+                        limit);
             }
         }
         return csvText.toString();
@@ -280,8 +301,14 @@ public class CsvBudgetRepository implements BudgetRepository {
     private static final class BudgetBuilder {
 
         private BigDecimal overallLimit;
-        private final EnumMap<Category, BigDecimal> categoryLimits =
-                new EnumMap<>(Category.class);
+        private final Function<String, Category> categoryResolver;
+        private final Map<Category, BigDecimal> categoryLimits =
+                new LinkedHashMap<>();
+
+        BudgetBuilder(Function<String, Category> categoryResolver) {
+            this.categoryResolver = Objects.requireNonNull(
+                    categoryResolver, "Category resolver is required.");
+        }
 
         void setOverall(
                 String categoryText, BigDecimal amount, int recordNumber) {
@@ -302,8 +329,8 @@ public class CsvBudgetRepository implements BudgetRepository {
                 String categoryText, BigDecimal amount, int recordNumber) {
             Category category;
             try {
-                category = Category.valueOf(categoryText);
-            } catch (IllegalArgumentException exception) {
+                category = categoryResolver.apply(categoryText);
+            } catch (RuntimeException exception) {
                 throw new RepositoryException(
                         "Budget CSV record " + recordNumber
                         + " has an unknown category.",

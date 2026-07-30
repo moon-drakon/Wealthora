@@ -3,7 +3,7 @@ package com.spendwise.service;
 import com.spendwise.model.Category;
 import java.time.YearMonth;
 import java.util.Collections;
-import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -61,7 +61,7 @@ public final class BudgetStatusSnapshot {
                     entry.getValue(), "Category budget usage cannot contain a null value.");
         }
 
-        EnumMap<Category, BudgetUsage> copiedUsage = new EnumMap<>(Category.class);
+        LinkedHashMap<Category, BudgetUsage> copiedUsage = new LinkedHashMap<>();
         for (Category category : Category.values()) {
             BudgetUsage usage = suppliedUsage.get(category);
             if (usage == null) {
@@ -70,6 +70,10 @@ public final class BudgetStatusSnapshot {
             }
             copiedUsage.put(category, usage);
         }
+        suppliedUsage.entrySet().stream()
+                .filter(entry -> !entry.getKey().isBuiltIn())
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(entry -> copiedUsage.put(entry.getKey(), entry.getValue()));
         return Collections.unmodifiableMap(copiedUsage);
     }
 

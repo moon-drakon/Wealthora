@@ -16,6 +16,7 @@ import java.awt.Window;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
+import java.util.List;
 import java.util.Objects;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -36,14 +37,25 @@ final class ExpenseFormDialog extends JDialog {
     private final JTextField descriptionField = new JTextField(28);
     private final JTextField amountField = new JTextField(14);
     private final JTextField dateField = new JTextField(14);
-    private final JComboBox<Category> categoryComboBox =
-            new JComboBox<>(Category.values());
+    private final JComboBox<Category> categoryComboBox = new JComboBox<>();
     private final JTextArea notesArea = new JTextArea(5, 28);
 
     private boolean saved;
 
     ExpenseFormDialog(
             Window owner, ExpenseService expenseService, Expense expenseToEdit) {
+        this(
+                owner,
+                expenseService,
+                expenseToEdit,
+                List.of(Category.values()));
+    }
+
+    ExpenseFormDialog(
+            Window owner,
+            ExpenseService expenseService,
+            Expense expenseToEdit,
+            List<Category> selectableCategories) {
         super(
                 owner,
                 expenseToEdit == null ? "Add Expense" : "Edit Expense",
@@ -52,6 +64,7 @@ final class ExpenseFormDialog extends JDialog {
         this.expenseService = Objects.requireNonNull(
                 expenseService, "Expense service is required.");
         this.expenseToEdit = expenseToEdit;
+        populateCategoryChoices(selectableCategories);
 
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         buildInterface();
@@ -64,6 +77,14 @@ final class ExpenseFormDialog extends JDialog {
     boolean showDialog() {
         setVisible(true);
         return saved;
+    }
+
+    int getCategoryChoiceCount() {
+        return categoryComboBox.getItemCount();
+    }
+
+    Category getCategoryChoiceAt(int index) {
+        return categoryComboBox.getItemAt(index);
     }
 
     static BigDecimal parseAmount(String amountText) {
@@ -125,6 +146,32 @@ final class ExpenseFormDialog extends JDialog {
         dateField.setText(expenseToEdit.getDate().toString());
         categoryComboBox.setSelectedItem(expenseToEdit.getCategory());
         notesArea.setText(expenseToEdit.getNotes());
+    }
+
+    private void populateCategoryChoices(List<Category> selectableCategories) {
+        Objects.requireNonNull(
+                selectableCategories, "Selectable categories are required.");
+        for (Category category : selectableCategories) {
+            categoryComboBox.addItem(Objects.requireNonNull(
+                    category, "Selectable categories cannot contain null elements."));
+        }
+        if (expenseToEdit != null
+                && !containsCategory(expenseToEdit.getCategory())) {
+            categoryComboBox.addItem(expenseToEdit.getCategory());
+        }
+        if (categoryComboBox.getItemCount() == 0) {
+            throw new IllegalArgumentException(
+                    "At least one selectable category is required.");
+        }
+    }
+
+    private boolean containsCategory(Category category) {
+        for (int index = 0; index < categoryComboBox.getItemCount(); index++) {
+            if (categoryComboBox.getItemAt(index).equals(category)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void saveExpense() {
