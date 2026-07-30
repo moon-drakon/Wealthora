@@ -64,6 +64,8 @@ public final class CategoryManagementTest {
                 CategoryManagementTest::draftsSurviveCategoryArchive);
         run("failed refresh preserves drafts",
                 CategoryManagementTest::failedRefreshPreservesDrafts);
+        run("category refresh failure preserves drafts and view",
+                CategoryManagementTest::categoryRefreshFailurePreservesDraftsAndView);
         run("wrapped refresh failure preserves success",
                 CategoryManagementTest::wrappedRefreshFailurePreservesSuccess);
         run("runtime refresh failure is contained",
@@ -328,6 +330,42 @@ public final class CategoryManagementTest {
                 "Failed refresh changed the selected month or year.");
         assertTrue(panel.hasUnsavedChanges(),
                 "Failed refresh cleared the unsaved-change state.");
+    }
+
+    private static void categoryRefreshFailurePreservesDraftsAndView()
+            throws Exception {
+        InMemoryCategoryRepository categoryRepository =
+                new InMemoryCategoryRepository();
+        CategoryService categories = new CategoryService(categoryRepository);
+        BudgetPanel panel = budgetPanel(categories);
+        YearMonth displayedPeriod = panel.getDisplayedMonth();
+        YearMonth selectedPeriod = YearMonth.of(2027, 8);
+        int originalRowCount = panel.getBudgetTableModel().getRowCount();
+        onEdt(() -> {
+            panel.setOverallLimitText("900.00");
+            panel.getBudgetTableModel().setValueAt(
+                    "75.00",
+                    rowOf(panel.getBudgetTableModel(), Category.EDUCATION),
+                    2);
+            panel.setSelectedPeriod(selectedPeriod);
+        });
+        categoryRepository.failure =
+                new RepositoryException("Test category refresh failure.");
+
+        onEdt(panel::refreshBudgetStatus);
+
+        assertEquals("900.00", panel.getOverallLimitEditorText(),
+                "Category refresh failure cleared the overall-limit draft.");
+        assertEquals("75.00", draftFor(panel, Category.EDUCATION),
+                "Category refresh failure cleared a category-limit draft.");
+        assertEquals(selectedPeriod, panel.getSelectedPeriod(),
+                "Category refresh failure changed the selected period.");
+        assertEquals(displayedPeriod, panel.getDisplayedMonth(),
+                "Category refresh failure changed the displayed period.");
+        assertEquals(originalRowCount, panel.getBudgetTableModel().getRowCount(),
+                "Category refresh failure partially replaced the budget rows.");
+        assertTrue(panel.hasUnsavedChanges(),
+                "Category refresh failure cleared the unsaved-change state.");
     }
 
     private static void wrappedRefreshFailurePreservesSuccess() {
@@ -653,9 +691,13 @@ public final class CategoryManagementTest {
             implements CategoryRepository {
 
         private final List<Category> categories = new ArrayList<>();
+        private RuntimeException failure;
 
         @Override
         public List<Category> findAll() {
+            if (failure != null) {
+                throw failure;
+            }
             return List.copyOf(categories);
         }
 

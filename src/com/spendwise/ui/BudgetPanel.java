@@ -550,7 +550,8 @@ public final class BudgetPanel extends JPanel {
                     analyticsService.analyzeMonth(selectedMonth);
             BudgetStatusSnapshot budgetSnapshot =
                     budgetService.evaluate(analyticsSnapshot);
-            applyStatus(budgetSnapshot);
+            List<Category> selectableCategorySnapshot = selectableCategories();
+            applyStatus(budgetSnapshot, selectableCategorySnapshot);
             if (preservedState != null) {
                 replacingEditorValues = true;
                 try {
@@ -607,7 +608,9 @@ public final class BudgetPanel extends JPanel {
         yearSpinner.setValue(state.selectedYear());
     }
 
-    private void applyStatus(BudgetStatusSnapshot snapshot) {
+    private void applyStatus(
+            BudgetStatusSnapshot snapshot,
+            List<Category> selectableCategorySnapshot) {
         BudgetPanelViewData viewData = BudgetPanelViewData.from(snapshot);
         replacingEditorValues = true;
         try {
@@ -618,7 +621,7 @@ public final class BudgetPanel extends JPanel {
                             .getLimit()
                             .map(BigDecimal::toPlainString)
                             .orElse(""));
-            tableModel.replaceStatus(snapshot, selectableCategories());
+            tableModel.replaceStatus(snapshot, selectableCategorySnapshot);
         } finally {
             replacingEditorValues = false;
         }
