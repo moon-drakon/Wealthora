@@ -1,0 +1,20 @@
+# Java and Ant generated output
+/build/
+/dist/
+*.class
+*.jar
+
+# NetBeans user-specific state
+/nbproject/private/
+
+# VS Code workspace state
+/.vscode/
+
+# Windows-generated files and temporary files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.tmp
+*.temp
+~$*
