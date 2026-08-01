@@ -151,7 +151,7 @@ public final class BudgetPanel extends JPanel {
         try {
             refreshStatus(
                     true,
-                    preservedState.unsavedChanges() ? preservedState : null);
+                    preservedState);
         } finally {
             restoreSelectedPeriod(preservedState);
         }
@@ -552,7 +552,7 @@ public final class BudgetPanel extends JPanel {
                     budgetService.evaluate(analyticsSnapshot);
             List<Category> selectableCategorySnapshot = selectableCategories();
             applyStatus(budgetSnapshot, selectableCategorySnapshot);
-            if (preservedState != null) {
+            if (preservedState != null && preservedState.unsavedChanges()) {
                 replacingEditorValues = true;
                 try {
                     overallLimitField.setText(preservedState.overallLimit());
@@ -564,6 +564,10 @@ public final class BudgetPanel extends JPanel {
                 unsavedChanges = preservedState.unsavedChanges();
                 statusLabel.setText(
                         selectedMonth + " status refreshed; unsaved changes remain.");
+            }
+            if (preservedState != null) {
+                restoreSelectedCategory(
+                        preservedState.selectedCategoryIdentifier());
             }
         } catch (ValidationException | RepositoryException exception) {
             selectDisplayedMonth();
@@ -598,7 +602,35 @@ public final class BudgetPanel extends JPanel {
                 tableModel.copyLimitValuesByIdentifier(),
                 (Month) monthComboBox.getSelectedItem(),
                 ((Number) yearSpinner.getValue()).intValue(),
+                selectedCategoryIdentifier(),
                 unsavedChanges);
+    }
+
+    private String selectedCategoryIdentifier() {
+        int selectedViewRow = categoryTable.getSelectedRow();
+        if (selectedViewRow < 0) {
+            return null;
+        }
+        int selectedModelRow =
+                categoryTable.convertRowIndexToModel(selectedViewRow);
+        return tableModel.getCategoryAt(selectedModelRow).getIdentifier();
+    }
+
+    private void restoreSelectedCategory(String categoryIdentifier) {
+        categoryTable.clearSelection();
+        if (categoryIdentifier == null) {
+            return;
+        }
+        for (int modelRow = 0; modelRow < tableModel.getRowCount(); modelRow++) {
+            if (tableModel.getCategoryAt(modelRow).getIdentifier()
+                    .equals(categoryIdentifier)) {
+                int viewRow = categoryTable.convertRowIndexToView(modelRow);
+                categoryTable.setRowSelectionInterval(viewRow, viewRow);
+                categoryTable.scrollRectToVisible(
+                        categoryTable.getCellRect(viewRow, 0, true));
+                return;
+            }
+        }
     }
 
     private void restoreSelectedPeriod(BudgetDraftState state) {
@@ -731,6 +763,7 @@ public final class BudgetPanel extends JPanel {
             Map<String, Object> categoryLimitsByIdentifier,
             Month selectedMonth,
             int selectedYear,
+            String selectedCategoryIdentifier,
             boolean unsavedChanges) {
     }
 

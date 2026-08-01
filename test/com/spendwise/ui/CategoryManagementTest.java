@@ -58,10 +58,14 @@ public final class CategoryManagementTest {
         run("archived budget", CategoryManagementTest::archivedBudgetRemainsVisibleReadOnly);
         run("drafts survive category add",
                 CategoryManagementTest::draftsSurviveCategoryAdd);
+        run("rename preserves budget draft period and selection",
+                CategoryManagementTest::renamePreservesBudgetState);
         run("drafts survive category restore",
                 CategoryManagementTest::draftsSurviveCategoryRestore);
         run("drafts survive category archive",
                 CategoryManagementTest::draftsSurviveCategoryArchive);
+        run("archiving selected budget category clears selection",
+                CategoryManagementTest::archiveClearsRemovedSelection);
         run("failed refresh preserves drafts",
                 CategoryManagementTest::failedRefreshPreservesDrafts);
         run("category refresh failure preserves drafts and view",
@@ -281,6 +285,48 @@ public final class CategoryManagementTest {
                 "A restored category did not start with its loaded blank value.");
     }
 
+    private static void renamePreservesBudgetState() throws Exception {
+        Category travel = custom("CUSTOM_001", "Travel", false);
+        InMemoryCategoryRepository categoryRepository =
+                repositoryWith(travel);
+        InMemoryBudgetRepository budgetRepository =
+                new InMemoryBudgetRepository();
+        CategoryService categories =
+                new CategoryService(categoryRepository);
+        BudgetPanel panel = budgetPanel(categories, budgetRepository);
+        YearMonth selectedPeriod = YearMonth.of(2028, 3);
+        onEdt(() -> {
+            panel.setOverallLimitText("850.00");
+            int travelRow = rowOf(panel.getBudgetTableModel(), travel);
+            panel.getBudgetTableModel().setValueAt(
+                    "95.00", travelRow, 2);
+            panel.getCategoryTable().setRowSelectionInterval(
+                    travelRow, travelRow);
+            panel.setSelectedPeriod(selectedPeriod);
+        });
+        int budgetMutationsBeforeRefresh = budgetRepository.mutations;
+
+        Category renamed = categories.renameCategory(
+                travel.getIdentifier(), "Trips");
+        onEdt(panel::refreshBudgetStatus);
+
+        assertEquals("850.00", panel.getOverallLimitEditorText(),
+                "Renaming a category cleared the overall-limit draft.");
+        assertEquals("95.00", draftFor(panel, renamed),
+                "Renaming a category detached its limit draft.");
+        assertEquals(selectedPeriod, panel.getSelectedPeriod(),
+                "Renaming a category changed the selected period.");
+        assertEquals(renamed.getIdentifier(), selectedBudgetCategoryId(panel),
+                "Renaming a category changed the logical table selection.");
+        assertEquals("Trips", panel.getBudgetTableModel().getValueAt(
+                rowOf(panel.getBudgetTableModel(), renamed), 0),
+                "The renamed category display name did not refresh.");
+        assertTrue(panel.hasUnsavedChanges(),
+                "Renaming a category cleared the unsaved-change state.");
+        assertEquals(budgetMutationsBeforeRefresh, budgetRepository.mutations,
+                "Refreshing categories mutated budget repository data.");
+    }
+
     private static void draftsSurviveCategoryArchive() throws Exception {
         Category travel = custom("CUSTOM_001", "Travel", false);
         Category gifts = custom("CUSTOM_002", "Gifts", false);
@@ -303,6 +349,27 @@ public final class CategoryManagementTest {
                 "Archiving shifted another custom-category draft.");
         assertEquals(-1, rowOf(panel.getBudgetTableModel(), travel),
                 "Unreferenced archived category remained a new-budget row.");
+    }
+
+    private static void archiveClearsRemovedSelection() throws Exception {
+        Category travel = custom("CUSTOM_001", "Travel", false);
+        Category gifts = custom("CUSTOM_002", "Gifts", false);
+        InMemoryCategoryRepository repository = repositoryWith(travel, gifts);
+        CategoryService categories = new CategoryService(repository);
+        BudgetPanel panel = budgetPanel(categories);
+        onEdt(() -> {
+            int travelRow = rowOf(panel.getBudgetTableModel(), travel);
+            panel.getCategoryTable().setRowSelectionInterval(
+                    travelRow, travelRow);
+        });
+
+        categories.archiveCategory(travel.getIdentifier());
+        onEdt(panel::refreshBudgetStatus);
+
+        assertEquals(-1, rowOf(panel.getBudgetTableModel(), travel),
+                "Archived category remained selectable for a new budget.");
+        assertEquals(null, selectedBudgetCategoryId(panel),
+                "Archiving the selected category silently selected another row.");
     }
 
     private static void failedRefreshPreservesDrafts() throws Exception {
@@ -594,6 +661,17 @@ public final class CategoryManagementTest {
         return panel.getBudgetTableModel().getLimitTextAt(row);
     }
 
+    private static String selectedBudgetCategoryId(BudgetPanel panel) {
+        int selectedViewRow = panel.getCategoryTable().getSelectedRow();
+        if (selectedViewRow < 0) {
+            return null;
+        }
+        int selectedModelRow = panel.getCategoryTable()
+                .convertRowIndexToModel(selectedViewRow);
+        return panel.getBudgetTableModel().getCategoryAt(selectedModelRow)
+                .getIdentifier();
+    }
+
     private static int rowOf(BudgetLimitTableModel model, Category category) {
         for (int row = 0; row < model.getRowCount(); row++) {
             if (model.getCategoryAt(row).equals(category)) {
@@ -762,6 +840,7 @@ public final class CategoryManagementTest {
 
         private final Map<YearMonth, MonthlyBudget> saved = new LinkedHashMap<>();
         private RuntimeException failure;
+        private int mutations;
 
         @Override
         public Optional<MonthlyBudget> findByMonth(YearMonth month) {
@@ -773,11 +852,13 @@ public final class CategoryManagementTest {
 
         @Override
         public void save(MonthlyBudget budget) {
+            mutations++;
             saved.put(budget.getMonth(), budget);
         }
 
         @Override
         public boolean delete(YearMonth month) {
+            mutations++;
             return saved.remove(month) != null;
         }
 
