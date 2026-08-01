@@ -1,13 +1,20 @@
 package com.spendwise.app;
 
 import com.spendwise.config.AppPaths;
+import com.spendwise.repository.CsvAccountRepository;
 import com.spendwise.repository.CsvBudgetRepository;
 import com.spendwise.repository.CsvCategoryRepository;
 import com.spendwise.repository.CsvExpenseRepository;
+import com.spendwise.repository.CsvIncomeRepository;
+import com.spendwise.repository.CsvTransferRepository;
+import com.spendwise.service.AccountService;
 import com.spendwise.service.BudgetService;
 import com.spendwise.service.CategoryService;
 import com.spendwise.service.ExpenseAnalyticsService;
 import com.spendwise.service.ExpenseService;
+import com.spendwise.service.FinanceService;
+import com.spendwise.service.IncomeService;
+import com.spendwise.service.TransferService;
 import com.spendwise.ui.SpendWiseFrame;
 import java.nio.file.Path;
 import javax.swing.JOptionPane;
@@ -32,11 +39,37 @@ public final class SpendWiseApplication {
                     new CsvCategoryRepository(categoryCsvPath);
             CategoryService categoryService =
                     new CategoryService(categoryRepository);
+            CsvAccountRepository accountRepository =
+                    new CsvAccountRepository(AppPaths.getAccountCsvPath());
+            AccountService accountService =
+                    new AccountService(accountRepository);
             Path expenseCsvPath = AppPaths.getExpenseCsvPath();
             CsvExpenseRepository repository =
                     new CsvExpenseRepository(
-                            expenseCsvPath, categoryService::resolveCategory);
-            ExpenseService expenseService = new ExpenseService(repository);
+                            expenseCsvPath,
+                            categoryService::resolveCategory,
+                            accountService::resolveAccount);
+            ExpenseService expenseService =
+                    new ExpenseService(repository, accountService);
+            CsvIncomeRepository incomeRepository =
+                    new CsvIncomeRepository(
+                            AppPaths.getIncomeCsvPath(),
+                            accountService::resolveAccount);
+            IncomeService incomeService =
+                    new IncomeService(incomeRepository, accountService);
+            CsvTransferRepository transferRepository =
+                    new CsvTransferRepository(
+                            AppPaths.getTransferCsvPath(),
+                            accountService::resolveAccount);
+            TransferService transferService =
+                    new TransferService(
+                            transferRepository, accountService);
+            FinanceService financeService =
+                    new FinanceService(
+                            accountService,
+                            expenseService,
+                            incomeService,
+                            transferService);
             ExpenseAnalyticsService analyticsService =
                     new ExpenseAnalyticsService(expenseService);
             Path budgetCsvPath = AppPaths.getBudgetCsvPath();
@@ -49,7 +82,11 @@ public final class SpendWiseApplication {
                             expenseService,
                             analyticsService,
                             budgetService,
-                            categoryService);
+                            categoryService,
+                            accountService,
+                            incomeService,
+                            transferService,
+                            financeService);
             frame.setVisible(true);
         } catch (RuntimeException exception) {
             JOptionPane.showMessageDialog(

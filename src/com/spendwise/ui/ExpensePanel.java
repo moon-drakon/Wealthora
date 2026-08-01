@@ -1,11 +1,13 @@
 package com.spendwise.ui;
 
+import com.spendwise.model.Account;
 import com.spendwise.model.Category;
 import com.spendwise.model.Expense;
 import com.spendwise.repository.RepositoryException;
 import com.spendwise.service.ExpenseService;
 import com.spendwise.service.ExpenseSortOrder;
 import com.spendwise.service.ExpenseSummary;
+import com.spendwise.service.AccountService;
 import com.spendwise.service.CategoryService;
 import com.spendwise.validation.ValidationException;
 import java.awt.BorderLayout;
@@ -53,8 +55,10 @@ public final class ExpensePanel extends JPanel {
 
     private final ExpenseService expenseService;
     private final CategoryService categoryService;
+    private final AccountService accountService;
     private final Predicate<Category> categoryReferenceChecker;
     private final Runnable categoryChangeListener;
+    private final Runnable expenseChangeListener;
     private final ExpenseTableModel tableModel = new ExpenseTableModel();
     private final JTable expenseTable = new JTable(tableModel);
     private final JTextField searchField = new JTextField(20);
@@ -68,8 +72,15 @@ public final class ExpensePanel extends JPanel {
     private final JLabel statusLabel = new JLabel("Loading expenses...");
 
     public ExpensePanel(ExpenseService expenseService) {
-        this(expenseService, null, category -> false, () -> {
-        });
+        this(
+                expenseService,
+                null,
+                null,
+                category -> false,
+                () -> {
+                },
+                () -> {
+                });
     }
 
     public ExpensePanel(
@@ -77,14 +88,34 @@ public final class ExpensePanel extends JPanel {
             CategoryService categoryService,
             Predicate<Category> categoryReferenceChecker,
             Runnable categoryChangeListener) {
+        this(
+                expenseService,
+                categoryService,
+                null,
+                categoryReferenceChecker,
+                categoryChangeListener,
+                () -> {
+                });
+    }
+
+    public ExpensePanel(
+            ExpenseService expenseService,
+            CategoryService categoryService,
+            AccountService accountService,
+            Predicate<Category> categoryReferenceChecker,
+            Runnable categoryChangeListener,
+            Runnable expenseChangeListener) {
         requireEventDispatchThread();
         this.expenseService = Objects.requireNonNull(
                 expenseService, "Expense service is required.");
         this.categoryService = categoryService;
+        this.accountService = accountService;
         this.categoryReferenceChecker = Objects.requireNonNull(
                 categoryReferenceChecker, "Category reference checker is required.");
         this.categoryChangeListener = Objects.requireNonNull(
                 categoryChangeListener, "Category change listener is required.");
+        this.expenseChangeListener = Objects.requireNonNull(
+                expenseChangeListener, "Expense change listener is required.");
 
         populateFilterChoices();
         buildInterface();
@@ -101,6 +132,10 @@ public final class ExpensePanel extends JPanel {
 
     String getDisplayedAverageAmountText() {
         return averageAmountValue.getText();
+    }
+
+    String getStatusText() {
+        return statusLabel.getText();
     }
 
     int getCategoryFilterChoiceCount() {
@@ -125,6 +160,11 @@ public final class ExpensePanel extends JPanel {
             selectCategoryFilter(selectedIdentifier);
         }
         loadCurrentView("Categories refreshed.", false);
+    }
+
+    public void refreshExpenses() {
+        requireEventDispatchThread();
+        loadCurrentView("Expenses refreshed.", false);
     }
 
     private void populateFilterChoices() {
@@ -378,9 +418,13 @@ public final class ExpensePanel extends JPanel {
         Window owner = SwingUtilities.getWindowAncestor(this);
         ExpenseFormDialog dialog =
                 new ExpenseFormDialog(
-                        owner, expenseService, null, selectableCategories(null));
+                        owner,
+                        expenseService,
+                        null,
+                        selectableCategories(null),
+                        selectableAccounts(null));
         if (dialog.showDialog()) {
-            loadCurrentView("Expense added.", true);
+            refreshAfterExpenseMutation("Expense added.");
         }
     }
 
@@ -401,9 +445,10 @@ public final class ExpensePanel extends JPanel {
                         owner,
                         expenseService,
                         selectedExpense,
-                        selectableCategories(selectedExpense));
+                        selectableCategories(selectedExpense),
+                        selectableAccounts(selectedExpense));
         if (dialog.showDialog()) {
-            loadCurrentView("Expense updated.", true);
+            refreshAfterExpenseMutation("Expense updated.");
         }
     }
 
@@ -450,11 +495,25 @@ public final class ExpensePanel extends JPanel {
                         "Expense Not Found",
                         JOptionPane.INFORMATION_MESSAGE);
             }
-            loadCurrentView(
-                    deleted ? "Expense deleted." : "Expense list refreshed.",
-                    true);
+            if (deleted) {
+                refreshAfterExpenseMutation("Expense deleted.");
+            } else {
+                loadCurrentView("Expense list refreshed.", true);
+            }
         } catch (ValidationException | RepositoryException exception) {
             showLoadError("Unable to delete the expense.", exception);
+        }
+    }
+
+    void refreshAfterExpenseMutation(String successMessage) {
+        loadCurrentView(successMessage, true);
+        try {
+            expenseChangeListener.run();
+        } catch (RuntimeException exception) {
+            statusLabel.setText(
+                    successMessage
+                    + " One or more related views could not refresh; "
+                    + "use the tab to retry.");
         }
     }
 
@@ -571,6 +630,17 @@ public final class ExpensePanel extends JPanel {
             categories.add(expenseToEdit.getCategory());
         }
         return List.copyOf(categories);
+    }
+
+    private List<Account> selectableAccounts(Expense expenseToEdit) {
+        List<Account> accounts = new ArrayList<>(accountService == null
+                ? List.of(Account.DEFAULT)
+                : accountService.listSelectableAccounts());
+        if (expenseToEdit != null
+                && !accounts.contains(expenseToEdit.getAccount())) {
+            accounts.add(expenseToEdit.getAccount());
+        }
+        return List.copyOf(accounts);
     }
 
     private void selectCategoryFilter(String identifier) {

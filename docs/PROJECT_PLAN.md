@@ -2,7 +2,7 @@
 
 ## Current implementation status
 
-The project currently includes validated expense, category, and monthly-budget models; storage-independent repositories; safe UTF-8 CSV persistence; expense, category, and budget services; and a programmatic Swing application with Expenses, Dashboard, and Budgets tabs. The expense workspace and analytics dashboard retain their existing CRUD, query, summary, chart, and monthly-report behavior. Monthly budgets and custom-category add, rename, archive, restore, historical resolution, and selector refresh are implemented. The dependency-free suites contain 23 expense-model, 35 expense-persistence, 60 expense-service, 18 path, 25 Swing-foundation, 48 analytics-service, 43 dashboard-foundation, 20 budget-model, 35 budget-repository, 40 budget-service, 40 budget-foundation, 18 category-model, 29 category-persistence, 23 category-service, and 18 category-management tests.
+The project currently includes validated expense, income, account, transfer, category, and monthly-budget models; storage-independent repositories; safe UTF-8 CSV persistence; and a programmatic Swing application with Expenses, Dashboard, Budgets, and Finance tabs. Expense, income, account, transfer, category, analytics, and budget workflows are implemented. Legacy expenses remain compatible through a protected default Cash account. The chained dependency-free finance suite preserves every earlier test and adds focused path, model, repository, service, balance, headless Swing, and isolated full-frame checks.
 
 ## Problem statement
 
@@ -66,6 +66,10 @@ Advanced items are proposals, not implemented features or fixed delivery promise
 
 `ExpensePanel` now displays service-supplied expenses, filtered summaries, search and filter controls, sorting, refresh, and selected-row actions. `ExpenseFormDialog` supports add and edit input while retaining service and model validation as the authoritative rules.
 
+### Finance
+
+`FinancePanel` provides account lifecycle, income CRUD and search, transfer CRUD, and exact current balances. Expense entry includes an account selector, and editing a legacy expense keeps its resolved default account unless the user changes it.
+
 ### Budgets
 
 `BudgetPanel` allows direct editing of an optional overall limit and optional per-category limits for a selected month. It shows exact spending, remaining, percentage, and warning status, confirms clears, preserves unsuccessful edits, and treats warnings as informational.
@@ -82,13 +86,18 @@ com.spendwise.app
 com.spendwise.config
     AppPaths
 com.spendwise.model
+    Account, AccountType, Income, Transfer
     Expense, Category, MonthlyBudget
-    Additional income models (planned)
 com.spendwise.repository
     ExpenseRepository, CsvExpenseRepository, CsvExpenseCodec,
+    AccountRepository, CsvAccountRepository,
+    IncomeRepository, CsvIncomeRepository,
+    TransferRepository, CsvTransferRepository,
     BudgetRepository, CsvBudgetRepository,
     CategoryRepository, CsvCategoryRepository, RepositoryException
 com.spendwise.service
+    AccountService, IncomeService, TransferService, FinanceService
+    AccountBalanceSnapshot, IncomeSortOrder
     BudgetService, BudgetUsage, BudgetStatusSnapshot, BudgetAlertLevel
     CategoryService
     ExpenseAnalyticsService, ExpenseAnalyticsSnapshot,
@@ -99,8 +108,9 @@ com.spendwise.ui
     DashboardPanel, MonthlyBarChartPanel, CategoryDonutChartPanel
     BudgetPanel, BudgetLimitTableModel,
     CategoryManagerDialog, CategoryTableModel
+    FinancePanel, AccountTableModel, IncomeTableModel, TransferTableModel
 com.spendwise.validation
-    ExpenseValidator, ValidationException
+    ExpenseValidator, FinanceValidator, ValidationException
 ```
 
 This structure separates responsibilities without introducing unnecessary frameworks, dependency injection containers, or enterprise layers.
@@ -111,10 +121,11 @@ This structure separates responsibilities without introducing unnecessary framew
 
 Model classes will represent the application's data and basic invariants:
 
-- `Expense` now represents an occurred expense with an identifier, description, amount, date, category, and notes.
+- `Expense` represents an occurred expense with an identifier, description, amount, date, category, account, and notes. Legacy constructors still resolve to the protected default account.
+- `Account` is immutable and carries a stable ID, display name, type, exact opening balance, protection flag, and active/archive state.
+- `Income` and `Transfer` are immutable, validated records with generated or persisted stable IDs.
 - `Category` is now an immutable category definition with a stable identifier, display name, built-in/custom classification, and active/archived status. Its original built-in constants, identifiers, names, and order remain compatible.
 - `MonthlyBudget` now represents one month, an optional overall limit, and configured category limits as immutable two-decimal values.
-- Additional income models remain planned for later milestones.
 
 Money will use `BigDecimal`, and dates will use `LocalDate` and `YearMonth`.
 
@@ -132,6 +143,8 @@ The repository package now provides a storage-independent expense contract and a
 - Stores only custom category definitions in `categories.csv` with the exact `id,name,status` header; built-ins remain defined once in code.
 - Refuses to overwrite malformed existing budget data.
 - Resolves stable category identifiers through the current catalog and rejects unknown identifiers instead of using a fallback category.
+- Stores custom accounts, income, and transfers in separate additive CSV files with exact decimal text and stable account IDs.
+- Reads both legacy six-column expenses and account-aware seven-column expenses without startup migration.
 
 ### Service
 
@@ -141,19 +154,23 @@ The repository package now provides a storage-independent expense contract and a
 
 `CategoryService` merges the protected built-in catalog with persisted custom definitions and owns name uniqueness, add, rename, archive, restore, selectable-category, and stable-ID resolution rules. Archived categories remain resolvable for existing expense and budget history but are excluded from new selections.
 
+`AccountService` combines the protected default Cash account with persisted custom accounts and owns uniqueness, stable-ID resolution, selection, rename, archive, and restore rules. `IncomeService` provides validated CRUD, combined search/filtering, and stable sorting. `TransferService` validates one atomic transfer record between different active accounts. `FinanceService` calculates exact balances as opening balance plus income minus expenses plus incoming transfers minus outgoing transfers.
+
 ### UI
 
-The UI package creates programmatic Swing components, translates user actions into service calls, and displays results or validation messages. `SpendWiseFrame` exposes Expenses, Dashboard, and Budgets tabs. The Expenses area also opens the category manager and refreshes expense selectors and filters after mutations. `BudgetLimitTableModel` permits editing active-category limits while keeping archived categories visible when historical spending or a configured limit requires them. Dashboard reports and charts resolve current display names without losing archived data. Income and export screens remain future work.
+The UI package creates programmatic Swing components, translates user actions into service calls, and displays results or validation messages. `SpendWiseFrame` exposes Expenses, Dashboard, Budgets, and Finance tabs, with Expenses still first. The Finance tab provides account, income, and transfer tables and workflows. The Expenses area includes account selection and opens the category manager. Budget and dashboard behavior remains unchanged. Export screens remain future work.
 
 ## CSV persistence plan
 
-Expense, budget, and category CSV persistence use caller-supplied paths rather than a hard-coded developer location. `AppPaths` resolves sibling `expenses.csv`, `budgets.csv`, and `categories.csv` files below `%LOCALAPPDATA%\SpendWiseExpenseTracker\data` on Windows, with the existing `user.home` fallback and standard per-user macOS and Linux locations. Path resolution, startup, construction, viewing, and refresh do not create files. `categories.csv` is created only after the first successful custom-category mutation.
+All CSV persistence uses caller-supplied paths rather than a hard-coded developer location. `AppPaths` resolves sibling `expenses.csv`, `budgets.csv`, `categories.csv`, `accounts.csv`, `income.csv`, and `transfers.csv` files below the platform data directory. Path resolution, startup, construction, viewing, and refresh do not create files; each file is created only by a successful mutation in its own data area.
 
 The implemented format uses UTF-8, a required header, stable column order, ISO dates, stable category identifiers, and decimal amounts produced with `BigDecimal.toPlainString()`. `CsvExpenseCodec` owns quoting and parsing rules, including quoted line breaks, LF and CRLF input, and an optional UTF-8 BOM before the header. Loading constructs each `Expense` through existing model validation. Mutations prepare the full snapshot before writing and use same-directory temporary-file replacement.
 
 CSV is appropriate for the course scope because it is inspectable and requires no external database dependency. It is not intended for high-volume or multi-user data.
 
 Budget CSV rows use ISO `YearMonth`, `OVERALL` or `CATEGORY` scope, stable category identifiers, and exact two-decimal limits. Custom category rows use stable IDs, CSV-escaped display names, and `ACTIVE` or `ARCHIVED` status. Existing built-in category values require no migration. Other months survive replacement or deletion, and all repositories use complete same-directory temporary files before target replacement.
+
+Account rows use `id,name,type,openingBalance,status`; income rows use `id,date,amount,source,account,note`; and transfer rows use `id,date,amount,sourceAccount,destinationAccount,note`. All account references use stable IDs. Legacy expenses retain `id,description,amount,date,category,notes`; account-aware files add an `account` column before `notes`.
 
 ## Validation and error handling
 
@@ -184,6 +201,8 @@ Testing will combine focused automated checks with repeatable manual GUI testing
 - Headless `BufferedImage` rendering checks for empty and populated Java2D charts and dashboard refresh safety
 - Budget model, CSV corruption, safe-replacement, calculation-boundary, and headless editor/status checks
 - Category immutability, built-in compatibility, CSV corruption/replacement, service mutation, archived-history, selector-refresh, and headless manager-state checks
+- Account, income, and transfer validation; legacy expense compatibility; repository safe writes and corruption; CRUD, search, stable sorting, exact balances, transfer neutrality, refresh warnings, and Swing table foundations
+- An isolated graphical full-frame smoke test that uses temporary paths and verifies read-only startup and tab navigation
 - Isolated path-resolution checks that do not modify environment variables or production data
 - Manual checks for navigation, table updates, dialogs, keyboard focus, resizing, and error messages
 - A clean Ant build before each milestone is accepted
@@ -239,18 +258,34 @@ The category target reruns the complete earlier chain, then runs category model,
 C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-category
 ```
 
+The finance target reruns the complete earlier chain, then runs the account, income, transfer, persistence, service, path, and headless Swing tests:
+
+```powershell
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-finance
+```
+
+On a graphical desktop, the Finance GUI-smoke target reruns the complete chain and then opens the full frame against an isolated temporary data directory:
+
+```powershell
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-finance-gui-smoke
+```
+
 ## Milestones
 
 1. **Foundation (complete):** establish the Java 21 NetBeans project, repository baseline, documentation, and repeatable build.
-2. **Domain model (in progress):** implement model classes, enums, validation rules, and calculation tests. The expense model, category enum, reusable validation, and core tests are complete.
-3. **CSV storage (complete for expenses):** implement encoding, loading, safe replacement, corruption handling, and round-trip tests.
+2. **Domain model (complete for implemented scope):** implement model classes, enums, validation rules, and calculation tests for expenses, categories, budgets, accounts, income, and transfers.
+3. **CSV storage (complete for implemented scope):** implement encoding, loading, safe replacement, corruption handling, and round-trip tests for every current data area.
 4. **Expense service layer (complete):** implement validated expense CRUD operations, combined text/category/date queries, stable sorting, and overall or filtered summaries.
 5. **Expense-management UI (complete):** implement the main frame, expense table, add/edit/confirmed-delete workflows, filtering, sorting, refresh, and displayed-result summaries.
 6. **Expense analytics dashboard (complete):** add selected-month summaries, previous-month comparison, six-month and category charts, and a read-only monthly report.
 7. **Monthly budgets (complete):** persist monthly overall and category limits, calculate exact usage warnings, add the Budgets tab, and integrate status into Dashboard.
 8. **Custom category management (complete):** persist stable custom definitions, support add, rename, archive, and restore, and preserve historical expense, analytics, and budget behavior.
-9. **Advanced selection:** choose and implement only advanced features that fit the remaining schedule.
-10. **Quality pass:** complete regression testing, usability fixes, documentation updates, and demo preparation.
+9. **Income, accounts, and transfers (complete):** implement stable local accounts, income CRUD and querying, transfer workflows, exact balances, compatible expense account assignment, and safe additive CSV persistence.
+10. **Calendar and advanced reports:** add coherent date-based activity and reporting snapshots.
+11. **Recurring entries and quick entry:** add explicit, idempotent due-item posting and reviewed shortcuts.
+12. **Backup, restore, and export:** add validated offline data protection.
+13. **Advanced account controls:** add statements, reconciliation adjustments, and account insights.
+14. **Quality pass:** complete regression testing, usability fixes, documentation updates, and demo preparation.
 
 ## Demo and viva preparation checklist
 
@@ -275,7 +310,7 @@ C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-category
 - No exported, printable, or advanced financial reports beyond the implemented on-screen monthly expense report
 - No bank, payment-provider, or financial-account integration
 - No authentication, shared accounts, or role management
-- No income or recurring transactions
+- No calendar, recurring definitions, or quick-entry workflow
 - No dark mode or theme switching
 - No backup/restore, import/export, printing, or website
 - No encryption beyond protections provided by the local operating system

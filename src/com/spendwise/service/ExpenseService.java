@@ -1,5 +1,6 @@
 package com.spendwise.service;
 
+import com.spendwise.model.Account;
 import com.spendwise.model.Category;
 import com.spendwise.model.Expense;
 import com.spendwise.repository.ExpenseRepository;
@@ -22,9 +23,16 @@ public final class ExpenseService {
     private static final BigDecimal ZERO_AMOUNT = new BigDecimal("0.00");
 
     private final ExpenseRepository repository;
+    private final AccountService accountService;
 
     public ExpenseService(ExpenseRepository repository) {
+        this(repository, null);
+    }
+
+    public ExpenseService(
+            ExpenseRepository repository, AccountService accountService) {
         this.repository = Objects.requireNonNull(repository, "Expense repository is required.");
+        this.accountService = accountService;
     }
 
     public List<Expense> getAllExpenses() {
@@ -42,7 +50,30 @@ public final class ExpenseService {
             LocalDate date,
             Category category,
             String notes) {
-        Expense expense = new Expense(description, amount, date, category, notes);
+        return createExpense(
+                description,
+                amount,
+                date,
+                category,
+                Account.DEFAULT,
+                notes);
+    }
+
+    public Expense createExpense(
+            String description,
+            BigDecimal amount,
+            LocalDate date,
+            Category category,
+            Account account,
+            String notes) {
+        Account validatedAccount = requireSelectableAccount(account);
+        Expense expense = new Expense(
+                description,
+                amount,
+                date,
+                category,
+                validatedAccount,
+                notes);
         repository.add(expense);
         return expense;
     }
@@ -55,15 +86,77 @@ public final class ExpenseService {
             Category category,
             String notes) {
         String normalizedId = ExpenseValidator.validateId(id);
-        if (repository.findById(normalizedId).isEmpty()) {
-            throw new ExpenseNotFoundException(
-                    "Expense with ID '" + normalizedId + "' was not found.");
-        }
+        Expense existing = repository.findById(normalizedId)
+                .orElseThrow(() -> new ExpenseNotFoundException(
+                    "Expense with ID '" + normalizedId + "' was not found."));
+        return replaceExpense(
+                existing,
+                description,
+                amount,
+                date,
+                category,
+                existing.getAccount(),
+                notes);
+    }
 
+    public Expense updateExpense(
+            String id,
+            String description,
+            BigDecimal amount,
+            LocalDate date,
+            Category category,
+            Account account,
+            String notes) {
+        String normalizedId = ExpenseValidator.validateId(id);
+        Expense existing = repository.findById(normalizedId)
+                .orElseThrow(() -> new ExpenseNotFoundException(
+                    "Expense with ID '" + normalizedId + "' was not found."));
+        Account validatedAccount = requireSelectableOrHistoricalAccount(
+                account, existing.getAccount());
+        return replaceExpense(
+                existing,
+                description,
+                amount,
+                date,
+                category,
+                validatedAccount,
+                notes);
+    }
+
+    private Expense replaceExpense(
+            Expense existing,
+            String description,
+            BigDecimal amount,
+            LocalDate date,
+            Category category,
+            Account account,
+            String notes) {
         Expense replacement = new Expense(
-                normalizedId, description, amount, date, category, notes);
+                existing.getId(),
+                description,
+                amount,
+                date,
+                category,
+                account,
+                notes);
         repository.update(replacement);
         return replacement;
+    }
+
+    private Account requireSelectableAccount(Account account) {
+        return accountService == null
+                ? Objects.requireNonNull(
+                        account, "Expense account is required.")
+                : accountService.requireSelectable(account);
+    }
+
+    private Account requireSelectableOrHistoricalAccount(
+            Account account, Account historicalAccount) {
+        return accountService == null
+                ? Objects.requireNonNull(
+                        account, "Expense account is required.")
+                : accountService.requireSelectableOrHistorical(
+                        account, historicalAccount);
     }
 
     public boolean deleteExpense(String id) {

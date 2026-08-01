@@ -3,6 +3,7 @@ package com.spendwise.model;
 import com.spendwise.validation.ExpenseValidator;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Objects;
 import java.util.UUID;
 
 public class Expense {
@@ -12,6 +13,7 @@ public class Expense {
     private BigDecimal amount;
     private LocalDate date;
     private Category category;
+    private Account account;
     private String notes;
 
     public Expense(
@@ -20,7 +22,31 @@ public class Expense {
             LocalDate date,
             Category category,
             String notes) {
-        this(UUID.randomUUID().toString(), description, amount, date, category, notes);
+        this(
+                UUID.randomUUID().toString(),
+                description,
+                amount,
+                date,
+                category,
+                Account.DEFAULT,
+                notes);
+    }
+
+    public Expense(
+            String description,
+            BigDecimal amount,
+            LocalDate date,
+            Category category,
+            Account account,
+            String notes) {
+        this(
+                UUID.randomUUID().toString(),
+                description,
+                amount,
+                date,
+                category,
+                account,
+                notes);
     }
 
     public Expense(
@@ -30,11 +56,31 @@ public class Expense {
             LocalDate date,
             Category category,
             String notes) {
+        this(
+                id,
+                description,
+                amount,
+                date,
+                category,
+                Account.DEFAULT,
+                notes);
+    }
+
+    public Expense(
+            String id,
+            String description,
+            BigDecimal amount,
+            LocalDate date,
+            Category category,
+            Account account,
+            String notes) {
         this.id = ExpenseValidator.validateId(id);
         this.description = ExpenseValidator.validateDescription(description);
         this.amount = ExpenseValidator.validateAmount(amount);
         this.date = ExpenseValidator.validateDate(date);
         this.category = ExpenseValidator.validateCategory(category);
+        this.account = Objects.requireNonNull(
+                account, "Expense account is required.");
         this.notes = ExpenseValidator.validateNotes(notes);
     }
 
@@ -58,6 +104,10 @@ public class Expense {
         return category;
     }
 
+    public Account getAccount() {
+        return account;
+    }
+
     public String getNotes() {
         return notes;
     }
@@ -68,16 +118,30 @@ public class Expense {
             LocalDate date,
             Category category,
             String notes) {
+        updateDetails(
+                description, amount, date, category, account, notes);
+    }
+
+    public void updateDetails(
+            String description,
+            BigDecimal amount,
+            LocalDate date,
+            Category category,
+            Account account,
+            String notes) {
         String validatedDescription = ExpenseValidator.validateDescription(description);
         BigDecimal validatedAmount = ExpenseValidator.validateAmount(amount);
         LocalDate validatedDate = ExpenseValidator.validateDate(date);
         Category validatedCategory = ExpenseValidator.validateCategory(category);
+        Account validatedAccount = Objects.requireNonNull(
+                account, "Expense account is required.");
         String validatedNotes = ExpenseValidator.validateNotes(notes);
 
         this.description = validatedDescription;
         this.amount = validatedAmount;
         this.date = validatedDate;
         this.category = validatedCategory;
+        this.account = validatedAccount;
         this.notes = validatedNotes;
     }
 
@@ -105,6 +169,7 @@ public class Expense {
                 + ", amount=" + amount
                 + ", date=" + date
                 + ", category=" + category
+                + ", account=" + account
                 + '}';
     }
 }

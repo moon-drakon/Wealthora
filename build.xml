@@ -241,4 +241,65 @@
             </classpath>
         </java>
     </target>
+    <target name="test-finance" depends="test-category"
+            description="Runs the dependency-free account, income, transfer, persistence, service, and Swing tests.">
+        <java classname="com.spendwise.config.FinanceAppPathsTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+        <java classname="com.spendwise.model.FinanceModelTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+        <java classname="com.spendwise.repository.FinanceRepositoryTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+        <java classname="com.spendwise.service.FinanceServiceTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+        <java classname="com.spendwise.ui.FinanceFoundationTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <sysproperty key="java.awt.headless" value="true"/>
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+    </target>
+    <target name="test-finance-gui-smoke" depends="test-finance"
+            description="Runs the isolated full-frame Finance smoke test on a graphical desktop.">
+        <java classname="com.spendwise.ui.FinanceFrameSmokeTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+    </target>
 </project>

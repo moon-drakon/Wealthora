@@ -37,6 +37,18 @@ public final class AppPaths {
                 "categories.csv");
     }
 
+    public static Path getAccountCsvPath() {
+        return currentDataPath("accounts.csv");
+    }
+
+    public static Path getIncomeCsvPath() {
+        return currentDataPath("income.csv");
+    }
+
+    public static Path getTransferCsvPath() {
+        return currentDataPath("transfers.csv");
+    }
+
     static Path resolveExpenseCsvPath(
             String operatingSystemName,
             String localAppData,
@@ -74,6 +86,54 @@ public final class AppPaths {
                 xdgDataHome,
                 userHome,
                 "categories.csv");
+    }
+
+    static Path resolveAccountCsvPath(
+            String operatingSystemName,
+            String localAppData,
+            String xdgDataHome,
+            String userHome) {
+        return resolveDataFilePath(
+                operatingSystemName,
+                localAppData,
+                xdgDataHome,
+                userHome,
+                "accounts.csv");
+    }
+
+    static Path resolveIncomeCsvPath(
+            String operatingSystemName,
+            String localAppData,
+            String xdgDataHome,
+            String userHome) {
+        return resolveDataFilePath(
+                operatingSystemName,
+                localAppData,
+                xdgDataHome,
+                userHome,
+                "income.csv");
+    }
+
+    static Path resolveTransferCsvPath(
+            String operatingSystemName,
+            String localAppData,
+            String xdgDataHome,
+            String userHome) {
+        return resolveDataFilePath(
+                operatingSystemName,
+                localAppData,
+                xdgDataHome,
+                userHome,
+                "transfers.csv");
+    }
+
+    private static Path currentDataPath(String fileName) {
+        return resolveDataFilePath(
+                System.getProperty("os.name"),
+                System.getenv("LOCALAPPDATA"),
+                System.getenv("XDG_DATA_HOME"),
+                System.getProperty("user.home"),
+                fileName);
     }
 
     private static Path resolveDataFilePath(

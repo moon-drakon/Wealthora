@@ -1,5 +1,6 @@
 package com.spendwise.ui;
 
+import com.spendwise.model.Account;
 import com.spendwise.model.Category;
 import com.spendwise.model.Expense;
 import com.spendwise.repository.RepositoryException;
@@ -38,6 +39,7 @@ final class ExpenseFormDialog extends JDialog {
     private final JTextField amountField = new JTextField(14);
     private final JTextField dateField = new JTextField(14);
     private final JComboBox<Category> categoryComboBox = new JComboBox<>();
+    private final JComboBox<Account> accountComboBox = new JComboBox<>();
     private final JTextArea notesArea = new JTextArea(5, 28);
 
     private boolean saved;
@@ -48,7 +50,8 @@ final class ExpenseFormDialog extends JDialog {
                 owner,
                 expenseService,
                 expenseToEdit,
-                List.of(Category.values()));
+                List.of(Category.values()),
+                List.of(Account.DEFAULT));
     }
 
     ExpenseFormDialog(
@@ -56,6 +59,20 @@ final class ExpenseFormDialog extends JDialog {
             ExpenseService expenseService,
             Expense expenseToEdit,
             List<Category> selectableCategories) {
+        this(
+                owner,
+                expenseService,
+                expenseToEdit,
+                selectableCategories,
+                List.of(Account.DEFAULT));
+    }
+
+    ExpenseFormDialog(
+            Window owner,
+            ExpenseService expenseService,
+            Expense expenseToEdit,
+            List<Category> selectableCategories,
+            List<Account> selectableAccounts) {
         super(
                 owner,
                 expenseToEdit == null ? "Add Expense" : "Edit Expense",
@@ -65,6 +82,7 @@ final class ExpenseFormDialog extends JDialog {
                 expenseService, "Expense service is required.");
         this.expenseToEdit = expenseToEdit;
         populateCategoryChoices(selectableCategories);
+        populateAccountChoices(selectableAccounts);
 
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         buildInterface();
@@ -85,6 +103,10 @@ final class ExpenseFormDialog extends JDialog {
 
     Category getCategoryChoiceAt(int index) {
         return categoryComboBox.getItemAt(index);
+    }
+
+    int getAccountChoiceCount() {
+        return accountComboBox.getItemCount();
     }
 
     static BigDecimal parseAmount(String amountText) {
@@ -111,12 +133,13 @@ final class ExpenseFormDialog extends JDialog {
         addField(formPanel, 1, "Amount", amountField);
         addField(formPanel, 2, "Date (yyyy-MM-dd)", dateField);
         addField(formPanel, 3, "Category", categoryComboBox);
+        addField(formPanel, 4, "Account", accountComboBox);
 
         notesArea.setLineWrap(true);
         notesArea.setWrapStyleWord(true);
         JScrollPane notesScrollPane = new JScrollPane(notesArea);
         notesScrollPane.setPreferredSize(new Dimension(320, 110));
-        addField(formPanel, 4, "Notes", notesScrollPane);
+        addField(formPanel, 5, "Notes", notesScrollPane);
 
         JButton saveButton = new JButton("Save");
         saveButton.addActionListener(event -> saveExpense());
@@ -138,6 +161,7 @@ final class ExpenseFormDialog extends JDialog {
         if (expenseToEdit == null) {
             dateField.setText(LocalDate.now().toString());
             categoryComboBox.setSelectedItem(Category.FOOD);
+            accountComboBox.setSelectedItem(Account.DEFAULT);
             return;
         }
 
@@ -145,6 +169,7 @@ final class ExpenseFormDialog extends JDialog {
         amountField.setText(expenseToEdit.getAmount().toPlainString());
         dateField.setText(expenseToEdit.getDate().toString());
         categoryComboBox.setSelectedItem(expenseToEdit.getCategory());
+        accountComboBox.setSelectedItem(expenseToEdit.getAccount());
         notesArea.setText(expenseToEdit.getNotes());
     }
 
@@ -174,11 +199,38 @@ final class ExpenseFormDialog extends JDialog {
         return false;
     }
 
+    private void populateAccountChoices(List<Account> selectableAccounts) {
+        Objects.requireNonNull(
+                selectableAccounts, "Selectable accounts are required.");
+        for (Account account : selectableAccounts) {
+            accountComboBox.addItem(Objects.requireNonNull(
+                    account, "Selectable accounts cannot contain null elements."));
+        }
+        if (expenseToEdit != null
+                && !containsAccount(expenseToEdit.getAccount())) {
+            accountComboBox.addItem(expenseToEdit.getAccount());
+        }
+        if (accountComboBox.getItemCount() == 0) {
+            throw new IllegalArgumentException(
+                    "At least one selectable account is required.");
+        }
+    }
+
+    private boolean containsAccount(Account account) {
+        for (int index = 0; index < accountComboBox.getItemCount(); index++) {
+            if (accountComboBox.getItemAt(index).equals(account)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void saveExpense() {
         try {
             BigDecimal amount = parseAmount(amountField.getText());
             LocalDate date = parseDate(dateField.getText());
             Category category = (Category) categoryComboBox.getSelectedItem();
+            Account account = (Account) accountComboBox.getSelectedItem();
 
             if (expenseToEdit == null) {
                 expenseService.createExpense(
@@ -186,6 +238,7 @@ final class ExpenseFormDialog extends JDialog {
                         amount,
                         date,
                         category,
+                        account,
                         notesArea.getText());
             } else {
                 expenseService.updateExpense(
@@ -194,6 +247,7 @@ final class ExpenseFormDialog extends JDialog {
                         amount,
                         date,
                         category,
+                        account,
                         notesArea.getText());
             }
 

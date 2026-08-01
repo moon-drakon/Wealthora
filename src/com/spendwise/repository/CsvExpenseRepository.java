@@ -1,5 +1,6 @@
 package com.spendwise.repository;
 
+import com.spendwise.model.Account;
 import com.spendwise.model.Category;
 import com.spendwise.model.Expense;
 import com.spendwise.validation.ExpenseValidator;
@@ -22,18 +23,28 @@ public class CsvExpenseRepository implements ExpenseRepository {
 
     private final Path csvPath;
     private final Function<String, Category> categoryResolver;
+    private final Function<String, Account> accountResolver;
 
     public CsvExpenseRepository(Path csvPath) {
-        this(csvPath, Category::valueOf);
+        this(csvPath, Category::valueOf, CsvExpenseRepository::defaultAccount);
     }
 
     public CsvExpenseRepository(
             Path csvPath, Function<String, Category> categoryResolver) {
+        this(csvPath, categoryResolver, CsvExpenseRepository::defaultAccount);
+    }
+
+    public CsvExpenseRepository(
+            Path csvPath,
+            Function<String, Category> categoryResolver,
+            Function<String, Account> accountResolver) {
         this.csvPath = Objects.requireNonNull(csvPath, "CSV path is required.")
                 .toAbsolutePath()
                 .normalize();
         this.categoryResolver = Objects.requireNonNull(
                 categoryResolver, "Category resolver is required.");
+        this.accountResolver = Objects.requireNonNull(
+                accountResolver, "Account resolver is required.");
     }
 
     @Override
@@ -46,7 +57,8 @@ public class CsvExpenseRepository implements ExpenseRepository {
             if (csvText.isEmpty()) {
                 return List.of();
             }
-            return CsvExpenseCodec.decode(csvText, categoryResolver);
+            return CsvExpenseCodec.decode(
+                    csvText, categoryResolver, accountResolver);
         } catch (IOException | SecurityException exception) {
             throw new RepositoryException("Could not read expense CSV data.", exception);
         }
@@ -192,5 +204,13 @@ public class CsvExpenseRepository implements ExpenseRepository {
             }
         }
         return -1;
+    }
+
+    private static Account defaultAccount(String identifier) {
+        if (Account.DEFAULT_IDENTIFIER.equals(identifier)) {
+            return Account.DEFAULT;
+        }
+        throw new IllegalArgumentException(
+                "Unknown account identifier: " + identifier);
     }
 }

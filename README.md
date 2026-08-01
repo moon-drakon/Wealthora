@@ -10,7 +10,7 @@ SpendWise Expense Tracker is a Java Swing desktop application for a CSE215 Objec
 
 ## Current status
 
-The project now includes the core expense model, reusable validation, storage-independent repositories, safe UTF-8 CSV persistence, expense, budget, and category services, and a programmatic Swing interface with Expenses, Dashboard, and Budgets tabs. Users can manage expenses and custom categories, analyze a selected month, and configure an overall monthly budget plus optional independent category limits. The Dashboard shows budget status beside the existing charts and monthly report. All automated tests remain dependency-free.
+The project now includes validated expense, income, account, transfer, category, and budget models; storage-independent repositories; safe UTF-8 CSV persistence; and a programmatic Swing interface with Expenses, Dashboard, Budgets, and Finance tabs. Users can manage expenses, income, accounts, transfers, and custom categories, analyze a selected month, and configure monthly budgets. Account balances include opening balances, income, expenses, and transfer effects without double-counting transfers. The complete automated suite remains dependency-free and includes an isolated full-frame Finance smoke test.
 
 Feature status in this document will be updated only after the corresponding behavior has been implemented and verified.
 
@@ -20,19 +20,21 @@ SpendWise is intended to help an individual record income and expenses, organize
 
 ## Planned core features
 
-- Add, edit, and delete income and expense transactions
+- Add, edit, and delete income and expense transactions (implemented)
 - Assign dates, categories, amounts, and notes to transactions
 - Add, rename, archive, and restore custom spending categories (implemented)
 - Set and monitor monthly overall and optional category budgets (implemented)
-- View balances and monthly income and expense summaries
-- Save and reload application data using local CSV files
+- Create, rename, archive, and restore local financial accounts (implemented)
+- Transfer funds between active accounts (implemented)
+- View exact calculated account balances (implemented)
+- Save and reload application data using local CSV files (implemented)
 - Validate input and present clear error messages
 
 ## Planned advanced features
 
 These features are candidates after the core workflow is complete:
 
-- Search and filter across future income and expense records
+- Search, filter, and sort income records (implemented)
 - Additional financial planning views
 - Recurring transaction templates
 - Exportable filtered summaries
@@ -45,7 +47,7 @@ These features are candidates after the core workflow is complete:
 - Java standard libraries, including `java.time`, `java.math`, and `java.nio`
 - Apache Ant
 - Apache NetBeans project structure
-- UTF-8 CSV files for local expense, budget, and custom-category persistence
+- UTF-8 CSV files for local expense, income, account, transfer, budget, and custom-category persistence
 
 No external libraries are currently required.
 
@@ -139,6 +141,22 @@ The category target reruns every earlier suite before the category model, persis
 C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-category
 ```
 
+## Run the finance tests
+
+The finance target reruns every earlier suite before the account, income, transfer, persistence, service, path, and headless Swing suites:
+
+```powershell
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-finance
+```
+
+On a graphical desktop, run the complete chain plus the isolated full-frame smoke test with:
+
+```powershell
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-finance-gui-smoke
+```
+
+The smoke test uses a temporary data directory and verifies that opening and navigating the frame creates no CSV files.
+
 ## Application data location
 
 On Windows, expense data is stored at:
@@ -159,11 +177,27 @@ Custom category definitions are stored beside both files at:
 %LOCALAPPDATA%\SpendWiseExpenseTracker\data\categories.csv
 ```
 
+Account, income, and transfer records use these sibling files:
+
+```text
+%LOCALAPPDATA%\SpendWiseExpenseTracker\data\accounts.csv
+%LOCALAPPDATA%\SpendWiseExpenseTracker\data\income.csv
+%LOCALAPPDATA%\SpendWiseExpenseTracker\data\transfers.csv
+```
+
 If `LOCALAPPDATA` is unavailable, SpendWise uses the equivalent location below `user.home\AppData\Local`. macOS uses `~/Library/Application Support`, while Linux and other Unix-like systems use `XDG_DATA_HOME` or the `~/.local/share` fallback.
 
-Resolving these paths and starting the application are read-only operations. `expenses.csv` is created only after the first successful expense mutation, `budgets.csv` only after the first successful budget save, and `categories.csv` only after the first successful custom-category mutation. Repository writes use safe same-directory temporary-file replacement.
+Resolving these paths and starting the application are read-only operations. Each CSV file is created only by the first successful mutation for its own data area. Repository writes use complete UTF-8 snapshots and safe same-directory temporary-file replacement.
 
 Opening or refreshing Expenses, Dashboard, Budgets, or Manage Categories is also read-only. These views do not create or rewrite any production CSV file.
+
+## Accounts, income, and transfers
+
+The Finance tab provides account, income, and transfer workflows. The protected Cash account represents legacy expenses and cannot be renamed or archived. Custom accounts have stable IDs, exact two-decimal opening balances, and active or archived status; archived accounts remain resolvable for history but are excluded from new transactions.
+
+Income supports add, edit, delete, text search, account and inclusive date filtering, and stable sorting through `IncomeService`. Transfers are stored once as a movement between two different active accounts. A transfer reduces the source balance and increases the destination balance by the same exact amount, so it does not inflate the overall balance.
+
+Legacy six-column `expenses.csv` files remain readable without migration and resolve to the protected Cash account. Account-aware expense mutations use the additive header `id,description,amount,date,category,account,notes`. Startup and ordinary viewing never rewrite a legacy file.
 
 ## Custom category management
 
@@ -205,24 +239,42 @@ SpendWiseExpenseTracker/
 |       |-- app/SpendWiseApplication.java
 |       |-- config/AppPaths.java
 |       |-- model/
+|       |   |-- Account.java
+|       |   |-- AccountType.java
 |       |   |-- Category.java
 |       |   |-- Expense.java
-|       |   `-- MonthlyBudget.java
+|       |   |-- Income.java
+|       |   |-- MonthlyBudget.java
+|       |   `-- Transfer.java
 |       |-- repository/
+|       |   |-- AccountRepository.java
 |       |   |-- BudgetRepository.java
 |       |   |-- CategoryRepository.java
+|       |   |-- CsvAccountRepository.java
 |       |   |-- CsvBudgetRepository.java
 |       |   |-- CsvCategoryRepository.java
 |       |   |-- CsvExpenseCodec.java
 |       |   |-- CsvExpenseRepository.java
+|       |   |-- CsvFileSupport.java
+|       |   |-- CsvIncomeRepository.java
+|       |   |-- CsvTransferRepository.java
 |       |   |-- ExpenseRepository.java
+|       |   |-- IncomeRepository.java
+|       |   |-- TransferRepository.java
 |       |   `-- RepositoryException.java
 |       |-- service/
+|       |   |-- AccountBalanceSnapshot.java
+|       |   |-- AccountService.java
 |       |   |-- BudgetAlertLevel.java
 |       |   |-- BudgetService.java
 |       |   |-- BudgetStatusSnapshot.java
 |       |   |-- BudgetUsage.java
 |       |   |-- CategoryService.java
+|       |   |-- FinanceNotFoundException.java
+|       |   |-- FinanceService.java
+|       |   |-- IncomeService.java
+|       |   |-- IncomeSortOrder.java
+|       |   |-- TransferService.java
 |       |   |-- ExpenseAnalyticsService.java
 |       |   |-- ExpenseAnalyticsSnapshot.java
 |       |   |-- ExpenseNotFoundException.java
@@ -230,6 +282,7 @@ SpendWiseExpenseTracker/
 |       |   |-- ExpenseSortOrder.java
 |       |   `-- ExpenseSummary.java
 |       |-- ui/
+|       |   |-- AccountTableModel.java
 |       |   |-- BudgetLimitTableModel.java
 |       |   |-- BudgetPanel.java
 |       |   |-- CategoryDonutChartPanel.java
@@ -239,31 +292,42 @@ SpendWiseExpenseTracker/
 |       |   |-- ExpenseFormDialog.java
 |       |   |-- ExpensePanel.java
 |       |   |-- ExpenseTableModel.java
+|       |   |-- FinancePanel.java
+|       |   |-- IncomeTableModel.java
 |       |   |-- MonthlyBarChartPanel.java
-|       |   `-- SpendWiseFrame.java
+|       |   |-- SpendWiseFrame.java
+|       |   `-- TransferTableModel.java
 |       `-- validation/
 |           |-- ExpenseValidator.java
+|           |-- FinanceValidator.java
 |           `-- ValidationException.java
 |-- test/
 |   `-- com/spendwise/
-|       |-- config/AppPathsTest.java
+|       |-- config/
+|       |   |-- AppPathsTest.java
+|       |   `-- FinanceAppPathsTest.java
 |       |-- model/
 |       |   |-- CategoryTest.java
 |       |   |-- ExpenseTest.java
+|       |   |-- FinanceModelTest.java
 |       |   `-- MonthlyBudgetTest.java
 |       |-- repository/
 |       |   |-- CsvBudgetRepositoryTest.java
 |       |   |-- CsvCategoryRepositoryTest.java
-|       |   `-- CsvExpenseRepositoryTest.java
+|       |   |-- CsvExpenseRepositoryTest.java
+|       |   `-- FinanceRepositoryTest.java
 |       |-- service/
 |       |   |-- BudgetServiceTest.java
 |       |   |-- CategoryServiceTest.java
 |       |   |-- ExpenseAnalyticsServiceTest.java
-|       |   `-- ExpenseServiceTest.java
+|       |   |-- ExpenseServiceTest.java
+|       |   `-- FinanceServiceTest.java
 |       `-- ui/
 |           |-- BudgetFoundationTest.java
 |           |-- CategoryManagementTest.java
 |           |-- DashboardFoundationTest.java
+|           |-- FinanceFoundationTest.java
+|           |-- FinanceFrameSmokeTest.java
 |           `-- SwingFoundationTest.java
 |-- docs/
 |   `-- PROJECT_PLAN.md
@@ -275,6 +339,6 @@ SpendWiseExpenseTracker/
 
 The generated `build/` and `dist/` directories and the machine-specific `nbproject/private/` directory are intentionally excluded from version control.
 
-The expense CSV repository supports commas, doubled quotes, Unicode, and quoted line breaks. Budget settings use the separate `month,scope,category,amount` format, while custom categories use `id,name,status`. Mutations write a complete temporary file in the destination directory and replace the previous file only after the temporary content is closed, flushed, and forced to storage. Corrupt expense, budget, or category data is never silently reset or overwritten.
+The CSV repositories support commas, doubled quotes, Unicode, and quoted line breaks. Account rows use `id,name,type,openingBalance,status`, income rows use `id,date,amount,source,account,note`, and transfer rows use `id,date,amount,sourceAccount,destinationAccount,note`. Mutations write a complete temporary file in the destination directory and replace the previous file only after the temporary content is closed, flushed, and forced to storage. Corrupt data is never silently reset or overwritten.
 
-Income, recurring transactions, authentication, dark mode, backup/restore, import/export, printing, cloud synchronization, and website functionality are not implemented. Exported reports and multi-process file locking also remain outside the current scope.
+Calendar views, advanced reports, recurring transactions, authentication, dark mode, backup/restore, import/export, printing, cloud synchronization, and website functionality are not implemented. Multi-process file locking also remains outside the current scope.
