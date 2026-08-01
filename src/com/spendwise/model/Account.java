@@ -91,12 +91,21 @@ public final class Account implements Comparable<Account> {
     }
 
     public Account withDisplayName(String newDisplayName) {
+        return withMetadata(newDisplayName, type);
+    }
+
+    public Account withMetadata(
+            String newDisplayName, AccountType newType) {
         if (protectedAccount) {
             throw new ValidationException(
-                    "The protected default account cannot be renamed.");
+                    "The protected default account metadata cannot be changed.");
         }
         return createCustom(
-                identifier, newDisplayName, type, openingBalance, archived);
+                identifier,
+                newDisplayName,
+                Objects.requireNonNull(newType, "Account type is required."),
+                openingBalance,
+                archived);
     }
 
     public Account withArchived(boolean newArchived) {

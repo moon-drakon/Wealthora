@@ -1,6 +1,7 @@
 package com.spendwise.ui;
 
 import com.spendwise.service.AccountService;
+import com.spendwise.service.AccountStatementService;
 import com.spendwise.service.BackupService;
 import com.spendwise.service.BudgetService;
 import com.spendwise.service.CategoryService;
@@ -120,6 +121,13 @@ public final class SpendWiseFrame extends JFrame {
                         transferService,
                         accountService,
                         budgetService);
+        AccountStatementService accountStatementService =
+                new AccountStatementService(
+                        accountService,
+                        expenseService,
+                        incomeService,
+                        transferService,
+                        financeService);
 
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         DashboardPanel dashboardPanel =
@@ -139,6 +147,7 @@ public final class SpendWiseFrame extends JFrame {
                 incomeService,
                 transferService,
                 financeService,
+                accountStatementService,
                 () -> {
                     if (expenseReference[0] != null) {
                         expenseReference[0].refreshExpenses();

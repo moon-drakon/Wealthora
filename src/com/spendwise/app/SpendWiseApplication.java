@@ -2,6 +2,7 @@ package com.spendwise.app;
 
 import com.spendwise.config.AppPaths;
 import com.spendwise.repository.CsvAccountRepository;
+import com.spendwise.repository.CsvAccountPreferenceRepository;
 import com.spendwise.repository.CsvBudgetRepository;
 import com.spendwise.repository.CsvCategoryRepository;
 import com.spendwise.repository.CsvExpenseRepository;
@@ -47,7 +48,10 @@ public final class SpendWiseApplication {
             CsvAccountRepository accountRepository =
                     new CsvAccountRepository(AppPaths.getAccountCsvPath());
             AccountService accountService =
-                    new AccountService(accountRepository);
+                    new AccountService(
+                            accountRepository,
+                            new CsvAccountPreferenceRepository(
+                                    AppPaths.getAccountSettingsCsvPath()));
             Path expenseCsvPath = AppPaths.getExpenseCsvPath();
             CsvExpenseRepository repository =
                     new CsvExpenseRepository(

@@ -10,7 +10,7 @@ SpendWise Expense Tracker is a Java Swing desktop application for a CSE215 Objec
 
 ## Current status
 
-The project now includes validated financial and recurring-entry models, storage-independent repositories, safe UTF-8 CSV persistence, and a seven-tab programmatic Swing interface. Users can manage entries and categories, configure budgets, inspect calendar activity, run filtered reports, maintain recurring definitions, and use Quick Entry. The Data menu adds validated ZIP backup/restore and read-only CSV exports. Restore validates every included CSV before mutation, creates a safety backup when current managed data exists, and rolls back staged replacement failures. The complete automated suite remains dependency-free and includes an isolated full-frame smoke test.
+The project now includes validated financial and recurring-entry models, storage-independent repositories, safe UTF-8 CSV persistence, and a seven-tab programmatic Swing interface. Users can manage entries and categories, configure budgets, inspect calendar activity, run filtered reports, maintain recurring definitions, use Quick Entry, and manage persisted default accounts with read-only account statements. The Data menu adds validated ZIP backup/restore and read-only CSV exports. Restore validates every included CSV before mutation, creates a safety backup when current managed data exists, and rolls back staged replacement failures. The complete automated suite remains dependency-free and includes an isolated full-frame smoke test.
 
 Feature status in this document will be updated only after the corresponding behavior has been implemented and verified.
 
@@ -40,6 +40,7 @@ These features are candidates after the core workflow is complete:
 - Keyboard-accessible Quick Entry (implemented)
 - Exportable financial data and filtered reports (implemented)
 - Local ZIP backup and validated restore (implemented)
+- Advanced account controls and account statements (implemented)
 
 ## Technology stack
 
@@ -48,7 +49,7 @@ These features are candidates after the core workflow is complete:
 - Java standard libraries, including `java.time`, `java.math`, and `java.nio`
 - Apache Ant
 - Apache NetBeans project structure
-- UTF-8 CSV files for local expense, income, account, transfer, budget, custom-category, and recurring-definition persistence
+- UTF-8 CSV files for local expense, income, account, account-preference, transfer, budget, custom-category, and recurring-definition persistence
 
 No external libraries are currently required.
 
@@ -200,6 +201,20 @@ The graphical variant also validates the Data menu wiring:
 C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-data-gui-smoke
 ```
 
+## Run the advanced account tests
+
+The accounts target chains after all data-management tests and adds account-preference persistence, account lifecycle, exact statement totals, CSV compatibility, production-isolation, and headless Swing checks:
+
+```powershell
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-accounts
+```
+
+The graphical variant validates the complete frame with advanced account controls wired:
+
+```powershell
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-accounts-gui-smoke
+```
+
 ## Application data location
 
 On Windows, expense data is stored at:
@@ -224,6 +239,7 @@ Account, income, and transfer records use these sibling files:
 
 ```text
 %LOCALAPPDATA%\SpendWiseExpenseTracker\data\accounts.csv
+%LOCALAPPDATA%\SpendWiseExpenseTracker\data\account-settings.csv
 %LOCALAPPDATA%\SpendWiseExpenseTracker\data\income.csv
 %LOCALAPPDATA%\SpendWiseExpenseTracker\data\transfers.csv
 %LOCALAPPDATA%\SpendWiseExpenseTracker\data\recurring.csv
@@ -233,11 +249,13 @@ If `LOCALAPPDATA` is unavailable, SpendWise uses the equivalent location below `
 
 Resolving these paths and starting the application are read-only operations. Each CSV file is created only by the first successful mutation for its own data area. Repository writes use complete UTF-8 snapshots and safe same-directory temporary-file replacement.
 
-Opening or refreshing Expenses, Dashboard, Budgets, Manage Categories, Calendar, Reports, or Recurring is also read-only. These views do not create or rewrite any production CSV file. `recurring.csv` is created only after the first recurring-definition mutation.
+Opening or refreshing Expenses, Dashboard, Budgets, Manage Categories, Finance, Calendar, Reports, or Recurring is also read-only. These views do not create or rewrite any production CSV file. `recurring.csv` is created only after the first recurring-definition mutation, and `account-settings.csv` is created only when the user explicitly selects a default account.
 
 ## Accounts, income, and transfers
 
-The Finance tab provides account, income, and transfer workflows. The protected Cash account represents legacy expenses and cannot be renamed or archived. Custom accounts have stable IDs, exact two-decimal opening balances, and active or archived status; archived accounts remain resolvable for history but are excluded from new transactions.
+The Finance tab provides account, income, and transfer workflows. The protected Cash account represents legacy expenses and cannot be edited or archived. Custom accounts have stable IDs, exact two-decimal opening balances, editable names and types, and active or archived status. The Accounts view filters active or archived accounts, marks the persisted active default, chooses a safe replacement if that default is archived, and shows read-only activity plus exact income, expense, transfer-in, transfer-out, and calculated-balance totals. Opening balances remain immutable after account creation, and arbitrary balance editing is not supported.
+
+The default account is preselected for new expenses, income, transfers, recurring definitions, and Quick Entry. Archived accounts remain resolvable and visible in historical records and statements but are excluded from all new-entry choices.
 
 Income supports add, edit, delete, text search, account and inclusive date filtering, and stable sorting through `IncomeService`. Transfers are stored once as a movement between two different active accounts. A transfer reduces the source balance and increases the destination balance by the same exact amount, so it does not inflate the overall balance.
 

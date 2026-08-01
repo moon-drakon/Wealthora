@@ -132,7 +132,14 @@ final class QuickEntryDialog extends JDialog {
                 categoryService.listSelectableCategories(),
                 selectedCategory);
         List<Account> accounts = accountService.listSelectableAccounts();
-        replaceItems(sourceBox, accounts, selectedSource);
+        Account preferredSource = selectedSource != null
+                && accounts.contains(selectedSource)
+                ? selectedSource
+                : accountService.getDefaultAccount();
+        replaceItems(
+                sourceBox,
+                accounts,
+                preferredSource);
         replaceItems(destinationBox, accounts, selectedDestination);
         if (destinationBox.getItemCount() > 1
                 && Objects.equals(

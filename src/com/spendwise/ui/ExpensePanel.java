@@ -150,6 +150,10 @@ public final class ExpensePanel extends JPanel {
         return selectableCategories(expenseToEdit);
     }
 
+    List<Account> getSelectableAccountSnapshot(Expense expenseToEdit) {
+        return selectableAccounts(expenseToEdit);
+    }
+
     public void refreshCategoryChoices() {
         requireEventDispatchThread();
         String selectedIdentifier = selectedCategory() == null
@@ -422,7 +426,8 @@ public final class ExpensePanel extends JPanel {
                         expenseService,
                         null,
                         selectableCategories(null),
-                        selectableAccounts(null));
+                        selectableAccounts(null),
+                        preferredAccount());
         if (dialog.showDialog()) {
             refreshAfterExpenseMutation("Expense added.");
         }
@@ -641,6 +646,12 @@ public final class ExpensePanel extends JPanel {
             accounts.add(expenseToEdit.getAccount());
         }
         return List.copyOf(accounts);
+    }
+
+    private Account preferredAccount() {
+        return accountService == null
+                ? Account.DEFAULT
+                : accountService.getDefaultAccount();
     }
 
     private void selectCategoryFilter(String identifier) {

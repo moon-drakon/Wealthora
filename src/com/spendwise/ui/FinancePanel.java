@@ -5,8 +5,11 @@ import com.spendwise.model.AccountType;
 import com.spendwise.model.Income;
 import com.spendwise.model.Transfer;
 import com.spendwise.repository.RepositoryException;
+import com.spendwise.service.AccountArchiveResult;
 import com.spendwise.service.AccountBalanceSnapshot;
 import com.spendwise.service.AccountService;
+import com.spendwise.service.AccountStatementService;
+import com.spendwise.service.AccountStatementSnapshot;
 import com.spendwise.service.FinanceNotFoundException;
 import com.spendwise.service.FinanceService;
 import com.spendwise.service.IncomeService;
@@ -41,22 +44,46 @@ public final class FinancePanel extends JPanel {
     private final IncomeService incomeService;
     private final TransferService transferService;
     private final FinanceService financeService;
+    private final AccountStatementService accountStatementService;
     private final Runnable financeChangeListener;
     private final AccountTableModel accountModel = new AccountTableModel();
     private final IncomeTableModel incomeModel = new IncomeTableModel();
     private final TransferTableModel transferModel = new TransferTableModel();
+    private final FinancialActivityTableModel statementModel =
+            new FinancialActivityTableModel();
     private final JTable accountTable = table(accountModel);
     private final JTable incomeTable = table(incomeModel);
     private final JTable transferTable = table(transferModel);
+    private final JTable statementTable = table(statementModel);
     private final JLabel totalBalanceLabel = new JLabel("Total balance: 0.00");
     private final JLabel statusLabel = new JLabel("Finance data has not loaded.");
     private final JTextField incomeSearchField = new JTextField(18);
+    private final JComboBox<AccountFilter> accountFilterBox =
+            new JComboBox<>(AccountFilter.values());
+    private final JLabel statementSummaryLabel =
+            new JLabel("Select an account to view its activity.");
 
     public FinancePanel(
             AccountService accountService,
             IncomeService incomeService,
             TransferService transferService,
             FinanceService financeService,
+            Runnable financeChangeListener) {
+        this(
+                accountService,
+                incomeService,
+                transferService,
+                financeService,
+                null,
+                financeChangeListener);
+    }
+
+    public FinancePanel(
+            AccountService accountService,
+            IncomeService incomeService,
+            TransferService transferService,
+            FinanceService financeService,
+            AccountStatementService accountStatementService,
             Runnable financeChangeListener) {
         requireEventDispatchThread();
         this.accountService = Objects.requireNonNull(
@@ -67,9 +94,15 @@ public final class FinancePanel extends JPanel {
                 transferService, "Transfer service is required.");
         this.financeService = Objects.requireNonNull(
                 financeService, "Finance service is required.");
+        this.accountStatementService = accountStatementService;
         this.financeChangeListener = Objects.requireNonNull(
                 financeChangeListener, "Finance change listener is required.");
         buildInterface();
+        accountTable.getSelectionModel().addListSelectionListener(event -> {
+            if (!event.getValueIsAdjusting()) {
+                refreshAccountStatement();
+            }
+        });
         refreshFinanceData();
     }
 
@@ -97,6 +130,7 @@ public final class FinancePanel extends JPanel {
     }
 
     private boolean refreshFinanceDataSafely() {
+        String selectedAccountIdentifier = selectedAccountIdentifier();
         try {
             AccountBalanceSnapshot balances =
                     financeService.calculateBalances();
@@ -108,9 +142,14 @@ public final class FinancePanel extends JPanel {
                     null,
                     IncomeSortOrder.DATE_NEWEST_FIRST);
             List<Transfer> transfers = transferService.getAllTransfers();
-            accountModel.replace(accounts, balances.getBalances());
+            Account defaultAccount = accountService.getDefaultAccount();
+            accountModel.replace(
+                    filteredAccounts(accounts),
+                    balances.getBalances(),
+                    defaultAccount);
             incomeModel.replace(incomeEntries);
             transferModel.replace(transfers);
+            restoreAccountSelection(selectedAccountIdentifier);
             totalBalanceLabel.setText(
                     "Total balance: "
                     + balances.getTotalBalance().toPlainString());
@@ -139,6 +178,34 @@ public final class FinancePanel extends JPanel {
         return statusLabel.getText();
     }
 
+    int getStatementRowCount() {
+        return statementModel.getRowCount();
+    }
+
+    String getStatementSummaryText() {
+        return statementSummaryLabel.getText();
+    }
+
+    void selectAccount(String identifier) {
+        for (int row = 0; row < accountModel.getRowCount(); row++) {
+            if (accountModel.getAccountAt(row).getIdentifier().equals(identifier)) {
+                int viewRow = accountTable.convertRowIndexToView(row);
+                accountTable.setRowSelectionInterval(viewRow, viewRow);
+                return;
+            }
+        }
+    }
+
+    void setAccountFilter(String label) {
+        for (AccountFilter filter : AccountFilter.values()) {
+            if (filter.toString().equals(label)) {
+                accountFilterBox.setSelectedItem(filter);
+                return;
+            }
+        }
+        throw new IllegalArgumentException("Unknown account filter: " + label);
+    }
+
     private void buildInterface() {
         setLayout(new BorderLayout(12, 12));
         setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
@@ -163,10 +230,25 @@ public final class FinancePanel extends JPanel {
 
     private JPanel createAccountsTab() {
         JPanel panel = contentPanel();
-        panel.add(new JScrollPane(accountTable), BorderLayout.CENTER);
+        JPanel filters = actionPanel();
+        filters.add(new JLabel("Show:"));
+        filters.add(accountFilterBox);
+        accountFilterBox.addActionListener(event -> refreshFinanceDataSafely());
+        panel.add(filters, BorderLayout.NORTH);
+
+        JPanel accountContent = new JPanel(new GridLayout(2, 1, 8, 8));
+        accountContent.add(new JScrollPane(accountTable));
+        JPanel statementPanel = new JPanel(new BorderLayout(6, 6));
+        statementPanel.setBorder(BorderFactory.createTitledBorder(
+                "Selected Account Activity"));
+        statementPanel.add(statementSummaryLabel, BorderLayout.NORTH);
+        statementPanel.add(new JScrollPane(statementTable), BorderLayout.CENTER);
+        accountContent.add(statementPanel);
+        panel.add(accountContent, BorderLayout.CENTER);
         JPanel actions = actionPanel();
         actions.add(button("Add Account", this::addAccount));
-        actions.add(button("Rename", this::renameAccount));
+        actions.add(button("Edit Account", this::editAccount));
+        actions.add(button("Set Default", this::setDefaultAccount));
         actions.add(button("Archive", this::archiveAccount));
         actions.add(button("Restore", this::restoreAccount));
         panel.add(actions, BorderLayout.SOUTH);
@@ -234,20 +316,50 @@ public final class FinancePanel extends JPanel {
         }
     }
 
-    private void renameAccount() {
+    private void editAccount() {
         Account account = selectedAccount();
         if (account == null) {
-            showInformation("Select an account to rename.");
+            showInformation("Select an account to edit.");
             return;
         }
-        String name = JOptionPane.showInputDialog(
-                this, "New account name:", account.getDisplayName());
-        if (name == null) {
+        JTextField name = new JTextField(account.getDisplayName());
+        JComboBox<AccountType> type = new JComboBox<>(AccountType.values());
+        type.setSelectedItem(account.getType());
+        JPanel form = form(
+                "Name", name,
+                "Type", type,
+                "Opening balance (read-only)",
+                new JLabel(account.getOpeningBalance().toPlainString()));
+        if (JOptionPane.showConfirmDialog(
+                this,
+                form,
+                "Edit Account",
+                JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) {
             return;
         }
         try {
-            accountService.renameAccount(account.getIdentifier(), name);
-            mutationSucceeded("Account renamed.");
+            accountService.updateAccountMetadata(
+                    account.getIdentifier(),
+                    name.getText(),
+                    (AccountType) type.getSelectedItem());
+            mutationSucceeded("Account updated.");
+        } catch (ValidationException | RepositoryException exception) {
+            showError(safeMessage(exception));
+        }
+    }
+
+    private void setDefaultAccount() {
+        Account account = selectedAccount();
+        if (account == null) {
+            showInformation("Select an active account to make the default.");
+            return;
+        }
+        try {
+            Account selected = accountService.setDefaultAccount(
+                    account.getIdentifier());
+            mutationSucceeded(
+                    selected.getDisplayName() + " is now the default account.");
         } catch (ValidationException | RepositoryException exception) {
             showError(safeMessage(exception));
         }
@@ -267,8 +379,13 @@ public final class FinancePanel extends JPanel {
             return;
         }
         try {
-            accountService.archiveAccount(account.getIdentifier());
-            mutationSucceeded("Account archived.");
+            AccountArchiveResult result = accountService
+                    .archiveAccountWithResult(account.getIdentifier());
+            String message = result.replacementDefault()
+                    .map(replacement -> "Account archived. Default changed to "
+                        + replacement.getDisplayName() + ".")
+                    .orElse("Account archived.");
+            mutationSucceeded(message);
         } catch (ValidationException | RepositoryException exception) {
             showError(safeMessage(exception));
         }
@@ -307,6 +424,8 @@ public final class FinancePanel extends JPanel {
                 existing == null ? "" : existing.getNote());
         if (existing != null) {
             account.setSelectedItem(existing.getAccount());
+        } else {
+            account.setSelectedItem(accountService.getDefaultAccount());
         }
         JPanel form = form(
                 "Date (yyyy-MM-dd)", date,
@@ -406,6 +525,9 @@ public final class FinancePanel extends JPanel {
         if (existing != null) {
             source.setSelectedItem(existing.getSourceAccount());
             destination.setSelectedItem(existing.getDestinationAccount());
+        } else {
+            source.setSelectedItem(accountService.getDefaultAccount());
+            selectDifferentAccount(destination, (Account) source.getSelectedItem());
         }
         JPanel form = form(
                 "Date (yyyy-MM-dd)", date,
@@ -511,6 +633,71 @@ public final class FinancePanel extends JPanel {
                         accountTable.convertRowIndexToModel(row));
     }
 
+    private String selectedAccountIdentifier() {
+        Account selected = selectedAccount();
+        return selected == null ? null : selected.getIdentifier();
+    }
+
+    private List<Account> filteredAccounts(List<Account> accounts) {
+        AccountFilter selected = (AccountFilter) accountFilterBox.getSelectedItem();
+        AccountFilter filter = selected == null ? AccountFilter.ALL : selected;
+        return accounts.stream().filter(filter::includes).toList();
+    }
+
+    private void restoreAccountSelection(String identifier) {
+        if (identifier != null) {
+            selectAccount(identifier);
+        }
+        if (accountTable.getSelectedRow() < 0 && accountModel.getRowCount() > 0) {
+            accountTable.setRowSelectionInterval(0, 0);
+        } else if (accountModel.getRowCount() == 0) {
+            statementModel.replaceEntries(List.of());
+            statementSummaryLabel.setText(
+                    "No account is available for this filter.");
+        }
+    }
+
+    private void refreshAccountStatement() {
+        Account account = selectedAccount();
+        if (account == null || accountStatementService == null) {
+            statementModel.replaceEntries(List.of());
+            statementSummaryLabel.setText(account == null
+                    ? "Select an account to view its activity."
+                    : "Account activity is unavailable in this view.");
+            return;
+        }
+        try {
+            AccountStatementSnapshot statement =
+                    accountStatementService.getStatement(
+                            account.getIdentifier());
+            statementModel.replaceEntries(statement.getEntries());
+            statementSummaryLabel.setText(
+                    "Opening: " + statement.getOpeningBalance().toPlainString()
+                    + " | Income: " + statement.getIncome().toPlainString()
+                    + " | Expenses: " + statement.getExpenses().toPlainString()
+                    + " | Transfers in: "
+                    + statement.getIncomingTransfers().toPlainString()
+                    + " | Transfers out: "
+                    + statement.getOutgoingTransfers().toPlainString()
+                    + " | Current: "
+                    + statement.getCurrentBalance().toPlainString());
+        } catch (RepositoryException exception) {
+            statementModel.replaceEntries(List.of());
+            statementSummaryLabel.setText(
+                    "Unable to load account activity: " + safeMessage(exception));
+        }
+    }
+
+    private static void selectDifferentAccount(
+            JComboBox<Account> choices, Account excluded) {
+        for (int index = 0; index < choices.getItemCount(); index++) {
+            if (!Objects.equals(choices.getItemAt(index), excluded)) {
+                choices.setSelectedIndex(index);
+                return;
+            }
+        }
+    }
+
     private Income selectedIncome() {
         int row = incomeTable.getSelectedRow();
         return row < 0
@@ -600,6 +787,40 @@ public final class FinancePanel extends JPanel {
         if (!SwingUtilities.isEventDispatchThread()) {
             throw new IllegalStateException(
                     "FinancePanel must be created on the Event Dispatch Thread.");
+        }
+    }
+
+    private enum AccountFilter {
+        ALL("All accounts") {
+            @Override
+            boolean includes(Account account) {
+                return true;
+            }
+        },
+        ACTIVE("Active accounts") {
+            @Override
+            boolean includes(Account account) {
+                return account.isActive();
+            }
+        },
+        ARCHIVED("Archived accounts") {
+            @Override
+            boolean includes(Account account) {
+                return account.isArchived();
+            }
+        };
+
+        private final String label;
+
+        AccountFilter(String label) {
+            this.label = label;
+        }
+
+        abstract boolean includes(Account account);
+
+        @Override
+        public String toString() {
+            return label;
         }
     }
 }

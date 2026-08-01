@@ -35,6 +35,7 @@ final class ExpenseFormDialog extends JDialog {
 
     private final ExpenseService expenseService;
     private final Expense expenseToEdit;
+    private final Account preferredAccount;
     private final JTextField descriptionField = new JTextField(28);
     private final JTextField amountField = new JTextField(14);
     private final JTextField dateField = new JTextField(14);
@@ -51,7 +52,8 @@ final class ExpenseFormDialog extends JDialog {
                 expenseService,
                 expenseToEdit,
                 List.of(Category.values()),
-                List.of(Account.DEFAULT));
+                List.of(Account.DEFAULT),
+                Account.DEFAULT);
     }
 
     ExpenseFormDialog(
@@ -64,7 +66,8 @@ final class ExpenseFormDialog extends JDialog {
                 expenseService,
                 expenseToEdit,
                 selectableCategories,
-                List.of(Account.DEFAULT));
+                List.of(Account.DEFAULT),
+                Account.DEFAULT);
     }
 
     ExpenseFormDialog(
@@ -73,6 +76,22 @@ final class ExpenseFormDialog extends JDialog {
             Expense expenseToEdit,
             List<Category> selectableCategories,
             List<Account> selectableAccounts) {
+        this(
+                owner,
+                expenseService,
+                expenseToEdit,
+                selectableCategories,
+                selectableAccounts,
+                Account.DEFAULT);
+    }
+
+    ExpenseFormDialog(
+            Window owner,
+            ExpenseService expenseService,
+            Expense expenseToEdit,
+            List<Category> selectableCategories,
+            List<Account> selectableAccounts,
+            Account preferredAccount) {
         super(
                 owner,
                 expenseToEdit == null ? "Add Expense" : "Edit Expense",
@@ -81,6 +100,8 @@ final class ExpenseFormDialog extends JDialog {
         this.expenseService = Objects.requireNonNull(
                 expenseService, "Expense service is required.");
         this.expenseToEdit = expenseToEdit;
+        this.preferredAccount = Objects.requireNonNull(
+                preferredAccount, "Preferred account is required.");
         populateCategoryChoices(selectableCategories);
         populateAccountChoices(selectableAccounts);
 
@@ -161,7 +182,7 @@ final class ExpenseFormDialog extends JDialog {
         if (expenseToEdit == null) {
             dateField.setText(LocalDate.now().toString());
             categoryComboBox.setSelectedItem(Category.FOOD);
-            accountComboBox.setSelectedItem(Account.DEFAULT);
+            accountComboBox.setSelectedItem(preferredAccount);
             return;
         }
 

@@ -323,6 +323,13 @@ C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-data
 C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-data-gui-smoke
 ```
 
+The accounts target chains after data management and adds default-account persistence, lifecycle, statement-total, compatibility, production-isolation, and headless Swing checks. Its graphical variant checks the complete advanced-account wiring:
+
+```powershell
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-accounts
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-accounts-gui-smoke
+```
+
 ## Milestones
 
 1. **Foundation (complete):** establish the Java 21 NetBeans project, repository baseline, documentation, and repeatable build.
@@ -337,7 +344,7 @@ C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-data-gui-smoke
 10. **Calendar and advanced reports (complete):** add coherent date-based activity and reporting snapshots.
 11. **Recurring entries and quick entry (complete):** add explicit, idempotent due-item posting and reviewed shortcuts.
 12. **Backup, restore, and export (complete):** add validated offline data protection.
-13. **Advanced account controls:** add statements, reconciliation adjustments, and account insights.
+13. **Advanced account controls (complete):** add persisted defaults, safe metadata and lifecycle controls, exact statements, and account insights without direct balance editing.
 14. **Quality pass:** complete regression testing, usability fixes, documentation updates, and demo preparation.
 
 ### Execution Step 15 — Calendar and advanced reports
@@ -443,9 +450,9 @@ Step 17 tests use temporary directories exclusively and cover complete and parti
 
 ### Execution Step 18 — Advanced account controls
 
-Step 18 implements roadmap milestone 13. It will improve account management without changing historical ledger meaning or allowing arbitrary balance edits.
+Step 18 implements roadmap milestone 13. It improves account management without changing historical ledger meaning or allowing arbitrary balance edits.
 
-Advanced account controls will:
+Advanced account controls:
 
 - Edit account names and other allowed non-destructive metadata while preserving stable IDs and opening-balance design.
 - Set one active account as the user-selected default and persist that selection.
@@ -460,7 +467,7 @@ Advanced account controls will:
 
 No unrestricted direct balance editing will be introduced.
 
-Step 18 tests will cover rename and stable IDs, duplicate names, default selection and persistence, archive/restore, historical compatibility, exclusion from new entries, replacement-default behavior, last-active-account protection, exact post-lifecycle balances, account activity totals, CSV backward compatibility, and production-data isolation.
+Step 18 tests cover rename and stable IDs, non-destructive metadata edits, duplicate names, default selection and persistence, archive/restore, historical compatibility, exclusion from new entries, replacement-default behavior, protected-Cash active-account safety, exact post-lifecycle balances, account activity totals, CSV backward compatibility, account-settings corruption handling, headless Swing integration, and production-data isolation. The Ant target chains after Step 17.
 
 ### Execution Step 19 — Quality pass
 

@@ -316,6 +316,9 @@ public final class RecurringPanel extends JPanel {
                         .map(LocalDate::toString).orElse(""));
                 nextDueDate.setText(existing.getNextDueDate().toString());
                 active.setSelected(existing.isActive());
+            } else {
+                source.setSelectedItem(accountService.getDefaultAccount());
+                selectDifferentDestination();
             }
             nextDueDate.setEnabled(existing != null);
             add("Type", type);
@@ -333,6 +336,17 @@ public final class RecurringPanel extends JPanel {
             panel.add(active);
             type.addActionListener(event -> updateRelevantFields());
             updateRelevantFields();
+        }
+
+        private void selectDifferentDestination() {
+            for (int index = 0; index < destination.getItemCount(); index++) {
+                if (!Objects.equals(
+                        destination.getItemAt(index),
+                        source.getSelectedItem())) {
+                    destination.setSelectedIndex(index);
+                    return;
+                }
+            }
         }
 
         private void add(String label, java.awt.Component field) {

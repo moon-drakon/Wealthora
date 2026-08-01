@@ -12,6 +12,7 @@ import com.spendwise.repository.IncomeRepository;
 import com.spendwise.repository.RepositoryException;
 import com.spendwise.repository.TransferRepository;
 import com.spendwise.service.AccountService;
+import com.spendwise.service.AccountStatementService;
 import com.spendwise.service.ExpenseService;
 import com.spendwise.service.FinanceService;
 import com.spendwise.service.IncomeService;
@@ -53,6 +54,10 @@ public final class FinanceFoundationTest {
         swingTest("expense listener failure becomes warning",
                 FinanceFoundationTest::expenseListenerWarning);
         swingTest("table models reject editing", FinanceFoundationTest::modelsReadOnly);
+        swingTest("account status filter", FinanceFoundationTest::accountFilter);
+        swingTest("selected account statement", FinanceFoundationTest::accountStatement);
+        swingTest("archived account excluded from expense choices",
+                FinanceFoundationTest::expenseAccountChoices);
         System.out.println(
                 "All " + passed + " finance Swing foundation tests passed.");
     }
@@ -62,14 +67,16 @@ public final class FinanceFoundationTest {
         LinkedHashMap<Account, BigDecimal> balances = new LinkedHashMap<>();
         balances.put(Account.DEFAULT, new BigDecimal("-10.00"));
         balances.put(BANK, new BigDecimal("150.00"));
-        model.replace(List.of(Account.DEFAULT, BANK), balances);
+        model.replace(List.of(Account.DEFAULT, BANK), balances, BANK);
         assertEquals(2, model.getRowCount());
-        assertEquals(5, model.getColumnCount());
+        assertEquals(6, model.getColumnCount());
         assertEquals("Account", model.getColumnName(0));
         assertEquals("Current Balance", model.getColumnName(3));
+        assertEquals("Default", model.getColumnName(4));
         assertEquals("Savings", model.getValueAt(1, 0));
         assertEquals(new BigDecimal("150.00"), model.getValueAt(1, 3));
-        assertEquals("Protected", model.getValueAt(0, 4));
+        assertEquals("Yes", model.getValueAt(1, 4));
+        assertEquals("Protected", model.getValueAt(0, 5));
     }
 
     private static void incomeTable() {
@@ -214,6 +221,61 @@ public final class FinanceFoundationTest {
         assertContains(panel.getStatusText(), "could not refresh");
     }
 
+    private static void accountFilter() {
+        PanelFixture fixture = new PanelFixture(() -> {
+        });
+        fixture.accounts.entries.add(BANK.withArchived(true));
+        fixture.panel.refreshFinanceData();
+        assertEquals(2, fixture.panel.getAccountRowCount());
+        fixture.panel.setAccountFilter("Active accounts");
+        assertEquals(1, fixture.panel.getAccountRowCount());
+        fixture.panel.setAccountFilter("Archived accounts");
+        assertEquals(1, fixture.panel.getAccountRowCount());
+        fixture.panel.setAccountFilter("All accounts");
+        assertEquals(2, fixture.panel.getAccountRowCount());
+    }
+
+    private static void accountStatement() {
+        PanelFixture fixture = new PanelFixture(() -> {
+        });
+        fixture.accounts.entries.add(BANK);
+        fixture.expenses.entries.add(new Expense(
+                "expense-statement", "Lunch", new BigDecimal("20.00"),
+                DATE, Category.FOOD, BANK, ""));
+        fixture.income.entries.add(new Income(
+                "INCOME_STATEMENT", DATE, new BigDecimal("50.00"),
+                "Salary", BANK, ""));
+        fixture.transfers.entries.add(new Transfer(
+                "TRANSFER_STATEMENT", DATE, new BigDecimal("10.00"),
+                BANK, Account.DEFAULT, "Move"));
+        fixture.panel.refreshFinanceData();
+        fixture.panel.selectAccount(BANK.getIdentifier());
+        assertEquals(3, fixture.panel.getStatementRowCount());
+        assertContains(fixture.panel.getStatementSummaryText(),
+                "Income: 50.00");
+        assertContains(fixture.panel.getStatementSummaryText(),
+                "Expenses: 20.00");
+        assertContains(fixture.panel.getStatementSummaryText(),
+                "Current: 120.00");
+    }
+
+    private static void expenseAccountChoices() {
+        MemoryAccountRepository accounts = new MemoryAccountRepository();
+        accounts.entries.add(BANK.withArchived(true));
+        AccountService accountService = new AccountService(accounts);
+        ExpensePanel panel = new ExpensePanel(
+                new ExpenseService(new MemoryExpenseRepository(), accountService),
+                null,
+                accountService,
+                category -> false,
+                () -> {
+                },
+                () -> {
+                });
+        assertEquals(List.of(Account.DEFAULT),
+                panel.getSelectableAccountSnapshot(null));
+    }
+
     private static final class PanelFixture {
 
         private final MemoryAccountRepository accounts =
@@ -234,15 +296,22 @@ public final class FinanceFoundationTest {
                     new TransferService(transfers, accountService);
             ExpenseService expenseService =
                     new ExpenseService(expenses, accountService);
+            FinanceService financeService = new FinanceService(
+                    accountService,
+                    expenseService,
+                    incomeService,
+                    transferService);
             panel = new FinancePanel(
                     accountService,
                     incomeService,
                     transferService,
-                    new FinanceService(
+                    financeService,
+                    new AccountStatementService(
                             accountService,
                             expenseService,
                             incomeService,
-                            transferService),
+                            transferService,
+                            financeService),
                     listener);
         }
     }

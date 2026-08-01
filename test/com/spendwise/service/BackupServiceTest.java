@@ -279,6 +279,8 @@ public final class BackupServiceTest {
             case "budgets.csv" -> "month,scope,category,amount\n";
             case "categories.csv" -> "id,name,status\n";
             case "accounts.csv" -> "id,name,type,openingBalance,status\n";
+            case "account-settings.csv" -> "key,value\n"
+                + "DEFAULT_ACCOUNT,ACCOUNT_DEFAULT_CASH\n";
             case "income.csv" -> "id,date,amount,source,account,note\n";
             case "transfers.csv" ->
                 "id,date,amount,sourceAccount,destinationAccount,note\n";

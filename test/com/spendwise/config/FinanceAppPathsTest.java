@@ -40,6 +40,10 @@ public final class FinanceAppPathsTest {
                 AppPaths.resolveRecurringCsvPath(
                         "Windows 11", root.toString(), null, "C:\\Home")
                         .getFileName().toString());
+        assertEquals("account-settings.csv",
+                AppPaths.resolveAccountSettingsCsvPath(
+                        "Windows 11", root.toString(), null, "C:\\Home")
+                        .getFileName().toString());
     }
 
     private static void linuxPaths() {
@@ -60,13 +64,17 @@ public final class FinanceAppPathsTest {
         Path income = AppPaths.getIncomeCsvPath();
         Path transfers = AppPaths.getTransferCsvPath();
         Path recurring = AppPaths.getRecurringCsvPath();
+        Path accountSettings = AppPaths.getAccountSettingsCsvPath();
         assertEquals(account.getParent(), income.getParent());
         assertEquals(account.getParent(), transfers.getParent());
         assertEquals(account.getParent(), recurring.getParent());
+        assertEquals(account.getParent(), accountSettings.getParent());
         assertFalse(Files.exists(account) && Files.isDirectory(account));
         assertFalse(Files.exists(income) && Files.isDirectory(income));
         assertFalse(Files.exists(transfers) && Files.isDirectory(transfers));
         assertFalse(Files.exists(recurring) && Files.isDirectory(recurring));
+        assertFalse(Files.exists(accountSettings)
+                && Files.isDirectory(accountSettings));
     }
 
     private static void test(String name, Runnable test) {

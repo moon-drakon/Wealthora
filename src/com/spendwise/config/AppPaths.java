@@ -53,6 +53,10 @@ public final class AppPaths {
         return currentDataPath("recurring.csv");
     }
 
+    public static Path getAccountSettingsCsvPath() {
+        return currentDataPath("account-settings.csv");
+    }
+
     static Path resolveExpenseCsvPath(
             String operatingSystemName,
             String localAppData,
@@ -142,6 +146,19 @@ public final class AppPaths {
                 xdgDataHome,
                 userHome,
                 "recurring.csv");
+    }
+
+    static Path resolveAccountSettingsCsvPath(
+            String operatingSystemName,
+            String localAppData,
+            String xdgDataHome,
+            String userHome) {
+        return resolveDataFilePath(
+                operatingSystemName,
+                localAppData,
+                xdgDataHome,
+                userHome,
+                "account-settings.csv");
     }
 
     private static Path currentDataPath(String fileName) {

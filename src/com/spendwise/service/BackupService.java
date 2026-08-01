@@ -2,6 +2,7 @@ package com.spendwise.service;
 
 import com.spendwise.model.Category;
 import com.spendwise.repository.CsvAccountRepository;
+import com.spendwise.repository.CsvAccountPreferenceRepository;
 import com.spendwise.repository.CsvBudgetRepository;
 import com.spendwise.repository.CsvCategoryRepository;
 import com.spendwise.repository.CsvExpenseRepository;
@@ -206,9 +207,13 @@ public final class BackupService {
                             validationDirectory.resolve("categories.csv")));
             AccountService accounts = new AccountService(
                     new CsvAccountRepository(
-                            validationDirectory.resolve("accounts.csv")));
+                            validationDirectory.resolve("accounts.csv")),
+                    new CsvAccountPreferenceRepository(
+                            validationDirectory.resolve(
+                                "account-settings.csv")));
             categories.listAllCategories();
             accounts.listAllAccounts();
+            accounts.getDefaultAccount();
             new CsvExpenseRepository(
                     validationDirectory.resolve("expenses.csv"),
                     categories::resolveCategory,

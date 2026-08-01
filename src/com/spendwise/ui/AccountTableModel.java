@@ -10,18 +10,29 @@ import javax.swing.table.AbstractTableModel;
 final class AccountTableModel extends AbstractTableModel {
 
     private static final String[] COLUMNS = {
-        "Account", "Type", "Opening Balance", "Current Balance", "Status"
+        "Account", "Type", "Opening Balance", "Current Balance",
+        "Default", "Status"
     };
     private List<Account> accounts = List.of();
     private Map<Account, BigDecimal> balances = Map.of();
+    private Account defaultAccount = Account.DEFAULT;
 
     void replace(
             List<Account> newAccounts,
             Map<Account, BigDecimal> newBalances) {
+        replace(newAccounts, newBalances, Account.DEFAULT);
+    }
+
+    void replace(
+            List<Account> newAccounts,
+            Map<Account, BigDecimal> newBalances,
+            Account newDefaultAccount) {
         accounts = List.copyOf(Objects.requireNonNull(
                 newAccounts, "Accounts are required."));
         balances = Map.copyOf(Objects.requireNonNull(
                 newBalances, "Account balances are required."));
+        defaultAccount = Objects.requireNonNull(
+                newDefaultAccount, "Default account is required.");
         fireTableDataChanged();
     }
 
@@ -59,7 +70,8 @@ final class AccountTableModel extends AbstractTableModel {
             case 1 -> account.getType().getDisplayName();
             case 2 -> account.getOpeningBalance();
             case 3 -> balances.get(account);
-            case 4 -> account.isProtected()
+            case 4 -> account.equals(defaultAccount) ? "Yes" : "";
+            case 5 -> account.isProtected()
                     ? "Protected"
                     : account.isActive() ? "Active" : "Archived";
             default -> throw new IndexOutOfBoundsException(

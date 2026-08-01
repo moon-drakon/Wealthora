@@ -3,6 +3,7 @@ package com.spendwise.service;
 import com.spendwise.model.Account;
 import com.spendwise.model.AccountType;
 import com.spendwise.repository.AccountRepository;
+import com.spendwise.repository.AccountPreferenceRepository;
 import com.spendwise.repository.RepositoryException;
 import com.spendwise.validation.FinanceValidator;
 import com.spendwise.validation.ValidationException;
@@ -11,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 public final class AccountService {
@@ -18,10 +20,20 @@ public final class AccountService {
     private static final String ID_PREFIX = "ACCOUNT_";
 
     private final AccountRepository repository;
+    private final AccountPreferenceRepository preferenceRepository;
 
     public AccountService(AccountRepository repository) {
+        this(repository, new MemoryAccountPreferenceRepository());
+    }
+
+    public AccountService(
+            AccountRepository repository,
+            AccountPreferenceRepository preferenceRepository) {
         this.repository = Objects.requireNonNull(
                 repository, "Account repository is required.");
+        this.preferenceRepository = Objects.requireNonNull(
+                preferenceRepository,
+                "Account preference repository is required.");
     }
 
     public List<Account> listAllAccounts() {
@@ -73,24 +85,50 @@ public final class AccountService {
     public Account renameAccount(
             String identifier, String newDisplayName) {
         Account existing = requireCustomAccount(identifier);
+        return updateAccountMetadata(
+                identifier, newDisplayName, existing.getType());
+    }
+
+    public Account updateAccountMetadata(
+            String identifier,
+            String newDisplayName,
+            AccountType newType) {
+        Account existing = requireCustomAccount(identifier);
         String normalizedName = FinanceValidator.validateRequiredText(
                 newDisplayName,
                 "Account name",
                 FinanceValidator.MAX_NAME_LENGTH);
         rejectDuplicateName(normalizedName, existing.getIdentifier());
-        Account renamed = existing.withDisplayName(normalizedName);
-        repository.update(renamed);
-        return renamed;
+        Account replacement = existing.withMetadata(
+                normalizedName,
+                Objects.requireNonNull(newType, "Account type is required."));
+        repository.update(replacement);
+        return replacement;
     }
 
     public Account archiveAccount(String identifier) {
+        return archiveAccountWithResult(identifier).archivedAccount();
+    }
+
+    public AccountArchiveResult archiveAccountWithResult(String identifier) {
         Account existing = requireCustomAccount(identifier);
         if (existing.isArchived()) {
-            return existing;
+            return new AccountArchiveResult(existing, Optional.empty());
+        }
+        Optional<Account> replacementDefault = Optional.empty();
+        if (getDefaultAccount().equals(existing)) {
+            Account replacement = listSelectableAccounts().stream()
+                    .filter(account -> !account.equals(existing))
+                    .findFirst()
+                    .orElseThrow(() -> new ValidationException(
+                            "At least one active account must remain."));
+            preferenceRepository.saveDefaultAccountId(
+                    replacement.getIdentifier());
+            replacementDefault = Optional.of(replacement);
         }
         Account archived = existing.withArchived(true);
         repository.update(archived);
-        return archived;
+        return new AccountArchiveResult(archived, replacementDefault);
     }
 
     public Account restoreAccount(String identifier) {
@@ -112,6 +150,23 @@ public final class AccountService {
                     "Archived accounts cannot be used for new transactions.");
         }
         return current;
+    }
+
+    public Account getDefaultAccount() {
+        String identifier = preferenceRepository.findDefaultAccountId()
+                .orElse(Account.DEFAULT_IDENTIFIER);
+        Account account = resolveAccount(identifier);
+        if (!account.isActive()) {
+            throw new RepositoryException(
+                    "The configured default account is archived.");
+        }
+        return account;
+    }
+
+    public Account setDefaultAccount(String identifier) {
+        Account account = requireSelectable(resolveAccount(identifier));
+        preferenceRepository.saveDefaultAccountId(account.getIdentifier());
+        return account;
     }
 
     public Account requireSelectableOrHistorical(
@@ -148,6 +203,22 @@ public final class AccountService {
                         "An account named \"" + displayName
                         + "\" already exists.");
             }
+        }
+    }
+
+    private static final class MemoryAccountPreferenceRepository
+            implements AccountPreferenceRepository {
+
+        private String defaultIdentifier;
+
+        @Override
+        public Optional<String> findDefaultAccountId() {
+            return Optional.ofNullable(defaultIdentifier);
+        }
+
+        @Override
+        public void saveDefaultAccountId(String identifier) {
+            defaultIdentifier = Objects.requireNonNull(identifier);
         }
     }
 }

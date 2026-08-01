@@ -421,4 +421,37 @@
             </classpath>
         </java>
     </target>
+    <target name="test-accounts" depends="test-data"
+            description="Runs advanced account controls, settings persistence, statement, and Swing tests.">
+        <java classname="com.spendwise.repository.AccountPreferenceRepositoryTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+        <java classname="com.spendwise.service.AdvancedAccountServiceTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+    </target>
+    <target name="test-accounts-gui-smoke" depends="test-accounts"
+            description="Runs the full-frame smoke test with advanced account controls wired.">
+        <java classname="com.spendwise.ui.FinanceFrameSmokeTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+    </target>
 </project>
