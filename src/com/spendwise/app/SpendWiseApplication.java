@@ -9,10 +9,12 @@ import com.spendwise.repository.CsvIncomeRepository;
 import com.spendwise.repository.CsvRecurringEntryRepository;
 import com.spendwise.repository.CsvTransferRepository;
 import com.spendwise.service.AccountService;
+import com.spendwise.service.BackupService;
 import com.spendwise.service.BudgetService;
 import com.spendwise.service.CategoryService;
 import com.spendwise.service.ExpenseAnalyticsService;
 import com.spendwise.service.ExpenseService;
+import com.spendwise.service.ExportService;
 import com.spendwise.service.FinanceService;
 import com.spendwise.service.IncomeService;
 import com.spendwise.service.QuickEntryService;
@@ -94,6 +96,14 @@ public final class SpendWiseApplication {
                     categoryService);
             QuickEntryService quickEntryService = new QuickEntryService(
                     expenseService, incomeService, transferService);
+            BackupService backupService = new BackupService(
+                    expenseCsvPath.getParent());
+            ExportService exportService = new ExportService(
+                    expenseService,
+                    incomeService,
+                    transferService,
+                    accountService,
+                    financeService);
             SpendWiseFrame frame =
                     new SpendWiseFrame(
                             expenseService,
@@ -105,7 +115,9 @@ public final class SpendWiseApplication {
                             transferService,
                             financeService,
                             recurringService,
-                            quickEntryService);
+                            quickEntryService,
+                            backupService,
+                            exportService);
             frame.setVisible(true);
         } catch (RuntimeException exception) {
             JOptionPane.showMessageDialog(

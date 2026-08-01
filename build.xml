@@ -388,4 +388,37 @@
             </classpath>
         </java>
     </target>
+    <target name="test-data" depends="test-recurring"
+            description="Runs backup, restore, and CSV export tests.">
+        <java classname="com.spendwise.service.BackupServiceTest"
+              fork="true"
+              maxmemory="128m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+        <java classname="com.spendwise.service.ExportServiceTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+    </target>
+    <target name="test-data-gui-smoke" depends="test-data"
+            description="Runs the full-frame smoke test with Data menu wiring.">
+        <java classname="com.spendwise.ui.FinanceFrameSmokeTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+    </target>
 </project>

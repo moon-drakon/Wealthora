@@ -10,7 +10,7 @@ SpendWise Expense Tracker is a Java Swing desktop application for a CSE215 Objec
 
 ## Current status
 
-The project now includes validated expense, income, account, transfer, category, budget, and recurring-entry models; storage-independent repositories; safe UTF-8 CSV persistence; and a programmatic Swing interface with Expenses, Dashboard, Budgets, Finance, Calendar, Reports, and Recurring tabs. Users can manage financial entries and categories, configure budgets, inspect calendar activity, run filtered reports, maintain recurring definitions, explicitly generate due entries, and open Quick Entry with `Ctrl+Q`. Deterministic recurring occurrence IDs prevent duplicate posting during safe retries. The complete automated suite remains dependency-free and includes an isolated full-frame smoke test.
+The project now includes validated financial and recurring-entry models, storage-independent repositories, safe UTF-8 CSV persistence, and a seven-tab programmatic Swing interface. Users can manage entries and categories, configure budgets, inspect calendar activity, run filtered reports, maintain recurring definitions, and use Quick Entry. The Data menu adds validated ZIP backup/restore and read-only CSV exports. Restore validates every included CSV before mutation, creates a safety backup when current managed data exists, and rolls back staged replacement failures. The complete automated suite remains dependency-free and includes an isolated full-frame smoke test.
 
 Feature status in this document will be updated only after the corresponding behavior has been implemented and verified.
 
@@ -38,8 +38,8 @@ These features are candidates after the core workflow is complete:
 - Calendar activity and advanced financial reports (implemented)
 - Recurring expense, income, and transfer definitions (implemented)
 - Keyboard-accessible Quick Entry (implemented)
-- Exportable filtered summaries
-- Local data backup and restore
+- Exportable financial data and filtered reports (implemented)
+- Local ZIP backup and validated restore (implemented)
 
 ## Technology stack
 
@@ -186,6 +186,20 @@ The graphical variant also checks the seven-tab frame and Quick Entry menu wirin
 C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-recurring-gui-smoke
 ```
 
+## Run the backup, restore, and export tests
+
+The data target chains after all recurring tests and adds isolated backup, restore, corruption, traversal, safety-backup, CSV escaping, exact-money, and filtered-export checks:
+
+```powershell
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-data
+```
+
+The graphical variant also validates the Data menu wiring:
+
+```powershell
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-data-gui-smoke
+```
+
 ## Application data location
 
 On Windows, expense data is stored at:
@@ -267,6 +281,14 @@ Each occurrence has a deterministic ID derived from its definition and due date.
 
 Quick Entry is available from **Entry > Quick Entry**, the Recurring tab, or `Ctrl+Q`. It delegates expense, income, and transfer creation to the existing services, keeps safe account/category choices for the current session, preserves failed input, and disables repeat submission while saving.
 
+## Backup, restore, and export
+
+Use **Data > Create Backup** to choose a ZIP destination outside the application data directory. A backup contains a versioned manifest and every managed CSV file that currently exists; source, Git, build, credential, and unrelated files are never included. Existing destinations require explicit replacement confirmation.
+
+Use **Data > Restore Backup** to inspect the archive timestamp and included filenames before confirming. SpendWise rejects unsupported versions, malformed manifests or CSV data, duplicate or unknown entries, corrupt ZIPs, and path traversal before modifying application data. If managed data currently exists, a timestamped safety backup is written beside the selected archive. Restore applies the validated snapshot as one managed data set, removes managed files that were absent from that snapshot, never deletes unrelated files, and refreshes the application only after success.
+
+The **Data > Export** submenu writes expenses, income, transfers, account summaries, or the currently selected filtered report to user-selected CSV files. Exports use clear headers, standard CSV escaping, and exact decimal text. They never mutate repositories and require confirmation before replacing a file.
+
 ## Project structure
 
 ```text
@@ -314,6 +336,7 @@ SpendWiseExpenseTracker/
 |       |-- service/
 |       |   |-- AccountBalanceSnapshot.java
 |       |   |-- AccountService.java
+|       |   |-- BackupService.java
 |       |   |-- BudgetAlertLevel.java
 |       |   |-- BudgetService.java
 |       |   |-- BudgetStatusSnapshot.java
@@ -329,7 +352,9 @@ SpendWiseExpenseTracker/
 |       |   |-- ExpenseNotFoundException.java
 |       |   |-- ExpenseService.java
 |       |   |-- ExpenseSortOrder.java
+|       |   |-- ExportService.java
 |       |   |-- FinancialReportingService.java
+|       |   |-- ManagedDataFiles.java
 |       |   |-- QuickEntryResult.java
 |       |   |-- QuickEntryService.java
 |       |   |-- RecurringGenerationResult.java
@@ -344,6 +369,7 @@ SpendWiseExpenseTracker/
 |       |   |-- CategoryManagerDialog.java
 |       |   |-- CategoryTableModel.java
 |       |   |-- DashboardPanel.java
+|       |   |-- DataManagementActions.java
 |       |   |-- ExpenseFormDialog.java
 |       |   |-- ExpensePanel.java
 |       |   |-- ExpenseTableModel.java
@@ -380,9 +406,11 @@ SpendWiseExpenseTracker/
 |       |   `-- RecurringRepositoryTest.java
 |       |-- service/
 |       |   |-- BudgetServiceTest.java
+|       |   |-- BackupServiceTest.java
 |       |   |-- CategoryServiceTest.java
 |       |   |-- ExpenseAnalyticsServiceTest.java
 |       |   |-- ExpenseServiceTest.java
+|       |   |-- ExportServiceTest.java
 |       |   |-- FinancialReportingServiceTest.java
 |       |   |-- FinanceServiceTest.java
 |       |   `-- RecurringQuickEntryServiceTest.java
@@ -407,4 +435,4 @@ The generated `build/` and `dist/` directories and the machine-specific `nbproje
 
 The CSV repositories support commas, doubled quotes, Unicode, and quoted line breaks. Account rows use `id,name,type,openingBalance,status`, income rows use `id,date,amount,source,account,note`, and transfer rows use `id,date,amount,sourceAccount,destinationAccount,note`. Mutations write a complete temporary file in the destination directory and replace the previous file only after the temporary content is closed, flushed, and forced to storage. Corrupt data is never silently reset or overwritten.
 
-Authentication, dark mode, backup/restore, import/export, printing, cloud synchronization, and website functionality are not implemented. Multi-process file locking also remains outside the current scope.
+Authentication, dark mode, general-purpose import, printing, cloud synchronization, and website functionality are not implemented. Multi-process file locking also remains outside the current scope.

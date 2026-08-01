@@ -8,10 +8,12 @@ import com.spendwise.repository.CsvIncomeRepository;
 import com.spendwise.repository.CsvRecurringEntryRepository;
 import com.spendwise.repository.CsvTransferRepository;
 import com.spendwise.service.AccountService;
+import com.spendwise.service.BackupService;
 import com.spendwise.service.BudgetService;
 import com.spendwise.service.CategoryService;
 import com.spendwise.service.ExpenseAnalyticsService;
 import com.spendwise.service.ExpenseService;
+import com.spendwise.service.ExportService;
 import com.spendwise.service.FinanceService;
 import com.spendwise.service.IncomeService;
 import com.spendwise.service.QuickEntryService;
@@ -103,7 +105,15 @@ public final class FinanceFrameSmokeTest {
                         new FinanceService(
                                 accounts, expenses, income, transfers),
                         recurring,
-                        new QuickEntryService(expenses, income, transfers));
+                        new QuickEntryService(expenses, income, transfers),
+                        new BackupService(directory),
+                        new ExportService(
+                                expenses,
+                                income,
+                                transfers,
+                                accounts,
+                                new FinanceService(
+                                    accounts, expenses, income, transfers)));
                 frame.setLocation(-10000, -10000);
                 frame.setSize(1000, 650);
                 frame.setVisible(true);
@@ -122,10 +132,11 @@ public final class FinanceFrameSmokeTest {
                 tabs.setSelectedIndex(6);
                 tabs.setSelectedIndex(0);
                 if (frame.getJMenuBar() == null
-                        || frame.getJMenuBar().getMenuCount() != 1) {
+                        || frame.getJMenuBar().getMenuCount() != 2) {
                     throw new AssertionError(
-                            "Quick Entry menu must be available.");
+                            "Quick Entry and Data menus must be available.");
                 }
+                assertEquals("Data", frame.getJMenuBar().getMenu(1).getText());
             } catch (Throwable exception) {
                 failure.set(exception);
             } finally {

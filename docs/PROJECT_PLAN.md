@@ -2,7 +2,7 @@
 
 ## Current implementation status
 
-The project currently includes validated expense, income, account, transfer, category, monthly-budget, and recurring-entry models; storage-independent repositories; safe UTF-8 CSV persistence; and a programmatic Swing application with seven primary tabs. Recurring definitions use explicit, idempotent generation, while Quick Entry delegates directly to existing transaction services. Legacy expenses remain compatible through a protected default Cash account. The chained dependency-free recurring suite preserves every earlier test and adds schedule, CSV, generation, Quick Entry, headless Swing, and isolated full-frame checks.
+The project currently includes validated financial and recurring-entry models, storage-independent repositories, safe UTF-8 CSV persistence, and a programmatic Swing application with seven primary tabs. Recurring definitions use explicit, idempotent generation, while Quick Entry delegates directly to existing transaction services. The Data menu provides validated ZIP backup/restore and read-only CSV exports. The chained dependency-free data suite preserves every earlier test and adds archive, failure-preservation, traversal, safety-backup, export, and isolated full-frame checks.
 
 ## Problem statement
 
@@ -86,6 +86,10 @@ The Expenses header opens a modal category manager with Name, Type, and Status c
 
 `RecurringPanel` manages typed schedules and invokes generation only through the visible **Generate Due Entries** action. `QuickEntryDialog` provides a compact expense, income, and transfer form from the Entry menu or `Ctrl+Q`. Both delegate validation and mutation to service classes; opening either workflow does not write data.
 
+### Data protection and export
+
+The Data menu exposes user-selected backup, restore, and export actions. It confirms replacement and restore operations, displays the validated archive summary, and refreshes panels only after a complete restore. The UI delegates archive validation, transaction-safe replacement, and CSV generation to `BackupService` and `ExportService`.
+
 ## Proposed Java package architecture
 
 ```text
@@ -114,6 +118,7 @@ com.spendwise.service
     FinancialReportingService, CalendarMonthSnapshot,
     DailyActivitySnapshot, AdvancedReportSnapshot,
     RecurringService, RecurringGenerationResult, QuickEntryService,
+    BackupService, BackupInspection, RestoreResult, ExportService,
     ExpenseService, ExpenseSummary, ExpenseSortOrder,
     ExpenseNotFoundException
 com.spendwise.ui
@@ -124,6 +129,7 @@ com.spendwise.ui
     FinancePanel, AccountTableModel, IncomeTableModel, TransferTableModel
     CalendarPanel, AdvancedReportsPanel, FinancialActivityTableModel
     RecurringPanel, RecurringEntryTableModel, QuickEntryDialog
+    DataManagementActions
 com.spendwise.validation
     ExpenseValidator, FinanceValidator, ValidationException
 ```
@@ -175,9 +181,11 @@ The repository package now provides a storage-independent expense contract and a
 
 `RecurringService` validates definitions, identifies due occurrences, and delegates posting to the established expense, income, and transfer services. An occurrence ID is derived from the stable definition ID and due date. Generation advances and saves the next due date after each occurrence; a retry detects an already-written occurrence and advances without duplication. `QuickEntryService` is a thin delegation boundary that reuses the same transaction services and validation.
 
+`BackupService` includes only known managed CSV files, writes a versioned standard-library ZIP through a same-directory temporary file, and validates the manifest, safe entry names, size limits, and every included CSV through the real repositories before restore. It creates a safety backup when current managed data exists and rolls back prior bytes if staged replacement fails. `ExportService` builds escaped UTF-8 CSV snapshots for transactions, balances, and the current filtered advanced report without repository mutation.
+
 ### UI
 
-The UI package creates programmatic Swing components, translates user actions into service calls, and displays results or validation messages. `SpendWiseFrame` exposes Expenses, Dashboard, Budgets, Finance, Calendar, Reports, and Recurring tabs, with Expenses still first. Financial mutations refresh derived views while preserving relevant selections where practical. Export screens remain future work.
+The UI package creates programmatic Swing components, translates user actions into service calls, and displays results or validation messages. `SpendWiseFrame` exposes Expenses, Dashboard, Budgets, Finance, Calendar, Reports, and Recurring tabs, with Expenses still first. Financial mutations and successful restore operations refresh derived views while preserving relevant selections where practical.
 
 ## CSV persistence plan
 
@@ -225,6 +233,7 @@ Testing will combine focused automated checks with repeatable manual GUI testing
 - Account, income, and transfer validation; legacy expense compatibility; repository safe writes and corruption; CRUD, search, stable sorting, exact balances, transfer neutrality, refresh warnings, and Swing table foundations
 - Calendar alignment, leap years, daily totals and details, transfer exclusion, date-range validation, grouping, trends, budgets versus actuals, immutable read-only snapshots, and headless panel checks
 - Daily, weekly, monthly, yearly, interval, leap-year, and month-end recurrence; optional end dates; inactive definitions; retry-safe generation; all three entry types; CSV corruption; Quick Entry delegation; and headless panel checks
+- Complete and partial ZIP backups, manifest/content validation, overwrite protection, corrupted and unsupported archives, path traversal, validation-before-mutation, safety backup, successful restore, unrelated-file preservation, export escaping, exact money, filtered reports, and repository immutability
 - An isolated graphical full-frame smoke test that uses temporary paths and verifies read-only startup and tab navigation
 - Isolated path-resolution checks that do not modify environment variables or production data
 - Manual checks for navigation, table updates, dialogs, keyboard focus, resizing, and error messages
@@ -307,6 +316,13 @@ C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-recurring
 C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-recurring-gui-smoke
 ```
 
+The data target chains after recurring and runs isolated backup/restore and export suites. Its graphical variant checks the Data menu without touching production data:
+
+```powershell
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-data
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-data-gui-smoke
+```
+
 ## Milestones
 
 1. **Foundation (complete):** establish the Java 21 NetBeans project, repository baseline, documentation, and repeatable build.
@@ -320,7 +336,7 @@ C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-recurring-gui-smoke
 9. **Income, accounts, and transfers (complete):** implement stable local accounts, income CRUD and querying, transfer workflows, exact balances, compatible expense account assignment, and safe additive CSV persistence.
 10. **Calendar and advanced reports (complete):** add coherent date-based activity and reporting snapshots.
 11. **Recurring entries and quick entry (complete):** add explicit, idempotent due-item posting and reviewed shortcuts.
-12. **Backup, restore, and export:** add validated offline data protection.
+12. **Backup, restore, and export (complete):** add validated offline data protection.
 13. **Advanced account controls:** add statements, reconciliation adjustments, and account insights.
 14. **Quality pass:** complete regression testing, usability fixes, documentation updates, and demo preparation.
 
@@ -391,9 +407,9 @@ Step 16 tests cover every frequency, intervals greater than one, leap-year and m
 
 ### Execution Step 17 — Backup, restore, and export
 
-Step 17 implements roadmap milestone 12. It will add user-controlled local data protection and read-only exports.
+Step 17 implements roadmap milestone 12. It adds user-controlled local data protection and read-only exports.
 
-A backup will:
+A backup:
 
 - Include every managed application CSV file that currently exists.
 - Include a manifest with the backup format version, application name, creation timestamp, and included filenames.
@@ -404,7 +420,7 @@ A backup will:
 
 A standard-library ZIP format is approved.
 
-Restore will:
+Restore:
 
 - Require explicit backup selection and validate the manifest and every expected file before mutation.
 - Reject unsupported, malformed, corrupted, and path-traversal archives.
@@ -414,7 +430,7 @@ Restore will:
 - Avoid partial restore, preserve original data after any validation or restore failure, and never delete unrelated files.
 - Refresh application state only after complete success.
 
-Export will support:
+Export supports:
 
 - All expenses, income, and transfers as CSV.
 - Account summaries as CSV.
@@ -423,7 +439,7 @@ Export will support:
 - User-selected destinations with explicit overwrite confirmation.
 - Read-only behavior that never mutates repositories.
 
-Step 17 tests will use temporary directories exclusively and cover complete and partial backups, manifest correctness, existing destinations, corrupted/unsupported/path-traversal archives, validation before mutation, failure preservation, safety backups, successful restore, export headers and escaping, exact money, filtered exports, and production-data isolation.
+Step 17 tests use temporary directories exclusively and cover complete and partial backups, manifest correctness, existing destinations, corrupted/unsupported/path-traversal archives, validation before mutation, failure preservation, safety backups, successful restore, export headers and escaping, exact money, filtered exports, and production-data isolation.
 
 ### Execution Step 18 — Advanced account controls
 
@@ -483,12 +499,12 @@ Maintained documentation will accurately describe the project, architecture, com
 - CSV storage rather than a relational database
 - No cloud synchronization or multi-device support
 - No multi-process CSV file locking
-- No user-facing backup or import/export workflow
+- No general-purpose data import beyond validated SpendWise backup restore
 - No exported or printable financial reports; advanced reports are currently on-screen and read-only
 - No bank, payment-provider, or financial-account integration
 - No authentication, shared accounts, or role management
 - No dark mode or theme switching
-- No backup/restore, import/export, printing, or website
+- No general-purpose import, printing, or website
 - No encryption beyond protections provided by the local operating system
 - No mobile or web client
 - No claim of professional financial advice

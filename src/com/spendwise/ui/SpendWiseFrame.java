@@ -1,10 +1,12 @@
 package com.spendwise.ui;
 
 import com.spendwise.service.AccountService;
+import com.spendwise.service.BackupService;
 import com.spendwise.service.BudgetService;
 import com.spendwise.service.CategoryService;
 import com.spendwise.service.ExpenseAnalyticsService;
 import com.spendwise.service.ExpenseService;
+import com.spendwise.service.ExportService;
 import com.spendwise.service.FinanceService;
 import com.spendwise.service.FinancialReportingService;
 import com.spendwise.service.IncomeService;
@@ -93,7 +95,9 @@ public final class SpendWiseFrame extends JFrame {
             TransferService transferService,
             FinanceService financeService,
             RecurringService recurringService,
-            QuickEntryService quickEntryService) {
+            QuickEntryService quickEntryService,
+            BackupService backupService,
+            ExportService exportService) {
         super("SpendWise Expense Tracker");
         requireEventDispatchThread();
         Objects.requireNonNull(expenseService, "Expense service is required.");
@@ -107,6 +111,8 @@ public final class SpendWiseFrame extends JFrame {
         Objects.requireNonNull(financeService, "Finance service is required.");
         Objects.requireNonNull(recurringService, "Recurring service is required.");
         Objects.requireNonNull(quickEntryService, "Quick-entry service is required.");
+        Objects.requireNonNull(backupService, "Backup service is required.");
+        Objects.requireNonNull(exportService, "Export service is required.");
         FinancialReportingService reportingService =
                 new FinancialReportingService(
                         expenseService,
@@ -221,6 +227,13 @@ public final class SpendWiseFrame extends JFrame {
         quickEntryItem.addActionListener(event -> quickEntryDialog.open());
         entryMenu.add(quickEntryItem);
         menuBar.add(entryMenu);
+        DataManagementActions dataActions = new DataManagementActions(
+                this,
+                backupService,
+                exportService,
+                reportsPanel::getLatestSnapshot,
+                refreshFinancialViews);
+        menuBar.add(dataActions.createMenu());
         setJMenuBar(menuBar);
         setContentPane(mainTabs);
         setSize(1100, 700);
