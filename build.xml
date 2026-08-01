@@ -299,6 +299,7 @@
             <classpath>
                 <pathelement location="${build.classes.dir}"/>
                 <pathelement location="${build.test.classes.dir}"/>
+                <pathelement path="${javac.classpath}"/>
             </classpath>
         </java>
     </target>
@@ -333,6 +334,7 @@
             <classpath>
                 <pathelement location="${build.classes.dir}"/>
                 <pathelement location="${build.test.classes.dir}"/>
+                <pathelement path="${javac.classpath}"/>
             </classpath>
         </java>
     </target>
@@ -385,6 +387,7 @@
             <classpath>
                 <pathelement location="${build.classes.dir}"/>
                 <pathelement location="${build.test.classes.dir}"/>
+                <pathelement path="${javac.classpath}"/>
             </classpath>
         </java>
     </target>
@@ -418,6 +421,7 @@
             <classpath>
                 <pathelement location="${build.classes.dir}"/>
                 <pathelement location="${build.test.classes.dir}"/>
+                <pathelement path="${javac.classpath}"/>
             </classpath>
         </java>
     </target>
@@ -451,6 +455,7 @@
             <classpath>
                 <pathelement location="${build.classes.dir}"/>
                 <pathelement location="${build.test.classes.dir}"/>
+                <pathelement path="${javac.classpath}"/>
             </classpath>
         </java>
     </target>
@@ -475,6 +480,7 @@
             <classpath>
                 <pathelement location="${build.classes.dir}"/>
                 <pathelement location="${build.test.classes.dir}"/>
+                <pathelement path="${javac.classpath}"/>
             </classpath>
         </java>
     </target>

@@ -14,11 +14,15 @@ import com.spendwise.service.IncomeService;
 import com.spendwise.service.QuickEntryService;
 import com.spendwise.service.RecurringService;
 import com.spendwise.service.TransferService;
+import com.spendwise.ui.component.AppIcons;
+import com.spendwise.ui.shell.AppShellPanel;
+import com.spendwise.ui.theme.AppTheme;
 import java.awt.Dimension;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.util.Objects;
 import javax.swing.JFrame;
+import javax.swing.JComponent;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
@@ -130,7 +134,7 @@ public final class SpendWiseFrame extends JFrame {
                         financeService);
 
         setDefaultCloseOperation(EXIT_ON_CLOSE);
-        DashboardPanel dashboardPanel =
+        DashboardPanel analyticsPanel =
                 new DashboardPanel(analyticsService, budgetService);
         BudgetPanel budgetPanel =
                 new BudgetPanel(
@@ -141,6 +145,9 @@ public final class SpendWiseFrame extends JFrame {
         final ExpensePanel[] expenseReference = new ExpensePanel[1];
         final FinancePanel[] financeReference = new FinancePanel[1];
         final RecurringPanel[] recurringReference = new RecurringPanel[1];
+        final OverviewPanel[] overviewReference = new OverviewPanel[1];
+        final TransactionsPanel[] transactionsReference =
+                new TransactionsPanel[1];
         final QuickEntryDialog[] quickEntryReference = new QuickEntryDialog[1];
         FinancePanel financePanel = new FinancePanel(
                 accountService,
@@ -152,10 +159,16 @@ public final class SpendWiseFrame extends JFrame {
                     if (expenseReference[0] != null) {
                         expenseReference[0].refreshExpenses();
                     }
-                    dashboardPanel.refreshDashboard();
+                    analyticsPanel.refreshDashboard();
                     budgetPanel.refreshBudgetStatus();
                     calendarPanel.refreshCalendar();
                     reportsPanel.refreshReports();
+                    if (overviewReference[0] != null) {
+                        overviewReference[0].refreshOverview();
+                    }
+                    if (transactionsReference[0] != null) {
+                        transactionsReference[0].refreshTransactions();
+                    }
                 });
         financeReference[0] = financePanel;
         ExpensePanel expensePanel = new ExpensePanel(
@@ -167,10 +180,16 @@ public final class SpendWiseFrame extends JFrame {
                             expense.getCategory().equals(category))
                         || budgetService.isCategoryReferenced(category),
                 () -> {
-                    dashboardPanel.refreshDashboard();
+                    analyticsPanel.refreshDashboard();
                     budgetPanel.refreshBudgetStatus();
                     calendarPanel.refreshCalendar();
                     reportsPanel.refreshReports();
+                    if (overviewReference[0] != null) {
+                        overviewReference[0].refreshOverview();
+                    }
+                    if (transactionsReference[0] != null) {
+                        transactionsReference[0].refreshTransactions();
+                    }
                 },
                 () -> {
                     financePanel.refreshFinanceData();
@@ -178,10 +197,37 @@ public final class SpendWiseFrame extends JFrame {
                     reportsPanel.refreshReports();
                 });
         expenseReference[0] = expensePanel;
+        OverviewPanel overviewPanel = new OverviewPanel(
+                financeService,
+                expenseService,
+                incomeService,
+                transferService,
+                analyticsService,
+                budgetService,
+                recurringService);
+        overviewReference[0] = overviewPanel;
+        TransactionsPanel transactionsPanel = new TransactionsPanel(
+                expenseService,
+                incomeService,
+                transferService,
+                accountService,
+                categoryService,
+                () -> {
+                    expensePanel.refreshExpenses();
+                    financePanel.refreshFinanceData();
+                    overviewPanel.refreshOverview();
+                    analyticsPanel.refreshDashboard();
+                    budgetPanel.refreshBudgetStatus();
+                    calendarPanel.refreshCalendar();
+                    reportsPanel.refreshReports();
+                });
+        transactionsReference[0] = transactionsPanel;
         Runnable refreshFinancialViews = () -> {
             expensePanel.refreshExpenses();
             financePanel.refreshFinanceData();
-            dashboardPanel.refreshDashboard();
+            transactionsPanel.refreshTransactions();
+            overviewPanel.refreshOverview();
+            analyticsPanel.refreshDashboard();
             budgetPanel.refreshBudgetStatus();
             calendarPanel.refreshCalendar();
             reportsPanel.refreshReports();
@@ -204,28 +250,30 @@ public final class SpendWiseFrame extends JFrame {
                 refreshFinancialViews);
         quickEntryReference[0] = quickEntryDialog;
 
-        JTabbedPane mainTabs = new JTabbedPane();
-        mainTabs.addTab("Expenses", expensePanel);
-        mainTabs.addTab("Dashboard", dashboardPanel);
-        mainTabs.addTab("Budgets", budgetPanel);
-        mainTabs.addTab("Finance", financePanel);
-        mainTabs.addTab("Calendar", calendarPanel);
-        mainTabs.addTab("Reports", reportsPanel);
-        mainTabs.addTab("Recurring", recurringPanel);
-        mainTabs.addChangeListener(event -> {
-            if (mainTabs.getSelectedComponent() == dashboardPanel) {
-                dashboardPanel.refreshDashboard();
-            } else if (mainTabs.getSelectedComponent() == budgetPanel) {
-                budgetPanel.refreshBudgetStatus();
-            } else if (mainTabs.getSelectedComponent() == financeReference[0]) {
-                financeReference[0].refreshFinanceData();
-            } else if (mainTabs.getSelectedComponent() == calendarPanel) {
-                calendarPanel.refreshCalendar();
-            } else if (mainTabs.getSelectedComponent() == reportsPanel) {
-                reportsPanel.refreshReports();
-            } else if (mainTabs.getSelectedComponent() == recurringPanel) {
-                recurringPanel.refreshRecurringEntries();
-            }
+        AppShellPanel shell = new AppShellPanel(quickEntryDialog::open);
+        shell.addPage("overview", "Overview", AppIcons.Type.DASHBOARD,
+                overviewPanel, overviewPanel::refreshOverview);
+        shell.addPage("transactions", "Transactions",
+                AppIcons.Type.TRANSACTIONS, transactionsPanel,
+                transactionsPanel::refreshTransactions);
+        shell.addPage("expenses", "Expenses", AppIcons.Type.EXPENSES,
+                expensePanel, expensePanel::refreshExpenses);
+        shell.addPage("finance", "Accounts & Finance", AppIcons.Type.FINANCE,
+                financePanel, financePanel::refreshFinanceData);
+        shell.addPage("budgets", "Budgets", AppIcons.Type.BUDGETS,
+                budgetPanel, budgetPanel::refreshBudgetStatus);
+        shell.addPage("calendar", "Calendar", AppIcons.Type.CALENDAR,
+                calendarPanel, calendarPanel::refreshCalendar);
+        shell.addPage("reports", "Reports", AppIcons.Type.REPORTS,
+                reportsPanel, reportsPanel::refreshReports);
+        shell.addPage("recurring", "Recurring", AppIcons.Type.RECURRING,
+                recurringPanel, recurringPanel::refreshRecurringEntries);
+        shell.addPage("analytics", "Expense Analytics",
+                AppIcons.Type.ANALYTICS, analyticsPanel,
+                analyticsPanel::refreshDashboard);
+        shell.setGlobalSearchListener(query -> {
+            shell.showPage("transactions");
+            transactionsPanel.setSearchText(query);
         });
         JMenuBar menuBar = new JMenuBar();
         JMenu entryMenu = new JMenu("Entry");
@@ -235,6 +283,11 @@ public final class SpendWiseFrame extends JFrame {
                 KeyEvent.VK_Q, InputEvent.CTRL_DOWN_MASK));
         quickEntryItem.addActionListener(event -> quickEntryDialog.open());
         entryMenu.add(quickEntryItem);
+        JMenuItem searchItem = new JMenuItem("Search Transactions");
+        searchItem.setAccelerator(KeyStroke.getKeyStroke(
+                KeyEvent.VK_K, InputEvent.CTRL_DOWN_MASK));
+        searchItem.addActionListener(event -> shell.focusGlobalSearch());
+        entryMenu.add(searchItem);
         menuBar.add(entryMenu);
         DataManagementActions dataActions = new DataManagementActions(
                 this,
@@ -244,9 +297,14 @@ public final class SpendWiseFrame extends JFrame {
                 refreshFinancialViews);
         menuBar.add(dataActions.createMenu());
         setJMenuBar(menuBar);
-        setContentPane(mainTabs);
-        setSize(1100, 700);
-        setMinimumSize(new Dimension(900, 600));
+        setContentPane(shell);
+        setSize(1320, 820);
+        setMinimumSize(new Dimension(980, 640));
+        getRootPane().registerKeyboardAction(
+                event -> shell.focusGlobalSearch(),
+                KeyStroke.getKeyStroke(KeyEvent.VK_K, InputEvent.CTRL_DOWN_MASK),
+                JComponent.WHEN_IN_FOCUSED_WINDOW);
+        AppTheme.applyCustomColors(this);
         setLocationRelativeTo(null);
     }
 

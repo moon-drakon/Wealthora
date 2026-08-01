@@ -1,6 +1,8 @@
 package com.spendwise.ui;
 
 import com.spendwise.model.Category;
+import com.spendwise.ui.theme.AppColors;
+import com.spendwise.ui.theme.AppTheme;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -19,9 +21,6 @@ import javax.swing.JPanel;
 final class CategoryDonutChartPanel extends JPanel {
 
     private static final BigDecimal ZERO_AMOUNT = new BigDecimal("0.00");
-    private static final Color TEXT_COLOR = new Color(47, 58, 68);
-    private static final Color SECONDARY_TEXT = new Color(92, 104, 115);
-    private static final Color DONUT_HOLE = Color.WHITE;
     private static final Color[] CATEGORY_COLORS = {
         new Color(42, 121, 155),
         new Color(69, 143, 136),
@@ -40,7 +39,7 @@ final class CategoryDonutChartPanel extends JPanel {
     }
 
     CategoryDonutChartPanel(Map<Category, BigDecimal> categoryTotals) {
-        setBackground(Color.WHITE);
+        AppTheme.mark(this, AppTheme.CARD_ROLE);
         setOpaque(true);
         setPreferredSize(new Dimension(540, 320));
         getAccessibleContext().setAccessibleName("Selected-month category chart");
@@ -70,7 +69,7 @@ final class CategoryDonutChartPanel extends JPanel {
                     RenderingHints.KEY_TEXT_ANTIALIASING,
                     RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-            chartGraphics.setColor(TEXT_COLOR);
+            chartGraphics.setColor(AppColors.primaryText());
             chartGraphics.setFont(getFont().deriveFont(Font.BOLD, 16f));
             chartGraphics.drawString("Selected-Month Categories", 22, 27);
 
@@ -96,7 +95,7 @@ final class CategoryDonutChartPanel extends JPanel {
             graphics.setColor(new Color(230, 234, 238));
             graphics.fillOval(donutX, donutY, diameter, diameter);
             int holeDiameter = (int) (diameter * 0.58);
-            graphics.setColor(DONUT_HOLE);
+            graphics.setColor(AppColors.cardBackground());
             graphics.fillOval(
                     centerX - holeDiameter / 2,
                     centerY - holeDiameter / 2,
@@ -137,7 +136,7 @@ final class CategoryDonutChartPanel extends JPanel {
         }
 
         int holeDiameter = (int) (diameter * 0.58);
-        graphics.setColor(DONUT_HOLE);
+        graphics.setColor(AppColors.cardBackground());
         graphics.fillOval(
                 centerX - holeDiameter / 2,
                 centerY - holeDiameter / 2,
@@ -162,7 +161,7 @@ final class CategoryDonutChartPanel extends JPanel {
             graphics.setColor(CATEGORY_COLORS[categoryIndex % CATEGORY_COLORS.length]);
             graphics.fillRoundRect(legendX, rowY, 12, 12, 3, 3);
 
-            graphics.setColor(TEXT_COLOR);
+            graphics.setColor(AppColors.primaryText());
             graphics.drawString(category.getDisplayName(), legendX + 20, rowY + 11);
 
             String amountText = entry.getValue().toPlainString();
@@ -170,7 +169,7 @@ final class CategoryDonutChartPanel extends JPanel {
             int amountX = Math.max(
                     legendX + 135,
                     getWidth() - 22 - metrics.stringWidth(amountText));
-            graphics.setColor(SECONDARY_TEXT);
+            graphics.setColor(AppColors.secondaryText());
             graphics.drawString(amountText, amountX, rowY + 11);
             categoryIndex++;
         }
@@ -180,7 +179,8 @@ final class CategoryDonutChartPanel extends JPanel {
             Graphics2D graphics, String text, int centerX, int baselineY, float fontSize) {
         graphics.setFont(getFont().deriveFont(
                 fontSize >= 15f ? Font.BOLD : Font.PLAIN, fontSize));
-        graphics.setColor(fontSize >= 15f ? TEXT_COLOR : SECONDARY_TEXT);
+        graphics.setColor(fontSize >= 15f
+                ? AppColors.primaryText() : AppColors.secondaryText());
         int textWidth = graphics.getFontMetrics().stringWidth(text);
         graphics.drawString(text, centerX - textWidth / 2, baselineY);
     }

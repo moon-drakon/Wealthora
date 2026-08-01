@@ -22,11 +22,10 @@ import com.spendwise.service.QuickEntryService;
 import com.spendwise.service.RecurringService;
 import com.spendwise.service.TransferService;
 import com.spendwise.ui.SpendWiseFrame;
+import com.spendwise.ui.theme.AppTheme;
 import java.nio.file.Path;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
-import javax.swing.UnsupportedLookAndFeelException;
 
 public final class SpendWiseApplication {
 
@@ -38,7 +37,7 @@ public final class SpendWiseApplication {
     }
 
     private static void startApplication() {
-        applySystemLookAndFeel();
+        AppTheme.initialize();
         try {
             Path categoryCsvPath = AppPaths.getCategoryCsvPath();
             CsvCategoryRepository categoryRepository =
@@ -129,16 +128,6 @@ public final class SpendWiseApplication {
                     startupErrorMessage(exception),
                     "SpendWise Could Not Start",
                     JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    private static void applySystemLookAndFeel() {
-        try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-        } catch (ReflectiveOperationException
-                | UnsupportedLookAndFeelException
-                | SecurityException exception) {
-            // Swing's default look and feel remains available.
         }
     }
 

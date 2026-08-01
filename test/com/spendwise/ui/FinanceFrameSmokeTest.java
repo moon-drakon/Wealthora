@@ -20,13 +20,14 @@ import com.spendwise.service.IncomeService;
 import com.spendwise.service.QuickEntryService;
 import com.spendwise.service.RecurringService;
 import com.spendwise.service.TransferService;
+import com.spendwise.ui.shell.AppShellPanel;
+import com.spendwise.ui.theme.AppTheme;
 import java.awt.GraphicsEnvironment;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.concurrent.atomic.AtomicReference;
-import javax.swing.JTabbedPane;
 import javax.swing.SwingUtilities;
 
 public final class FinanceFrameSmokeTest {
@@ -120,20 +121,26 @@ public final class FinanceFrameSmokeTest {
                 frame.setLocation(-10000, -10000);
                 frame.setSize(1000, 650);
                 frame.setVisible(true);
-                if (!(frame.getContentPane() instanceof JTabbedPane tabs)) {
+                if (!(frame.getContentPane() instanceof AppShellPanel shell)) {
                     throw new AssertionError(
-                            "Main content must be a tabbed pane.");
+                            "Main content must use the professional app shell.");
                 }
-                assertEquals(7, tabs.getTabCount());
-                assertEquals("Expenses", tabs.getTitleAt(0));
-                assertEquals("Finance", tabs.getTitleAt(3));
-                assertEquals("Calendar", tabs.getTitleAt(4));
-                assertEquals("Reports", tabs.getTitleAt(5));
-                assertEquals("Recurring", tabs.getTitleAt(6));
-                tabs.setSelectedIndex(4);
-                tabs.setSelectedIndex(5);
-                tabs.setSelectedIndex(6);
-                tabs.setSelectedIndex(0);
+                assertEquals(9, shell.getPageCount());
+                assertEquals("overview", shell.getCurrentPage());
+                for (String page : new String[] {
+                    "transactions", "expenses", "finance", "budgets",
+                    "calendar", "reports", "recurring", "analytics",
+                    "overview"
+                }) {
+                    shell.showPage(page);
+                    assertEquals(page, shell.getCurrentPage());
+                }
+                frame.setSize(980, 640);
+                frame.validate();
+                frame.setSize(1440, 900);
+                frame.validate();
+                AppTheme.setDarkMode(true);
+                AppTheme.setDarkMode(false);
                 if (frame.getJMenuBar() == null
                         || frame.getJMenuBar().getMenuCount() != 2) {
                     throw new AssertionError(

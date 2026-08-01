@@ -6,6 +6,8 @@ import com.spendwise.model.Expense;
 import com.spendwise.repository.RepositoryException;
 import com.spendwise.service.ExpenseNotFoundException;
 import com.spendwise.service.ExpenseService;
+import com.spendwise.ui.component.PrimaryButton;
+import com.spendwise.ui.component.SecondaryButton;
 import com.spendwise.validation.ValidationException;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
@@ -162,9 +164,9 @@ final class ExpenseFormDialog extends JDialog {
         notesScrollPane.setPreferredSize(new Dimension(320, 110));
         addField(formPanel, 5, "Notes", notesScrollPane);
 
-        JButton saveButton = new JButton("Save");
+        JButton saveButton = new PrimaryButton("Save Expense");
         saveButton.addActionListener(event -> saveExpense());
-        JButton cancelButton = new JButton("Cancel");
+        JButton cancelButton = new SecondaryButton("Cancel");
         cancelButton.addActionListener(event -> dispose());
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
