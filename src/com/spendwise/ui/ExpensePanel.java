@@ -420,14 +420,19 @@ public final class ExpensePanel extends JPanel {
 
     private void addExpense() {
         Window owner = SwingUtilities.getWindowAncestor(this);
-        ExpenseFormDialog dialog =
-                new ExpenseFormDialog(
-                        owner,
-                        expenseService,
-                        null,
-                        selectableCategories(null),
-                        selectableAccounts(null),
-                        preferredAccount());
+        ExpenseFormDialog dialog;
+        try {
+            dialog = new ExpenseFormDialog(
+                    owner,
+                    expenseService,
+                    null,
+                    selectableCategories(null),
+                    selectableAccounts(null),
+                    preferredAccount());
+        } catch (ValidationException | RepositoryException exception) {
+            showLoadError("Unable to prepare a new expense.", exception);
+            return;
+        }
         if (dialog.showDialog()) {
             refreshAfterExpenseMutation("Expense added.");
         }
@@ -445,13 +450,18 @@ public final class ExpensePanel extends JPanel {
         }
 
         Window owner = SwingUtilities.getWindowAncestor(this);
-        ExpenseFormDialog dialog =
-                new ExpenseFormDialog(
-                        owner,
-                        expenseService,
-                        selectedExpense,
-                        selectableCategories(selectedExpense),
-                        selectableAccounts(selectedExpense));
+        ExpenseFormDialog dialog;
+        try {
+            dialog = new ExpenseFormDialog(
+                    owner,
+                    expenseService,
+                    selectedExpense,
+                    selectableCategories(selectedExpense),
+                    selectableAccounts(selectedExpense));
+        } catch (ValidationException | RepositoryException exception) {
+            showLoadError("Unable to prepare the selected expense.", exception);
+            return;
+        }
         if (dialog.showDialog()) {
             refreshAfterExpenseMutation("Expense updated.");
         }

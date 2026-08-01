@@ -151,7 +151,14 @@ public final class RecurringPanel extends JPanel {
     }
 
     private void editDefinition(RecurringEntry existing) {
-        DefinitionFields fields = new DefinitionFields(existing);
+        DefinitionFields fields;
+        try {
+            fields = new DefinitionFields(existing);
+        } catch (ValidationException | RepositoryException exception) {
+            showError("Unable to load recurring-entry choices: "
+                    + safeMessage(exception));
+            return;
+        }
         while (JOptionPane.showConfirmDialog(
                 this,
                 fields.panel,

@@ -1,6 +1,7 @@
 package com.spendwise.ui;
 
 import com.spendwise.repository.CsvAccountRepository;
+import com.spendwise.repository.CsvAccountPreferenceRepository;
 import com.spendwise.repository.CsvBudgetRepository;
 import com.spendwise.repository.CsvCategoryRepository;
 import com.spendwise.repository.CsvExpenseRepository;
@@ -61,7 +62,9 @@ public final class FinanceFrameSmokeTest {
                                 directory.resolve("categories.csv")));
                 AccountService accounts = new AccountService(
                         new CsvAccountRepository(
-                                directory.resolve("accounts.csv")));
+                                directory.resolve("accounts.csv")),
+                        new CsvAccountPreferenceRepository(
+                                directory.resolve("account-settings.csv")));
                 ExpenseService expenses = new ExpenseService(
                         new CsvExpenseRepository(
                                 directory.resolve("expenses.csv"),

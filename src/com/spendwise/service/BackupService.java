@@ -194,6 +194,7 @@ public final class BackupService {
             return;
         }
         Path validationDirectory = null;
+        Throwable validationFailure = null;
         try {
             validationDirectory = Files.createTempDirectory(
                     "spendwise-backup-validation-");
@@ -233,15 +234,19 @@ public final class BackupService {
                     categories::resolveCategory)
                     .isCategoryReferenced(Category.OTHER);
         } catch (RuntimeException | IOException exception) {
-            throw new ValidationException(
+            ValidationException failure = new ValidationException(
                     "Backup contains invalid managed CSV data: "
                     + safeMessage(exception));
+            validationFailure = failure;
+            throw failure;
         } finally {
-            deleteValidationDirectory(validationDirectory);
+            deleteValidationDirectory(
+                    validationDirectory, validationFailure);
         }
     }
 
-    private static void deleteValidationDirectory(Path directory) {
+    private static void deleteValidationDirectory(
+            Path directory, Throwable originalFailure) {
         if (directory == null) {
             return;
         }
@@ -250,8 +255,14 @@ public final class BackupService {
                     .sorted(java.util.Comparator.reverseOrder()).toList()) {
                 Files.deleteIfExists(path);
             }
-        } catch (IOException | SecurityException ignored) {
-            // The validation directory contains only disposable backup copies.
+        } catch (IOException | SecurityException cleanupFailure) {
+            if (originalFailure != null) {
+                originalFailure.addSuppressed(cleanupFailure);
+                return;
+            }
+            throw new RepositoryException(
+                    "Could not remove temporary backup validation files.",
+                    cleanupFailure);
         }
     }
 
@@ -405,6 +416,7 @@ public final class BackupService {
             LinkedHashMap<String, byte[]> original) {
         boolean dataDirectoryExisted = Files.exists(dataDirectory);
         LinkedHashMap<String, Path> staged = new LinkedHashMap<>();
+        Throwable restoreFailure = null;
         try {
             for (Map.Entry<String, byte[]> entry : restored.entrySet()) {
                 Path destination = dataDirectory.resolve(entry.getKey());
@@ -427,13 +439,41 @@ public final class BackupService {
         } catch (IOException | RuntimeException failure) {
             rollback(original, dataDirectoryExisted, failure);
             if (failure instanceof RuntimeException runtime) {
+                restoreFailure = runtime;
                 throw runtime;
             }
-            throw new RepositoryException(
+            RepositoryException wrapped = new RepositoryException(
                     "Restore failed; original data was recovered.", failure);
+            restoreFailure = wrapped;
+            throw wrapped;
         } finally {
-            staged.values().forEach(SafeFileSupport::deleteTemporary);
+            deleteStagedFiles(staged.values(), restoreFailure);
         }
+    }
+
+    private static void deleteStagedFiles(
+            java.util.Collection<Path> stagedFiles,
+            Throwable originalFailure) {
+        RuntimeException cleanupFailure = null;
+        for (Path path : stagedFiles) {
+            try {
+                SafeFileSupport.deleteTemporary(path);
+            } catch (RuntimeException exception) {
+                if (cleanupFailure == null) {
+                    cleanupFailure = exception;
+                } else {
+                    cleanupFailure.addSuppressed(exception);
+                }
+            }
+        }
+        if (cleanupFailure == null) {
+            return;
+        }
+        if (originalFailure != null) {
+            originalFailure.addSuppressed(cleanupFailure);
+            return;
+        }
+        throw cleanupFailure;
     }
 
     private void rollback(

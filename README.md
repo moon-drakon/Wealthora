@@ -10,7 +10,7 @@ SpendWise Expense Tracker is a Java Swing desktop application for a CSE215 Objec
 
 ## Current status
 
-The project now includes validated financial and recurring-entry models, storage-independent repositories, safe UTF-8 CSV persistence, and a seven-tab programmatic Swing interface. Users can manage entries and categories, configure budgets, inspect calendar activity, run filtered reports, maintain recurring definitions, use Quick Entry, and manage persisted default accounts with read-only account statements. The Data menu adds validated ZIP backup/restore and read-only CSV exports. Restore validates every included CSV before mutation, creates a safety backup when current managed data exists, and rolls back staged replacement failures. The complete automated suite remains dependency-free and includes an isolated full-frame smoke test.
+The project is complete through Step 19. It includes validated financial and recurring-entry models, storage-independent repositories, safe UTF-8 CSV persistence, and a seven-tab programmatic Swing interface. Users can manage entries and categories, configure budgets, inspect calendar activity, run filtered reports, maintain recurring definitions, use Quick Entry, and manage persisted default accounts with read-only account statements. The Data menu adds validated ZIP backup/restore and read-only CSV exports. Restore validates every included CSV before mutation, creates a safety backup when current managed data exists, and rolls back staged replacement failures. The complete automated suite remains dependency-free and includes isolated restart/persistence and full-frame smoke tests.
 
 Feature status in this document will be updated only after the corresponding behavior has been implemented and verified.
 
@@ -18,7 +18,7 @@ Feature status in this document will be updated only after the corresponding beh
 
 SpendWise is intended to help an individual record income and expenses, organize transactions, monitor a budget, and understand personal spending patterns through a straightforward desktop interface.
 
-## Planned core features
+## Core features
 
 - Add, edit, and delete income and expense transactions (implemented)
 - Assign dates, categories, amounts, and notes to transactions
@@ -30,9 +30,7 @@ SpendWise is intended to help an individual record income and expenses, organize
 - Save and reload application data using local CSV files (implemented)
 - Validate input and present clear error messages
 
-## Planned advanced features
-
-These features are candidates after the core workflow is complete:
+## Advanced features
 
 - Search, filter, and sort income records (implemented)
 - Calendar activity and advanced financial reports (implemented)
@@ -215,6 +213,20 @@ The graphical variant validates the complete frame with advanced account control
 C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-accounts-gui-smoke
 ```
 
+## Run the final quality suite
+
+The final chained target runs every dependency-free suite and then performs a complete isolated create, restart, reload, exact-balance, read-only-restart, and production-integrity smoke test:
+
+```powershell
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-quality
+```
+
+On a graphical desktop, run the final chain plus the isolated seven-tab frame and menu smoke test with:
+
+```powershell
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-quality-gui-smoke
+```
+
 ## Application data location
 
 On Windows, expense data is stored at:
@@ -309,6 +321,8 @@ The **Data > Export** submenu writes expenses, income, transfers, account summar
 
 ## Project structure
 
+The following tree shows the main package layout and representative production and test files:
+
 ```text
 SpendWiseExpenseTracker/
 |-- build.xml
@@ -334,9 +348,11 @@ SpendWiseExpenseTracker/
 |       |   |-- RecurringEntryType.java
 |       |   `-- Transfer.java
 |       |-- repository/
+|       |   |-- AccountPreferenceRepository.java
 |       |   |-- AccountRepository.java
 |       |   |-- BudgetRepository.java
 |       |   |-- CategoryRepository.java
+|       |   |-- CsvAccountPreferenceRepository.java
 |       |   |-- CsvAccountRepository.java
 |       |   |-- CsvBudgetRepository.java
 |       |   |-- CsvCategoryRepository.java
@@ -352,8 +368,11 @@ SpendWiseExpenseTracker/
 |       |   |-- TransferRepository.java
 |       |   `-- RepositoryException.java
 |       |-- service/
+|       |   |-- AccountArchiveResult.java
 |       |   |-- AccountBalanceSnapshot.java
 |       |   |-- AccountService.java
+|       |   |-- AccountStatementService.java
+|       |   |-- AccountStatementSnapshot.java
 |       |   |-- BackupService.java
 |       |   |-- BudgetAlertLevel.java
 |       |   |-- BudgetService.java
@@ -377,6 +396,7 @@ SpendWiseExpenseTracker/
 |       |   |-- QuickEntryService.java
 |       |   |-- RecurringGenerationResult.java
 |       |   |-- RecurringService.java
+|       |   |-- SafeFileSupport.java
 |       |   `-- ExpenseSummary.java
 |       |-- ui/
 |       |   |-- AccountTableModel.java
@@ -417,12 +437,15 @@ SpendWiseExpenseTracker/
 |       |   |-- MonthlyBudgetTest.java
 |       |   `-- RecurringEntryTest.java
 |       |-- repository/
+|       |   |-- AccountPreferenceRepositoryTest.java
 |       |   |-- CsvBudgetRepositoryTest.java
 |       |   |-- CsvCategoryRepositoryTest.java
 |       |   |-- CsvExpenseRepositoryTest.java
 |       |   |-- FinanceRepositoryTest.java
 |       |   `-- RecurringRepositoryTest.java
 |       |-- service/
+|       |   |-- AdvancedAccountServiceTest.java
+|       |   |-- ApplicationPersistenceSmokeTest.java
 |       |   |-- BudgetServiceTest.java
 |       |   |-- BackupServiceTest.java
 |       |   |-- CategoryServiceTest.java
@@ -453,4 +476,10 @@ The generated `build/` and `dist/` directories and the machine-specific `nbproje
 
 The CSV repositories support commas, doubled quotes, Unicode, and quoted line breaks. Account rows use `id,name,type,openingBalance,status`, income rows use `id,date,amount,source,account,note`, and transfer rows use `id,date,amount,sourceAccount,destinationAccount,note`. Mutations write a complete temporary file in the destination directory and replace the previous file only after the temporary content is closed, flushed, and forced to storage. Corrupt data is never silently reset or overwritten.
 
-Authentication, dark mode, general-purpose import, printing, cloud synchronization, and website functionality are not implemented. Multi-process file locking also remains outside the current scope.
+## Safe development notes
+
+Automated tests and smoke workflows use temporary directories and fingerprint the production data paths where relevant. Startup, path resolution, viewing, refresh, reporting, and restart checks are read-only. Do not edit generated `build/` or `dist/` files, commit machine-specific paths or credentials, or replace malformed CSV data silently. Use `ant clean jar` after meaningful changes and review `git diff` before a normal commit.
+
+## Known limitations
+
+SpendWise is a single-user offline desktop application. Authentication, dark mode, general-purpose import, printing/PDF output, cloud synchronization, multi-process file locking, encryption beyond operating-system protections, mobile clients, and website functionality are not implemented. CSV exports are supported, but they are data snapshots rather than formatted printable reports.

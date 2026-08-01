@@ -2,13 +2,13 @@
 
 ## Current implementation status
 
-The project currently includes validated financial and recurring-entry models, storage-independent repositories, safe UTF-8 CSV persistence, and a programmatic Swing application with seven primary tabs. Recurring definitions use explicit, idempotent generation, while Quick Entry delegates directly to existing transaction services. The Data menu provides validated ZIP backup/restore and read-only CSV exports. The chained dependency-free data suite preserves every earlier test and adds archive, failure-preservation, traversal, safety-backup, export, and isolated full-frame checks.
+The project is complete through Step 19. It includes validated financial and recurring-entry models, storage-independent repositories, safe UTF-8 CSV persistence, and a programmatic Swing application with seven primary tabs. Recurring definitions use explicit, idempotent generation, while Quick Entry delegates directly to existing transaction services. The Data menu provides validated ZIP backup/restore and read-only CSV exports. The final chained dependency-free suite preserves every earlier test and adds account lifecycle, restart/reload, production-integrity, and isolated full-frame checks.
 
 ## Problem statement
 
 People often record small daily expenses inconsistently and then struggle to understand where their money went. Spreadsheet-based tracking can work, but it may be inconvenient for users who want a focused desktop workflow with validation, summaries, and budget feedback.
 
-SpendWise will address this problem with a local Java Swing application that organizes personal transactions and produces useful summaries without requiring an online account or external service.
+SpendWise addresses this problem with a local Java Swing application that organizes personal transactions and produces useful summaries without requiring an online account or external service.
 
 ## Project objectives
 
@@ -22,11 +22,11 @@ SpendWise will address this problem with a local Java Swing application that org
 
 ## Primary users
 
-The primary user is an individual student or household member who wants a lightweight offline tool for basic personal expense tracking. The planned version is single-user and assumes one local data set per installation.
+The primary user is an individual student or household member who wants a lightweight offline tool for basic personal expense tracking. The implementation is single-user and assumes one local data set per installation.
 
 ## MVP scope
 
-The minimum viable product will include:
+The implemented minimum viable product includes:
 
 - A main Swing window with navigation between core screens
 - Income and expense transaction creation
@@ -42,17 +42,17 @@ The minimum viable product will include:
 
 ## Advanced scope
 
-Advanced work will begin only after the MVP is stable. The team may select a feasible subset of:
+The implemented advanced scope includes:
 
-- Combined date, type, category, and text filters
+- Combined date, category, account, and text filters
 - Warning indicators when spending approaches or exceeds a budget
-- Recurring transaction templates that create user-confirmed entries
-- Export of the current filtered summary to CSV
-- Local backup and restore actions
+- Calendar activity and advanced read-only reports
+- Explicit, idempotent recurring definitions and Quick Entry
+- Export of transactions, account summaries, and filtered reports to CSV
+- Validated local ZIP backup and restore actions
+- Persisted default accounts, lifecycle controls, and exact account statements
 
-Advanced items are proposals, not implemented features or fixed delivery promises.
-
-## Proposed Swing screens
+## Swing screens
 
 ### Main frame
 
@@ -68,7 +68,7 @@ Advanced items are proposals, not implemented features or fixed delivery promise
 
 ### Finance
 
-`FinancePanel` provides account lifecycle, income CRUD and search, transfer CRUD, and exact current balances. Expense entry includes an account selector, and editing a legacy expense keeps its resolved default account unless the user changes it.
+`FinancePanel` provides account metadata and lifecycle controls, a persisted active default, active/archived filtering, exact account statements, income CRUD and search, transfer CRUD, and exact calculated balances. Expense entry includes an account selector, and editing a historical expense retains its resolved account unless the user changes it.
 
 ### Budgets
 
@@ -90,7 +90,7 @@ The Expenses header opens a modal category manager with Name, Type, and Status c
 
 The Data menu exposes user-selected backup, restore, and export actions. It confirms replacement and restore operations, displays the validated archive summary, and refreshes panels only after a complete restore. The UI delegates archive validation, transaction-safe replacement, and CSV generation to `BackupService` and `ExportService`.
 
-## Proposed Java package architecture
+## Java package architecture
 
 ```text
 com.spendwise.app
@@ -104,6 +104,7 @@ com.spendwise.model
 com.spendwise.repository
     ExpenseRepository, CsvExpenseRepository, CsvExpenseCodec,
     AccountRepository, CsvAccountRepository,
+    AccountPreferenceRepository, CsvAccountPreferenceRepository,
     IncomeRepository, CsvIncomeRepository,
     TransferRepository, CsvTransferRepository,
     BudgetRepository, CsvBudgetRepository,
@@ -111,7 +112,8 @@ com.spendwise.repository
     RecurringEntryRepository, CsvRecurringEntryRepository
 com.spendwise.service
     AccountService, IncomeService, TransferService, FinanceService
-    AccountBalanceSnapshot, IncomeSortOrder
+    AccountBalanceSnapshot, AccountStatementService,
+    AccountStatementSnapshot, AccountArchiveResult, IncomeSortOrder
     BudgetService, BudgetUsage, BudgetStatusSnapshot, BudgetAlertLevel
     CategoryService
     ExpenseAnalyticsService, ExpenseAnalyticsSnapshot,
@@ -140,7 +142,7 @@ This structure separates responsibilities without introducing unnecessary framew
 
 ### Model
 
-Model classes will represent the application's data and basic invariants:
+Model classes represent the application's data and basic invariants:
 
 - `Expense` represents an occurred expense with an identifier, description, amount, date, category, account, and notes. Legacy constructors still resolve to the protected default account.
 - `Account` is immutable and carries a stable ID, display name, type, exact opening balance, protection flag, and active/archive state.
@@ -148,14 +150,14 @@ Model classes will represent the application's data and basic invariants:
 - `Category` is now an immutable category definition with a stable identifier, display name, built-in/custom classification, and active/archived status. Its original built-in constants, identifiers, names, and order remain compatible.
 - `MonthlyBudget` now represents one month, an optional overall limit, and configured category limits as immutable two-decimal values.
 
-Money will use `BigDecimal`, and dates will use `LocalDate` and `YearMonth`.
+Money uses `BigDecimal`, and dates use `LocalDate` and `YearMonth`.
 
 ### Repository and storage
 
 The repository package now provides a storage-independent expense contract and a CSV implementation. It:
 
 - Keeps file-format knowledge out of the UI.
-- Writes the exact `id,description,amount,date,category,notes` header and column order.
+- Reads the legacy `id,description,amount,date,category,notes` expense format and writes the additive account-aware format.
 - Escapes commas, doubled quotes, Unicode text, and quoted line breaks.
 - Uses UTF-8, ISO `LocalDate` text, plain `BigDecimal` text, and stable category identifiers.
 - Rejects malformed records and duplicate IDs without returning partial results.
@@ -177,6 +179,8 @@ The repository package now provides a storage-independent expense contract and a
 
 `AccountService` combines the protected default Cash account with persisted custom accounts and owns uniqueness, stable-ID resolution, selection, rename, archive, and restore rules. `IncomeService` provides validated CRUD, combined search/filtering, and stable sorting. `TransferService` validates one atomic transfer record between different active accounts. `FinanceService` calculates exact balances as opening balance plus income minus expenses plus incoming transfers minus outgoing transfers.
 
+`AccountService` also validates and persists one active default account. `AccountStatementService` derives read-only activity and exact account-specific income, expense, transfer-in, transfer-out, opening-balance, and current-balance totals from existing ledger services; no direct balance editing is permitted.
+
 `FinancialReportingService` builds immutable calendar and date-range report snapshots from existing services. It calculates daily and monthly cash flow, category and source totals, account activity, ranked categories, and budget actuals with exact `BigDecimal` arithmetic. Transfers appear in activity details and account movement totals but never inflate income or expense totals.
 
 `RecurringService` validates definitions, identifies due occurrences, and delegates posting to the established expense, income, and transfer services. An occurrence ID is derived from the stable definition ID and due date. Generation advances and saves the next due date after each occurrence; a retry detects an already-written occurrence and advances without duplication. `QuickEntryService` is a thin delegation boundary that reuses the same transaction services and validation.
@@ -189,7 +193,7 @@ The UI package creates programmatic Swing components, translates user actions in
 
 ## CSV persistence plan
 
-All CSV persistence uses caller-supplied paths rather than a hard-coded developer location. `AppPaths` resolves sibling `expenses.csv`, `budgets.csv`, `categories.csv`, `accounts.csv`, `income.csv`, `transfers.csv`, and `recurring.csv` files below the platform data directory. Path resolution, startup, construction, viewing, and refresh do not create files; each file is created only by a successful mutation in its own data area.
+All CSV persistence uses caller-supplied paths rather than a hard-coded developer location. `AppPaths` resolves sibling `expenses.csv`, `budgets.csv`, `categories.csv`, `accounts.csv`, `account-settings.csv`, `income.csv`, `transfers.csv`, and `recurring.csv` files below the platform data directory. Path resolution, startup, construction, viewing, and refresh do not create files; each file is created only by a successful mutation in its own data area.
 
 The implemented format uses UTF-8, a required header, stable column order, ISO dates, stable category identifiers, and decimal amounts produced with `BigDecimal.toPlainString()`. `CsvExpenseCodec` owns quoting and parsing rules, including quoted line breaks, LF and CRLF input, and an optional UTF-8 BOM before the header. Loading constructs each `Expense` through existing model validation. Mutations prepare the full snapshot before writing and use same-directory temporary-file replacement.
 
@@ -220,7 +224,7 @@ Recurring rows store stable definition IDs, typed entry and frequency values, ex
 
 ## Testing strategy
 
-Testing will combine focused automated checks with repeatable manual GUI testing:
+Testing combines focused automated checks with repeatable manual GUI testing:
 
 - Plain Java main-based tests with explicit `AssertionError` helpers for model invariants and validation
 - Temporary test directories for storage tests so real user data is not changed
@@ -234,13 +238,15 @@ Testing will combine focused automated checks with repeatable manual GUI testing
 - Calendar alignment, leap years, daily totals and details, transfer exclusion, date-range validation, grouping, trends, budgets versus actuals, immutable read-only snapshots, and headless panel checks
 - Daily, weekly, monthly, yearly, interval, leap-year, and month-end recurrence; optional end dates; inactive definitions; retry-safe generation; all three entry types; CSV corruption; Quick Entry delegation; and headless panel checks
 - Complete and partial ZIP backups, manifest/content validation, overwrite protection, corrupted and unsupported archives, path traversal, validation-before-mutation, safety backup, successful restore, unrelated-file preservation, export escaping, exact money, filtered reports, and repository immutability
+- Persisted default-account, lifecycle, exact statement, account-choice, CSV compatibility, and production-integrity checks
+- A complete isolated create, restart, reload, exact-balance, and read-only-restart smoke test across all managed data files
 - An isolated graphical full-frame smoke test that uses temporary paths and verifies read-only startup and tab navigation
 - Isolated path-resolution checks that do not modify environment variables or production data
 - Manual checks for navigation, table updates, dialogs, keyboard focus, resizing, and error messages
 - A clean Ant build before each milestone is accepted
 - Regression checks for previously completed workflows
 
-No testing dependency will be introduced without explicit approval. If the team later wants JUnit, it will be considered separately.
+No external testing dependency is required. Adding one later requires explicit approval.
 
 Run the complete clean build with:
 
@@ -345,7 +351,7 @@ C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-accounts-gui-smoke
 11. **Recurring entries and quick entry (complete):** add explicit, idempotent due-item posting and reviewed shortcuts.
 12. **Backup, restore, and export (complete):** add validated offline data protection.
 13. **Advanced account controls (complete):** add persisted defaults, safe metadata and lifecycle controls, exact statements, and account insights without direct balance editing.
-14. **Quality pass:** complete regression testing, usability fixes, documentation updates, and demo preparation.
+14. **Quality pass (complete):** complete regression testing, usability fixes, documentation updates, and demo preparation.
 
 ### Execution Step 15 — Calendar and advanced reports
 
@@ -471,13 +477,13 @@ Step 18 tests cover rename and stable IDs, non-destructive metadata edits, dupli
 
 ### Execution Step 19 — Quality pass
 
-Step 19 implements roadmap milestone 14 without introducing another major feature.
+Step 19 completes roadmap milestone 14 without introducing another major feature.
 
-The code-quality review will check for duplicate or unused code, dead handlers, package and naming problems, unsafe CSV handling, incorrect money calculations, missing validation, business logic in Swing handlers, swallowed exceptions, raw stack traces, machine-specific paths, temporary/resource leaks, production-data creation, test classes in the JAR, incomplete wiring, and incorrect cross-panel refresh behavior. A class will be removed only after proving it is unused and not required for compatibility, and passing architecture will not be rewritten unnecessarily.
+The code-quality review checked duplicate and unused code, event handlers, package structure and naming, CSV safety, exact money calculations, validation boundaries, Swing/service separation, exception handling, stack-trace exposure, machine-specific paths, temporary/resource cleanup, production-data creation, JAR contents, dependency wiring, and cross-panel refresh behavior. The reachability review found no production class that could be safely removed. Cleanup failures are now reported or attached to the original failure, and the full-frame fixture uses the same persisted default-account repository wiring as production.
 
-The UI-quality review will check spacing, labels, button names, empty states, validation messages, tab order, keyboard accessibility, resizing, clipping, duplicate submission, destructive confirmations, mutation refreshes, unrelated-refresh draft preservation, money formatting, archived indicators, and status feedback.
+The UI-quality review covered spacing, labels, button names, empty states, validation messages, natural tab order, keyboard accessibility, resizing, clipping, duplicate submission, destructive confirmations, mutation refreshes, unrelated-refresh draft preservation, money formatting, archived indicators, and status feedback. Choice-loading failures in expense, Finance, recurring, and Quick Entry workflows now remain inside clear UI error boundaries.
 
-Reliability validation will include:
+Reliability validation includes:
 
 - A clean build and every test target separately.
 - The final chained target and isolated full-frame GUI smoke test.
@@ -485,7 +491,7 @@ Reliability validation will include:
 - An isolated restart-and-persistence smoke test.
 - JAR-content validation and production-data integrity verification.
 
-Maintained documentation will accurately describe the project, architecture, completed features, build and test commands, NetBeans and JAR execution, data-file behavior, backup/restore usage, limitations, project structure, safe development notes, and completion through Step 19. Only missing high-value regression tests found by the review will be added; passing tests will not be rewritten merely for style or assertion counts.
+Maintained documentation describes the project, architecture, completed features, build and test commands, NetBeans and JAR execution, data-file behavior, backup/restore usage, limitations, project structure, safe development notes, and completion through Step 19. The only new quality regression suite is the high-value isolated restart/persistence smoke test; passing tests were not rewritten for style or assertion-count padding.
 
 ## Demo and viva preparation checklist
 
@@ -507,12 +513,11 @@ Maintained documentation will accurately describe the project, architecture, com
 - No cloud synchronization or multi-device support
 - No multi-process CSV file locking
 - No general-purpose data import beyond validated SpendWise backup restore
-- No exported or printable financial reports; advanced reports are currently on-screen and read-only
+- No PDF or printable report layout; advanced reports are on-screen and exportable only as CSV data
 - No bank, payment-provider, or financial-account integration
 - No authentication, shared accounts, or role management
 - No dark mode or theme switching
-- No general-purpose import, printing, or website
+- No printing or website
 - No encryption beyond protections provided by the local operating system
 - No mobile or web client
 - No claim of professional financial advice
-- Advanced features depend on completion and testing of the MVP

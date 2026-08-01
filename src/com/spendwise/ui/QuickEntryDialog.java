@@ -25,6 +25,7 @@ import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JRootPane;
 import javax.swing.JTextField;
@@ -70,7 +71,18 @@ final class QuickEntryDialog extends JDialog {
 
     void open() {
         requireEventDispatchThread();
-        refreshChoices();
+        try {
+            refreshChoices();
+        } catch (ValidationException | RepositoryException exception) {
+            statusLabel.setText("Unable to load entry choices: "
+                    + safeMessage(exception));
+            JOptionPane.showMessageDialog(
+                    getOwner(),
+                    statusLabel.getText(),
+                    "Quick Entry Unavailable",
+                    JOptionPane.ERROR_MESSAGE);
+            return;
+        }
         dateField.setText(LocalDate.now().toString());
         statusLabel.setText("Enter a financial entry.");
         updateRelevantFields();

@@ -454,4 +454,28 @@
             </classpath>
         </java>
     </target>
+    <target name="test-quality" depends="test-accounts"
+            description="Runs the final chained suite including isolated restart and persistence checks.">
+        <java classname="com.spendwise.service.ApplicationPersistenceSmokeTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+    </target>
+    <target name="test-quality-gui-smoke" depends="test-quality"
+            description="Runs the final chained suite and isolated complete-frame GUI smoke test.">
+        <java classname="com.spendwise.ui.FinanceFrameSmokeTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+    </target>
 </project>

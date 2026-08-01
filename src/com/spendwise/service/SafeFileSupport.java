@@ -30,12 +30,10 @@ final class SafeFileSupport {
                 normalized, content, temporaryPrefix, dataName);
         try {
             move(temporary, normalized, allowOverwrite);
-            temporary = null;
         } catch (IOException | SecurityException exception) {
+            deleteTemporary(temporary, exception);
             throw new RepositoryException(
                     "Could not save " + dataName + ".", exception);
-        } finally {
-            deleteTemporary(temporary);
         }
     }
 
@@ -65,7 +63,7 @@ final class SafeFileSupport {
             }
             return temporary;
         } catch (IOException | SecurityException exception) {
-            deleteTemporary(temporary);
+            deleteTemporary(temporary, exception);
             throw new RepositoryException(
                     "Could not stage " + dataName + ".", exception);
         }
@@ -95,13 +93,24 @@ final class SafeFileSupport {
     }
 
     static void deleteTemporary(Path temporary) {
+        deleteTemporary(temporary, null);
+    }
+
+    static void deleteTemporary(
+            Path temporary, Throwable originalFailure) {
         if (temporary == null) {
             return;
         }
         try {
             Files.deleteIfExists(temporary);
-        } catch (IOException | SecurityException ignored) {
-            // The original operation reports the actionable failure.
+        } catch (IOException | SecurityException cleanupFailure) {
+            if (originalFailure != null) {
+                originalFailure.addSuppressed(cleanupFailure);
+                return;
+            }
+            throw new RepositoryException(
+                    "Could not remove a temporary data file.",
+                    cleanupFailure);
         }
     }
 }

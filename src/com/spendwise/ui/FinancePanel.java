@@ -406,6 +406,19 @@ public final class FinancePanel extends JPanel {
     }
 
     private void editIncome(Income existing) {
+        List<Account> availableAccounts;
+        Account preferredAccount;
+        try {
+            availableAccounts = selectableAccounts(existing == null
+                    ? null : existing.getAccount());
+            preferredAccount = existing == null
+                    ? accountService.getDefaultAccount()
+                    : existing.getAccount();
+        } catch (ValidationException | RepositoryException exception) {
+            showError("Unable to load account choices: "
+                    + safeMessage(exception));
+            return;
+        }
         JTextField date = new JTextField(
                 existing == null
                         ? LocalDate.now().toString()
@@ -417,16 +430,10 @@ public final class FinancePanel extends JPanel {
         JTextField source = new JTextField(
                 existing == null ? "" : existing.getSource());
         JComboBox<Account> account = new JComboBox<>(
-                selectableAccounts(existing == null
-                        ? null
-                        : existing.getAccount()).toArray(Account[]::new));
+                availableAccounts.toArray(Account[]::new));
         JTextField note = new JTextField(
                 existing == null ? "" : existing.getNote());
-        if (existing != null) {
-            account.setSelectedItem(existing.getAccount());
-        } else {
-            account.setSelectedItem(accountService.getDefaultAccount());
-        }
+        account.setSelectedItem(preferredAccount);
         JPanel form = form(
                 "Date (yyyy-MM-dd)", date,
                 "Amount", amount,
@@ -504,6 +511,22 @@ public final class FinancePanel extends JPanel {
     }
 
     private void editTransfer(Transfer existing) {
+        List<Account> sourceAccounts;
+        List<Account> destinationAccounts;
+        Account preferredSource;
+        try {
+            sourceAccounts = selectableAccounts(existing == null
+                    ? null : existing.getSourceAccount());
+            destinationAccounts = selectableAccounts(existing == null
+                    ? null : existing.getDestinationAccount());
+            preferredSource = existing == null
+                    ? accountService.getDefaultAccount()
+                    : existing.getSourceAccount();
+        } catch (ValidationException | RepositoryException exception) {
+            showError("Unable to load account choices: "
+                    + safeMessage(exception));
+            return;
+        }
         JTextField date = new JTextField(
                 existing == null
                         ? LocalDate.now().toString()
@@ -513,20 +536,15 @@ public final class FinancePanel extends JPanel {
                         ? ""
                         : existing.getAmount().toPlainString());
         JComboBox<Account> source = new JComboBox<>(
-                selectableAccounts(existing == null
-                        ? null
-                        : existing.getSourceAccount()).toArray(Account[]::new));
+                sourceAccounts.toArray(Account[]::new));
         JComboBox<Account> destination = new JComboBox<>(
-                selectableAccounts(existing == null
-                        ? null
-                        : existing.getDestinationAccount()).toArray(Account[]::new));
+                destinationAccounts.toArray(Account[]::new));
         JTextField note = new JTextField(
                 existing == null ? "" : existing.getNote());
+        source.setSelectedItem(preferredSource);
         if (existing != null) {
-            source.setSelectedItem(existing.getSourceAccount());
             destination.setSelectedItem(existing.getDestinationAccount());
         } else {
-            source.setSelectedItem(accountService.getDefaultAccount());
             selectDifferentAccount(destination, (Account) source.getSelectedItem());
         }
         JPanel form = form(
