@@ -8,11 +8,19 @@ import com.spendwise.service.ExpenseService;
 import com.spendwise.service.FinanceService;
 import com.spendwise.service.FinancialReportingService;
 import com.spendwise.service.IncomeService;
+import com.spendwise.service.QuickEntryService;
+import com.spendwise.service.RecurringService;
 import com.spendwise.service.TransferService;
 import java.awt.Dimension;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
 import java.util.Objects;
 import javax.swing.JFrame;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
 import javax.swing.JTabbedPane;
+import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 
 public final class SpendWiseFrame extends JFrame {
@@ -83,7 +91,9 @@ public final class SpendWiseFrame extends JFrame {
             AccountService accountService,
             IncomeService incomeService,
             TransferService transferService,
-            FinanceService financeService) {
+            FinanceService financeService,
+            RecurringService recurringService,
+            QuickEntryService quickEntryService) {
         super("SpendWise Expense Tracker");
         requireEventDispatchThread();
         Objects.requireNonNull(expenseService, "Expense service is required.");
@@ -95,6 +105,8 @@ public final class SpendWiseFrame extends JFrame {
         Objects.requireNonNull(incomeService, "Income service is required.");
         Objects.requireNonNull(transferService, "Transfer service is required.");
         Objects.requireNonNull(financeService, "Finance service is required.");
+        Objects.requireNonNull(recurringService, "Recurring service is required.");
+        Objects.requireNonNull(quickEntryService, "Quick-entry service is required.");
         FinancialReportingService reportingService =
                 new FinancialReportingService(
                         expenseService,
@@ -114,6 +126,8 @@ public final class SpendWiseFrame extends JFrame {
                 reportingService, accountService, categoryService);
         final ExpensePanel[] expenseReference = new ExpensePanel[1];
         final FinancePanel[] financeReference = new FinancePanel[1];
+        final RecurringPanel[] recurringReference = new RecurringPanel[1];
+        final QuickEntryDialog[] quickEntryReference = new QuickEntryDialog[1];
         FinancePanel financePanel = new FinancePanel(
                 accountService,
                 incomeService,
@@ -149,6 +163,31 @@ public final class SpendWiseFrame extends JFrame {
                     reportsPanel.refreshReports();
                 });
         expenseReference[0] = expensePanel;
+        Runnable refreshFinancialViews = () -> {
+            expensePanel.refreshExpenses();
+            financePanel.refreshFinanceData();
+            dashboardPanel.refreshDashboard();
+            budgetPanel.refreshBudgetStatus();
+            calendarPanel.refreshCalendar();
+            reportsPanel.refreshReports();
+            if (recurringReference[0] != null) {
+                recurringReference[0].refreshRecurringEntries();
+            }
+        };
+        RecurringPanel recurringPanel = new RecurringPanel(
+                recurringService,
+                accountService,
+                categoryService,
+                () -> quickEntryReference[0].open(),
+                refreshFinancialViews);
+        recurringReference[0] = recurringPanel;
+        QuickEntryDialog quickEntryDialog = new QuickEntryDialog(
+                this,
+                quickEntryService,
+                accountService,
+                categoryService,
+                refreshFinancialViews);
+        quickEntryReference[0] = quickEntryDialog;
 
         JTabbedPane mainTabs = new JTabbedPane();
         mainTabs.addTab("Expenses", expensePanel);
@@ -157,6 +196,7 @@ public final class SpendWiseFrame extends JFrame {
         mainTabs.addTab("Finance", financePanel);
         mainTabs.addTab("Calendar", calendarPanel);
         mainTabs.addTab("Reports", reportsPanel);
+        mainTabs.addTab("Recurring", recurringPanel);
         mainTabs.addChangeListener(event -> {
             if (mainTabs.getSelectedComponent() == dashboardPanel) {
                 dashboardPanel.refreshDashboard();
@@ -168,8 +208,20 @@ public final class SpendWiseFrame extends JFrame {
                 calendarPanel.refreshCalendar();
             } else if (mainTabs.getSelectedComponent() == reportsPanel) {
                 reportsPanel.refreshReports();
+            } else if (mainTabs.getSelectedComponent() == recurringPanel) {
+                recurringPanel.refreshRecurringEntries();
             }
         });
+        JMenuBar menuBar = new JMenuBar();
+        JMenu entryMenu = new JMenu("Entry");
+        entryMenu.setMnemonic('E');
+        JMenuItem quickEntryItem = new JMenuItem("Quick Entry");
+        quickEntryItem.setAccelerator(KeyStroke.getKeyStroke(
+                KeyEvent.VK_Q, InputEvent.CTRL_DOWN_MASK));
+        quickEntryItem.addActionListener(event -> quickEntryDialog.open());
+        entryMenu.add(quickEntryItem);
+        menuBar.add(entryMenu);
+        setJMenuBar(menuBar);
         setContentPane(mainTabs);
         setSize(1100, 700);
         setMinimumSize(new Dimension(900, 600));

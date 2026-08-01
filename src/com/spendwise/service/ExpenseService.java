@@ -78,6 +78,27 @@ public final class ExpenseService {
         return expense;
     }
 
+    Expense createExpenseWithId(
+            String id,
+            String description,
+            BigDecimal amount,
+            LocalDate date,
+            Category category,
+            Account account,
+            String notes) {
+        Account validatedAccount = requireSelectableAccount(account);
+        Expense expense = new Expense(
+                id,
+                description,
+                amount,
+                date,
+                category,
+                validatedAccount,
+                notes);
+        repository.add(expense);
+        return expense;
+    }
+
     public Expense updateExpense(
             String id,
             String description,

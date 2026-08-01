@@ -49,6 +49,10 @@ public final class AppPaths {
         return currentDataPath("transfers.csv");
     }
 
+    public static Path getRecurringCsvPath() {
+        return currentDataPath("recurring.csv");
+    }
+
     static Path resolveExpenseCsvPath(
             String operatingSystemName,
             String localAppData,
@@ -125,6 +129,19 @@ public final class AppPaths {
                 xdgDataHome,
                 userHome,
                 "transfers.csv");
+    }
+
+    static Path resolveRecurringCsvPath(
+            String operatingSystemName,
+            String localAppData,
+            String xdgDataHome,
+            String userHome) {
+        return resolveDataFilePath(
+                operatingSystemName,
+                localAppData,
+                xdgDataHome,
+                userHome,
+                "recurring.csv");
     }
 
     private static Path currentDataPath(String fileName) {

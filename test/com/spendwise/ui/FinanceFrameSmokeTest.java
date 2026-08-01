@@ -5,6 +5,7 @@ import com.spendwise.repository.CsvBudgetRepository;
 import com.spendwise.repository.CsvCategoryRepository;
 import com.spendwise.repository.CsvExpenseRepository;
 import com.spendwise.repository.CsvIncomeRepository;
+import com.spendwise.repository.CsvRecurringEntryRepository;
 import com.spendwise.repository.CsvTransferRepository;
 import com.spendwise.service.AccountService;
 import com.spendwise.service.BudgetService;
@@ -13,6 +14,8 @@ import com.spendwise.service.ExpenseAnalyticsService;
 import com.spendwise.service.ExpenseService;
 import com.spendwise.service.FinanceService;
 import com.spendwise.service.IncomeService;
+import com.spendwise.service.QuickEntryService;
+import com.spendwise.service.RecurringService;
 import com.spendwise.service.TransferService;
 import java.awt.GraphicsEnvironment;
 import java.io.IOException;
@@ -79,6 +82,16 @@ public final class FinanceFrameSmokeTest {
                                 categories::resolveCategory));
                 ExpenseAnalyticsService analytics =
                         new ExpenseAnalyticsService(expenses);
+                RecurringService recurring = new RecurringService(
+                        new CsvRecurringEntryRepository(
+                                directory.resolve("recurring.csv"),
+                                categories::resolveCategory,
+                                accounts::resolveAccount),
+                        expenses,
+                        income,
+                        transfers,
+                        accounts,
+                        categories);
                 frame = new SpendWiseFrame(
                         expenses,
                         analytics,
@@ -88,7 +101,9 @@ public final class FinanceFrameSmokeTest {
                         income,
                         transfers,
                         new FinanceService(
-                                accounts, expenses, income, transfers));
+                                accounts, expenses, income, transfers),
+                        recurring,
+                        new QuickEntryService(expenses, income, transfers));
                 frame.setLocation(-10000, -10000);
                 frame.setSize(1000, 650);
                 frame.setVisible(true);
@@ -96,14 +111,21 @@ public final class FinanceFrameSmokeTest {
                     throw new AssertionError(
                             "Main content must be a tabbed pane.");
                 }
-                assertEquals(6, tabs.getTabCount());
+                assertEquals(7, tabs.getTabCount());
                 assertEquals("Expenses", tabs.getTitleAt(0));
                 assertEquals("Finance", tabs.getTitleAt(3));
                 assertEquals("Calendar", tabs.getTitleAt(4));
                 assertEquals("Reports", tabs.getTitleAt(5));
+                assertEquals("Recurring", tabs.getTitleAt(6));
                 tabs.setSelectedIndex(4);
                 tabs.setSelectedIndex(5);
+                tabs.setSelectedIndex(6);
                 tabs.setSelectedIndex(0);
+                if (frame.getJMenuBar() == null
+                        || frame.getJMenuBar().getMenuCount() != 1) {
+                    throw new AssertionError(
+                            "Quick Entry menu must be available.");
+                }
             } catch (Throwable exception) {
                 failure.set(exception);
             } finally {

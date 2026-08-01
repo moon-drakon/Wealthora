@@ -6,6 +6,7 @@ import com.spendwise.repository.CsvBudgetRepository;
 import com.spendwise.repository.CsvCategoryRepository;
 import com.spendwise.repository.CsvExpenseRepository;
 import com.spendwise.repository.CsvIncomeRepository;
+import com.spendwise.repository.CsvRecurringEntryRepository;
 import com.spendwise.repository.CsvTransferRepository;
 import com.spendwise.service.AccountService;
 import com.spendwise.service.BudgetService;
@@ -14,6 +15,8 @@ import com.spendwise.service.ExpenseAnalyticsService;
 import com.spendwise.service.ExpenseService;
 import com.spendwise.service.FinanceService;
 import com.spendwise.service.IncomeService;
+import com.spendwise.service.QuickEntryService;
+import com.spendwise.service.RecurringService;
 import com.spendwise.service.TransferService;
 import com.spendwise.ui.SpendWiseFrame;
 import java.nio.file.Path;
@@ -77,6 +80,20 @@ public final class SpendWiseApplication {
                     new CsvBudgetRepository(
                             budgetCsvPath, categoryService::resolveCategory);
             BudgetService budgetService = new BudgetService(budgetRepository);
+            CsvRecurringEntryRepository recurringRepository =
+                    new CsvRecurringEntryRepository(
+                            AppPaths.getRecurringCsvPath(),
+                            categoryService::resolveCategory,
+                            accountService::resolveAccount);
+            RecurringService recurringService = new RecurringService(
+                    recurringRepository,
+                    expenseService,
+                    incomeService,
+                    transferService,
+                    accountService,
+                    categoryService);
+            QuickEntryService quickEntryService = new QuickEntryService(
+                    expenseService, incomeService, transferService);
             SpendWiseFrame frame =
                     new SpendWiseFrame(
                             expenseService,
@@ -86,7 +103,9 @@ public final class SpendWiseApplication {
                             accountService,
                             incomeService,
                             transferService,
-                            financeService);
+                            financeService,
+                            recurringService,
+                            quickEntryService);
             frame.setVisible(true);
         } catch (RuntimeException exception) {
             JOptionPane.showMessageDialog(

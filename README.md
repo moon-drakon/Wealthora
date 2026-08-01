@@ -10,7 +10,7 @@ SpendWise Expense Tracker is a Java Swing desktop application for a CSE215 Objec
 
 ## Current status
 
-The project now includes validated expense, income, account, transfer, category, and budget models; storage-independent repositories; safe UTF-8 CSV persistence; and a programmatic Swing interface with Expenses, Dashboard, Budgets, Finance, Calendar, and Reports tabs. Users can manage financial entries and categories, configure monthly budgets, inspect calendar activity, and run filtered read-only reports. Account balances and reports use exact decimal calculations, and transfers are excluded from income and expense totals. The complete automated suite remains dependency-free and includes an isolated full-frame smoke test.
+The project now includes validated expense, income, account, transfer, category, budget, and recurring-entry models; storage-independent repositories; safe UTF-8 CSV persistence; and a programmatic Swing interface with Expenses, Dashboard, Budgets, Finance, Calendar, Reports, and Recurring tabs. Users can manage financial entries and categories, configure budgets, inspect calendar activity, run filtered reports, maintain recurring definitions, explicitly generate due entries, and open Quick Entry with `Ctrl+Q`. Deterministic recurring occurrence IDs prevent duplicate posting during safe retries. The complete automated suite remains dependency-free and includes an isolated full-frame smoke test.
 
 Feature status in this document will be updated only after the corresponding behavior has been implemented and verified.
 
@@ -36,7 +36,8 @@ These features are candidates after the core workflow is complete:
 
 - Search, filter, and sort income records (implemented)
 - Calendar activity and advanced financial reports (implemented)
-- Recurring transaction templates
+- Recurring expense, income, and transfer definitions (implemented)
+- Keyboard-accessible Quick Entry (implemented)
 - Exportable filtered summaries
 - Local data backup and restore
 
@@ -47,7 +48,7 @@ These features are candidates after the core workflow is complete:
 - Java standard libraries, including `java.time`, `java.math`, and `java.nio`
 - Apache Ant
 - Apache NetBeans project structure
-- UTF-8 CSV files for local expense, income, account, transfer, budget, and custom-category persistence
+- UTF-8 CSV files for local expense, income, account, transfer, budget, custom-category, and recurring-definition persistence
 
 No external libraries are currently required.
 
@@ -171,6 +172,20 @@ On a graphical desktop, run the complete chain plus the updated full-frame smoke
 C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-reports-gui-smoke
 ```
 
+## Run the recurring and Quick Entry tests
+
+The recurring target chains after all report tests and adds recurring model, CSV, service, Quick Entry integration, and headless Swing checks:
+
+```powershell
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-recurring
+```
+
+The graphical variant also checks the seven-tab frame and Quick Entry menu wiring:
+
+```powershell
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-recurring-gui-smoke
+```
+
 ## Application data location
 
 On Windows, expense data is stored at:
@@ -197,13 +212,14 @@ Account, income, and transfer records use these sibling files:
 %LOCALAPPDATA%\SpendWiseExpenseTracker\data\accounts.csv
 %LOCALAPPDATA%\SpendWiseExpenseTracker\data\income.csv
 %LOCALAPPDATA%\SpendWiseExpenseTracker\data\transfers.csv
+%LOCALAPPDATA%\SpendWiseExpenseTracker\data\recurring.csv
 ```
 
 If `LOCALAPPDATA` is unavailable, SpendWise uses the equivalent location below `user.home\AppData\Local`. macOS uses `~/Library/Application Support`, while Linux and other Unix-like systems use `XDG_DATA_HOME` or the `~/.local/share` fallback.
 
 Resolving these paths and starting the application are read-only operations. Each CSV file is created only by the first successful mutation for its own data area. Repository writes use complete UTF-8 snapshots and safe same-directory temporary-file replacement.
 
-Opening or refreshing Expenses, Dashboard, Budgets, Manage Categories, Calendar, or Reports is also read-only. These views do not create or rewrite any production CSV file.
+Opening or refreshing Expenses, Dashboard, Budgets, Manage Categories, Calendar, Reports, or Recurring is also read-only. These views do not create or rewrite any production CSV file. `recurring.csv` is created only after the first recurring-definition mutation.
 
 ## Accounts, income, and transfers
 
@@ -243,6 +259,14 @@ The Calendar tab displays a Sunday-based monthly grid with previous, next, and c
 
 The Reports tab accepts an inclusive date range plus optional account and expense-category filters. It shows total income, expenses, net cash flow, ranked expense categories, income sources, account activity (including transfer directions), month-by-month trends, and budget-versus-actual rows where limits exist. Reports load repository snapshots without writing data, and refreshes preserve the entered range and available filters.
 
+## Recurring entries and Quick Entry
+
+The Recurring tab supports expense, income, and transfer definitions with daily, weekly, monthly, or yearly schedules, positive intervals, optional end dates, visible next-due dates, and active/inactive status. Nothing is posted at startup. **Generate Due Entries** is the explicit posting action, and monthly/yearly schedules retain their original day anchor across shorter months and leap years.
+
+Each occurrence has a deterministic ID derived from its definition and due date. Repeating the generation action cannot create the same occurrence twice, including recovery after a transaction was written before schedule advancement completed. Definitions are deactivated rather than deleted so posted history remains explainable.
+
+Quick Entry is available from **Entry > Quick Entry**, the Recurring tab, or `Ctrl+Q`. It delegates expense, income, and transfer creation to the existing services, keeps safe account/category choices for the current session, preserves failed input, and disables repeat submission while saving.
+
 ## Project structure
 
 ```text
@@ -265,6 +289,9 @@ SpendWiseExpenseTracker/
 |       |   |-- Expense.java
 |       |   |-- Income.java
 |       |   |-- MonthlyBudget.java
+|       |   |-- RecurrenceFrequency.java
+|       |   |-- RecurringEntry.java
+|       |   |-- RecurringEntryType.java
 |       |   `-- Transfer.java
 |       |-- repository/
 |       |   |-- AccountRepository.java
@@ -277,9 +304,11 @@ SpendWiseExpenseTracker/
 |       |   |-- CsvExpenseRepository.java
 |       |   |-- CsvFileSupport.java
 |       |   |-- CsvIncomeRepository.java
+|       |   |-- CsvRecurringEntryRepository.java
 |       |   |-- CsvTransferRepository.java
 |       |   |-- ExpenseRepository.java
 |       |   |-- IncomeRepository.java
+|       |   |-- RecurringEntryRepository.java
 |       |   |-- TransferRepository.java
 |       |   `-- RepositoryException.java
 |       |-- service/
@@ -301,6 +330,10 @@ SpendWiseExpenseTracker/
 |       |   |-- ExpenseService.java
 |       |   |-- ExpenseSortOrder.java
 |       |   |-- FinancialReportingService.java
+|       |   |-- QuickEntryResult.java
+|       |   |-- QuickEntryService.java
+|       |   |-- RecurringGenerationResult.java
+|       |   |-- RecurringService.java
 |       |   `-- ExpenseSummary.java
 |       |-- ui/
 |       |   |-- AccountTableModel.java
@@ -317,6 +350,9 @@ SpendWiseExpenseTracker/
 |       |   |-- FinancePanel.java
 |       |   |-- AdvancedReportsPanel.java
 |       |   |-- FinancialActivityTableModel.java
+|       |   |-- QuickEntryDialog.java
+|       |   |-- RecurringEntryTableModel.java
+|       |   |-- RecurringPanel.java
 |       |   |-- IncomeTableModel.java
 |       |   |-- MonthlyBarChartPanel.java
 |       |   |-- SpendWiseFrame.java
@@ -334,19 +370,22 @@ SpendWiseExpenseTracker/
 |       |   |-- CategoryTest.java
 |       |   |-- ExpenseTest.java
 |       |   |-- FinanceModelTest.java
-|       |   `-- MonthlyBudgetTest.java
+|       |   |-- MonthlyBudgetTest.java
+|       |   `-- RecurringEntryTest.java
 |       |-- repository/
 |       |   |-- CsvBudgetRepositoryTest.java
 |       |   |-- CsvCategoryRepositoryTest.java
 |       |   |-- CsvExpenseRepositoryTest.java
-|       |   `-- FinanceRepositoryTest.java
+|       |   |-- FinanceRepositoryTest.java
+|       |   `-- RecurringRepositoryTest.java
 |       |-- service/
 |       |   |-- BudgetServiceTest.java
 |       |   |-- CategoryServiceTest.java
 |       |   |-- ExpenseAnalyticsServiceTest.java
 |       |   |-- ExpenseServiceTest.java
 |       |   |-- FinancialReportingServiceTest.java
-|       |   `-- FinanceServiceTest.java
+|       |   |-- FinanceServiceTest.java
+|       |   `-- RecurringQuickEntryServiceTest.java
 |       `-- ui/
 |           |-- BudgetFoundationTest.java
 |           |-- CategoryManagementTest.java
@@ -354,6 +393,7 @@ SpendWiseExpenseTracker/
 |           |-- FinanceFoundationTest.java
 |           |-- FinanceFrameSmokeTest.java
 |           |-- CalendarReportsFoundationTest.java
+|           |-- RecurringFoundationTest.java
 |           `-- SwingFoundationTest.java
 |-- docs/
 |   `-- PROJECT_PLAN.md
@@ -367,4 +407,4 @@ The generated `build/` and `dist/` directories and the machine-specific `nbproje
 
 The CSV repositories support commas, doubled quotes, Unicode, and quoted line breaks. Account rows use `id,name,type,openingBalance,status`, income rows use `id,date,amount,source,account,note`, and transfer rows use `id,date,amount,sourceAccount,destinationAccount,note`. Mutations write a complete temporary file in the destination directory and replace the previous file only after the temporary content is closed, flushed, and forced to storage. Corrupt data is never silently reset or overwritten.
 
-Recurring transactions, authentication, dark mode, backup/restore, import/export, printing, cloud synchronization, and website functionality are not implemented. Multi-process file locking also remains outside the current scope.
+Authentication, dark mode, backup/restore, import/export, printing, cloud synchronization, and website functionality are not implemented. Multi-process file locking also remains outside the current scope.

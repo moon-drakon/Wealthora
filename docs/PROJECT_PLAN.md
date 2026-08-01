@@ -2,7 +2,7 @@
 
 ## Current implementation status
 
-The project currently includes validated expense, income, account, transfer, category, and monthly-budget models; storage-independent repositories; safe UTF-8 CSV persistence; and a programmatic Swing application with Expenses, Dashboard, Budgets, Finance, Calendar, and Reports tabs. Expense, income, account, transfer, category, analytics, budget, calendar, and advanced read-only reporting workflows are implemented. Legacy expenses remain compatible through a protected default Cash account. The chained dependency-free reports suite preserves every earlier test and adds calendar/report service, headless Swing, and isolated full-frame checks.
+The project currently includes validated expense, income, account, transfer, category, monthly-budget, and recurring-entry models; storage-independent repositories; safe UTF-8 CSV persistence; and a programmatic Swing application with seven primary tabs. Recurring definitions use explicit, idempotent generation, while Quick Entry delegates directly to existing transaction services. Legacy expenses remain compatible through a protected default Cash account. The chained dependency-free recurring suite preserves every earlier test and adds schedule, CSV, generation, Quick Entry, headless Swing, and isolated full-frame checks.
 
 ## Problem statement
 
@@ -56,7 +56,7 @@ Advanced items are proposals, not implemented features or fixed delivery promise
 
 ### Main frame
 
-`SpendWiseFrame` owns the application window and constructs all six primary panels once. Data views refresh when their tabs are selected and after related mutations without moving repository construction or business rules into the frame.
+`SpendWiseFrame` owns the application window and constructs all seven primary panels once. Data views refresh when their tabs are selected and after related mutations without moving repository construction or business rules into the frame. Its Entry menu exposes the `Ctrl+Q` Quick Entry shortcut.
 
 ### Dashboard
 
@@ -82,6 +82,10 @@ The Expenses header opens a modal category manager with Name, Type, and Status c
 
 `CalendarPanel` presents a monthly activity grid and selected-day details from immutable reporting snapshots. `AdvancedReportsPanel` presents validated, optionally filtered date-range totals and breakdown tables. Both panels are read-only and delegate all calculations to `FinancialReportingService`.
 
+### Recurring and Quick Entry
+
+`RecurringPanel` manages typed schedules and invokes generation only through the visible **Generate Due Entries** action. `QuickEntryDialog` provides a compact expense, income, and transfer form from the Entry menu or `Ctrl+Q`. Both delegate validation and mutation to service classes; opening either workflow does not write data.
+
 ## Proposed Java package architecture
 
 ```text
@@ -92,6 +96,7 @@ com.spendwise.config
 com.spendwise.model
     Account, AccountType, Income, Transfer
     Expense, Category, MonthlyBudget
+    RecurringEntry, RecurringEntryType, RecurrenceFrequency
 com.spendwise.repository
     ExpenseRepository, CsvExpenseRepository, CsvExpenseCodec,
     AccountRepository, CsvAccountRepository,
@@ -99,6 +104,7 @@ com.spendwise.repository
     TransferRepository, CsvTransferRepository,
     BudgetRepository, CsvBudgetRepository,
     CategoryRepository, CsvCategoryRepository, RepositoryException
+    RecurringEntryRepository, CsvRecurringEntryRepository
 com.spendwise.service
     AccountService, IncomeService, TransferService, FinanceService
     AccountBalanceSnapshot, IncomeSortOrder
@@ -107,6 +113,7 @@ com.spendwise.service
     ExpenseAnalyticsService, ExpenseAnalyticsSnapshot,
     FinancialReportingService, CalendarMonthSnapshot,
     DailyActivitySnapshot, AdvancedReportSnapshot,
+    RecurringService, RecurringGenerationResult, QuickEntryService,
     ExpenseService, ExpenseSummary, ExpenseSortOrder,
     ExpenseNotFoundException
 com.spendwise.ui
@@ -116,6 +123,7 @@ com.spendwise.ui
     CategoryManagerDialog, CategoryTableModel
     FinancePanel, AccountTableModel, IncomeTableModel, TransferTableModel
     CalendarPanel, AdvancedReportsPanel, FinancialActivityTableModel
+    RecurringPanel, RecurringEntryTableModel, QuickEntryDialog
 com.spendwise.validation
     ExpenseValidator, FinanceValidator, ValidationException
 ```
@@ -165,13 +173,15 @@ The repository package now provides a storage-independent expense contract and a
 
 `FinancialReportingService` builds immutable calendar and date-range report snapshots from existing services. It calculates daily and monthly cash flow, category and source totals, account activity, ranked categories, and budget actuals with exact `BigDecimal` arithmetic. Transfers appear in activity details and account movement totals but never inflate income or expense totals.
 
+`RecurringService` validates definitions, identifies due occurrences, and delegates posting to the established expense, income, and transfer services. An occurrence ID is derived from the stable definition ID and due date. Generation advances and saves the next due date after each occurrence; a retry detects an already-written occurrence and advances without duplication. `QuickEntryService` is a thin delegation boundary that reuses the same transaction services and validation.
+
 ### UI
 
-The UI package creates programmatic Swing components, translates user actions into service calls, and displays results or validation messages. `SpendWiseFrame` exposes Expenses, Dashboard, Budgets, Finance, Calendar, and Reports tabs, with Expenses still first. The Calendar and Reports tabs are read-only; financial mutations refresh their derived views while preserving the chosen month or entered date range where practical. Export screens remain future work.
+The UI package creates programmatic Swing components, translates user actions into service calls, and displays results or validation messages. `SpendWiseFrame` exposes Expenses, Dashboard, Budgets, Finance, Calendar, Reports, and Recurring tabs, with Expenses still first. Financial mutations refresh derived views while preserving relevant selections where practical. Export screens remain future work.
 
 ## CSV persistence plan
 
-All CSV persistence uses caller-supplied paths rather than a hard-coded developer location. `AppPaths` resolves sibling `expenses.csv`, `budgets.csv`, `categories.csv`, `accounts.csv`, `income.csv`, and `transfers.csv` files below the platform data directory. Path resolution, startup, construction, viewing, and refresh do not create files; each file is created only by a successful mutation in its own data area.
+All CSV persistence uses caller-supplied paths rather than a hard-coded developer location. `AppPaths` resolves sibling `expenses.csv`, `budgets.csv`, `categories.csv`, `accounts.csv`, `income.csv`, `transfers.csv`, and `recurring.csv` files below the platform data directory. Path resolution, startup, construction, viewing, and refresh do not create files; each file is created only by a successful mutation in its own data area.
 
 The implemented format uses UTF-8, a required header, stable column order, ISO dates, stable category identifiers, and decimal amounts produced with `BigDecimal.toPlainString()`. `CsvExpenseCodec` owns quoting and parsing rules, including quoted line breaks, LF and CRLF input, and an optional UTF-8 BOM before the header. Loading constructs each `Expense` through existing model validation. Mutations prepare the full snapshot before writing and use same-directory temporary-file replacement.
 
@@ -180,6 +190,8 @@ CSV is appropriate for the course scope because it is inspectable and requires n
 Budget CSV rows use ISO `YearMonth`, `OVERALL` or `CATEGORY` scope, stable category identifiers, and exact two-decimal limits. Custom category rows use stable IDs, CSV-escaped display names, and `ACTIVE` or `ARCHIVED` status. Existing built-in category values require no migration. Other months survive replacement or deletion, and all repositories use complete same-directory temporary files before target replacement.
 
 Account rows use `id,name,type,openingBalance,status`; income rows use `id,date,amount,source,account,note`; and transfer rows use `id,date,amount,sourceAccount,destinationAccount,note`. All account references use stable IDs. Legacy expenses retain `id,description,amount,date,category,notes`; account-aware files add an `account` column before `notes`.
+
+Recurring rows store stable definition IDs, typed entry and frequency values, exact amounts, stable category/account references, interval, start/end/next-due dates, and active status. The repository rejects malformed rows, duplicate IDs, unsupported values, and unknown references without replacing the source file.
 
 ## Validation and error handling
 
@@ -212,6 +224,7 @@ Testing will combine focused automated checks with repeatable manual GUI testing
 - Category immutability, built-in compatibility, CSV corruption/replacement, service mutation, archived-history, selector-refresh, and headless manager-state checks
 - Account, income, and transfer validation; legacy expense compatibility; repository safe writes and corruption; CRUD, search, stable sorting, exact balances, transfer neutrality, refresh warnings, and Swing table foundations
 - Calendar alignment, leap years, daily totals and details, transfer exclusion, date-range validation, grouping, trends, budgets versus actuals, immutable read-only snapshots, and headless panel checks
+- Daily, weekly, monthly, yearly, interval, leap-year, and month-end recurrence; optional end dates; inactive definitions; retry-safe generation; all three entry types; CSV corruption; Quick Entry delegation; and headless panel checks
 - An isolated graphical full-frame smoke test that uses temporary paths and verifies read-only startup and tab navigation
 - Isolated path-resolution checks that do not modify environment variables or production data
 - Manual checks for navigation, table updates, dialogs, keyboard focus, resizing, and error messages
@@ -287,6 +300,13 @@ C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-reports
 C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-reports-gui-smoke
 ```
 
+The recurring target chains after reports and adds the recurring model, CSV repository, generation, Quick Entry integration, and headless Swing suites. Its graphical variant checks all seven tabs and menu wiring:
+
+```powershell
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-recurring
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-recurring-gui-smoke
+```
+
 ## Milestones
 
 1. **Foundation (complete):** establish the Java 21 NetBeans project, repository baseline, documentation, and repeatable build.
@@ -299,7 +319,7 @@ C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-reports-gui-smoke
 8. **Custom category management (complete):** persist stable custom definitions, support add, rename, archive, and restore, and preserve historical expense, analytics, and budget behavior.
 9. **Income, accounts, and transfers (complete):** implement stable local accounts, income CRUD and querying, transfer workflows, exact balances, compatible expense account assignment, and safe additive CSV persistence.
 10. **Calendar and advanced reports (complete):** add coherent date-based activity and reporting snapshots.
-11. **Recurring entries and quick entry:** add explicit, idempotent due-item posting and reviewed shortcuts.
+11. **Recurring entries and quick entry (complete):** add explicit, idempotent due-item posting and reviewed shortcuts.
 12. **Backup, restore, and export:** add validated offline data protection.
 13. **Advanced account controls:** add statements, reconciliation adjustments, and account insights.
 14. **Quality pass:** complete regression testing, usability fixes, documentation updates, and demo preparation.
@@ -336,9 +356,9 @@ Step 15 tests cover calendar alignment, leap years, daily totals, transfer exclu
 
 ### Execution Step 16 — Recurring entries and quick entry
 
-Step 16 implements roadmap milestone 11. It will provide typed recurring definitions and a compact path for creating common financial entries.
+Step 16 implements roadmap milestone 11. It provides typed recurring definitions and a compact path for creating common financial entries.
 
-A recurring definition will have:
+A recurring definition has:
 
 - A stable identifier and an expense, income, or transfer entry type.
 - An exact `BigDecimal` amount, description, relevant category, source account, and transfer destination account where required.
@@ -346,7 +366,7 @@ A recurring definition will have:
 - A start date, optional end date, next due date, and active/inactive status.
 - Complete creation and update validation.
 
-The recurring service will:
+The recurring service:
 
 - Determine due occurrences and generate them only through an explicit user action.
 - Prevent duplicate occurrence generation and advance the next due date correctly.
@@ -357,9 +377,9 @@ The recurring service will:
 - Reject malformed data instead of replacing it.
 - Use temporary locations during automated tests.
 
-The recurring UI will add, edit, activate/deactivate, display the next due date, and manually generate due entries. Definitions will be archived or deactivated when deletion would be unsafe.
+The recurring UI adds, edits, activates/deactivates, displays the next due date, and manually generates due entries. Definitions are deactivated instead of deleted so their relationship to generated history remains explainable.
 
-Quick Entry will:
+Quick Entry:
 
 - Create expenses, income, and transfers through existing services and validation.
 - Avoid duplicating business logic.
@@ -367,7 +387,7 @@ Quick Entry will:
 - Support keyboard-focused navigation and a practical non-conflicting shortcut.
 - Keep failed input intact, prevent double submission, show clear messages, and refresh affected panels after success.
 
-Step 16 tests will cover every frequency, intervals greater than one, leap-year and month-end behavior, optional end dates, inactive definitions, duplicate prevention, due-date advancement, each generated entry type, invalid accounts, CSV round trips and corruption, Quick Entry validation/service integration, and production-data isolation. Its Ant target will chain after Step 15.
+Step 16 tests cover every frequency, intervals greater than one, leap-year and month-end behavior, optional end dates, inactive definitions, duplicate prevention, due-date advancement, each generated entry type, invalid accounts, CSV round trips and corruption, Quick Entry validation/service integration, and production-data isolation. Its Ant target chains after Step 15.
 
 ### Execution Step 17 — Backup, restore, and export
 
@@ -467,7 +487,6 @@ Maintained documentation will accurately describe the project, architecture, com
 - No exported or printable financial reports; advanced reports are currently on-screen and read-only
 - No bank, payment-provider, or financial-account integration
 - No authentication, shared accounts, or role management
-- No recurring definitions or quick-entry workflow
 - No dark mode or theme switching
 - No backup/restore, import/export, printing, or website
 - No encryption beyond protections provided by the local operating system

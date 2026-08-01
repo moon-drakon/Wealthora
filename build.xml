@@ -336,4 +336,56 @@
             </classpath>
         </java>
     </target>
+    <target name="test-recurring" depends="test-reports"
+            description="Runs recurring-entry, Quick Entry, persistence, service, and Swing tests.">
+        <java classname="com.spendwise.model.RecurringEntryTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+        <java classname="com.spendwise.repository.RecurringRepositoryTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+        <java classname="com.spendwise.service.RecurringQuickEntryServiceTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+        <java classname="com.spendwise.ui.RecurringFoundationTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <sysproperty key="java.awt.headless" value="true"/>
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+    </target>
+    <target name="test-recurring-gui-smoke" depends="test-recurring"
+            description="Runs the full-frame smoke test with recurring and Quick Entry wiring.">
+        <java classname="com.spendwise.ui.FinanceFrameSmokeTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+    </target>
 </project>

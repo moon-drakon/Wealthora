@@ -51,6 +51,28 @@ public final class TransferService {
         return transfer;
     }
 
+    Transfer createTransferWithId(
+            String id,
+            LocalDate date,
+            BigDecimal amount,
+            Account sourceAccount,
+            Account destinationAccount,
+            String note) {
+        Account validatedSource =
+                accountService.requireSelectable(sourceAccount);
+        Account validatedDestination =
+                accountService.requireSelectable(destinationAccount);
+        Transfer transfer = new Transfer(
+                id,
+                date,
+                amount,
+                validatedSource,
+                validatedDestination,
+                note);
+        repository.add(transfer);
+        return transfer;
+    }
+
     public Transfer updateTransfer(
             String id,
             LocalDate date,

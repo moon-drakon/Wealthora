@@ -51,6 +51,24 @@ public final class IncomeService {
         return income;
     }
 
+    Income createIncomeWithId(
+            String id,
+            LocalDate date,
+            BigDecimal amount,
+            String source,
+            Account account,
+            String note) {
+        Income income = new Income(
+                id,
+                date,
+                amount,
+                source,
+                accountService.requireSelectable(account),
+                note);
+        repository.add(income);
+        return income;
+    }
+
     public Income updateIncome(
             String id,
             LocalDate date,
