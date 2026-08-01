@@ -10,7 +10,7 @@ SpendWise Expense Tracker is a Java Swing desktop application for a CSE215 Objec
 
 ## Current status
 
-The project now includes validated expense, income, account, transfer, category, and budget models; storage-independent repositories; safe UTF-8 CSV persistence; and a programmatic Swing interface with Expenses, Dashboard, Budgets, and Finance tabs. Users can manage expenses, income, accounts, transfers, and custom categories, analyze a selected month, and configure monthly budgets. Account balances include opening balances, income, expenses, and transfer effects without double-counting transfers. The complete automated suite remains dependency-free and includes an isolated full-frame Finance smoke test.
+The project now includes validated expense, income, account, transfer, category, and budget models; storage-independent repositories; safe UTF-8 CSV persistence; and a programmatic Swing interface with Expenses, Dashboard, Budgets, Finance, Calendar, and Reports tabs. Users can manage financial entries and categories, configure monthly budgets, inspect calendar activity, and run filtered read-only reports. Account balances and reports use exact decimal calculations, and transfers are excluded from income and expense totals. The complete automated suite remains dependency-free and includes an isolated full-frame smoke test.
 
 Feature status in this document will be updated only after the corresponding behavior has been implemented and verified.
 
@@ -35,7 +35,7 @@ SpendWise is intended to help an individual record income and expenses, organize
 These features are candidates after the core workflow is complete:
 
 - Search, filter, and sort income records (implemented)
-- Additional financial planning views
+- Calendar activity and advanced financial reports (implemented)
 - Recurring transaction templates
 - Exportable filtered summaries
 - Local data backup and restore
@@ -157,6 +157,20 @@ C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-finance-gui-smoke
 
 The smoke test uses a temporary data directory and verifies that opening and navigating the frame creates no CSV files.
 
+## Run the calendar and report tests
+
+The reports target reruns every earlier suite before the calendar/report service and headless Swing tests:
+
+```powershell
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-reports
+```
+
+On a graphical desktop, run the complete chain plus the updated full-frame smoke test with:
+
+```powershell
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-reports-gui-smoke
+```
+
 ## Application data location
 
 On Windows, expense data is stored at:
@@ -189,7 +203,7 @@ If `LOCALAPPDATA` is unavailable, SpendWise uses the equivalent location below `
 
 Resolving these paths and starting the application are read-only operations. Each CSV file is created only by the first successful mutation for its own data area. Repository writes use complete UTF-8 snapshots and safe same-directory temporary-file replacement.
 
-Opening or refreshing Expenses, Dashboard, Budgets, or Manage Categories is also read-only. These views do not create or rewrite any production CSV file.
+Opening or refreshing Expenses, Dashboard, Budgets, Manage Categories, Calendar, or Reports is also read-only. These views do not create or rewrite any production CSV file.
 
 ## Accounts, income, and transfers
 
@@ -222,6 +236,12 @@ Months without expenses remain in the trend with `0.00`, so gaps do not disappea
 The Budgets tab supports one optional overall limit and optional per-category limits for each calendar month. Blank fields mean that a limit is not configured, and category limits are independent of the overall limit. Status shows exact two-decimal spent, limit, remaining, and percentage values.
 
 Warnings are informational: below 80% is within the limit, 80% through below 100% is near the limit, exactly 100% is limit reached, and above 100% is over the limit. These warnings never block adding, editing, or deleting expenses.
+
+## Calendar and advanced reports
+
+The Calendar tab displays a Sunday-based monthly grid with previous, next, and current-month navigation. Activity days show exact expense, income, and net totals. Selecting a day opens its expense, income, and transfer details; transfers remain visible without being counted as income or expense. Empty months and empty days have explicit status messages.
+
+The Reports tab accepts an inclusive date range plus optional account and expense-category filters. It shows total income, expenses, net cash flow, ranked expense categories, income sources, account activity (including transfer directions), month-by-month trends, and budget-versus-actual rows where limits exist. Reports load repository snapshots without writing data, and refreshes preserve the entered range and available filters.
 
 ## Project structure
 
@@ -280,11 +300,13 @@ SpendWiseExpenseTracker/
 |       |   |-- ExpenseNotFoundException.java
 |       |   |-- ExpenseService.java
 |       |   |-- ExpenseSortOrder.java
+|       |   |-- FinancialReportingService.java
 |       |   `-- ExpenseSummary.java
 |       |-- ui/
 |       |   |-- AccountTableModel.java
 |       |   |-- BudgetLimitTableModel.java
 |       |   |-- BudgetPanel.java
+|       |   |-- CalendarPanel.java
 |       |   |-- CategoryDonutChartPanel.java
 |       |   |-- CategoryManagerDialog.java
 |       |   |-- CategoryTableModel.java
@@ -293,6 +315,8 @@ SpendWiseExpenseTracker/
 |       |   |-- ExpensePanel.java
 |       |   |-- ExpenseTableModel.java
 |       |   |-- FinancePanel.java
+|       |   |-- AdvancedReportsPanel.java
+|       |   |-- FinancialActivityTableModel.java
 |       |   |-- IncomeTableModel.java
 |       |   |-- MonthlyBarChartPanel.java
 |       |   |-- SpendWiseFrame.java
@@ -321,6 +345,7 @@ SpendWiseExpenseTracker/
 |       |   |-- CategoryServiceTest.java
 |       |   |-- ExpenseAnalyticsServiceTest.java
 |       |   |-- ExpenseServiceTest.java
+|       |   |-- FinancialReportingServiceTest.java
 |       |   `-- FinanceServiceTest.java
 |       `-- ui/
 |           |-- BudgetFoundationTest.java
@@ -328,6 +353,7 @@ SpendWiseExpenseTracker/
 |           |-- DashboardFoundationTest.java
 |           |-- FinanceFoundationTest.java
 |           |-- FinanceFrameSmokeTest.java
+|           |-- CalendarReportsFoundationTest.java
 |           `-- SwingFoundationTest.java
 |-- docs/
 |   `-- PROJECT_PLAN.md
@@ -341,4 +367,4 @@ The generated `build/` and `dist/` directories and the machine-specific `nbproje
 
 The CSV repositories support commas, doubled quotes, Unicode, and quoted line breaks. Account rows use `id,name,type,openingBalance,status`, income rows use `id,date,amount,source,account,note`, and transfer rows use `id,date,amount,sourceAccount,destinationAccount,note`. Mutations write a complete temporary file in the destination directory and replace the previous file only after the temporary content is closed, flushed, and forced to storage. Corrupt data is never silently reset or overwritten.
 
-Calendar views, advanced reports, recurring transactions, authentication, dark mode, backup/restore, import/export, printing, cloud synchronization, and website functionality are not implemented. Multi-process file locking also remains outside the current scope.
+Recurring transactions, authentication, dark mode, backup/restore, import/export, printing, cloud synchronization, and website functionality are not implemented. Multi-process file locking also remains outside the current scope.

@@ -302,4 +302,38 @@
             </classpath>
         </java>
     </target>
+    <target name="test-reports" depends="test-finance"
+            description="Runs calendar and advanced-report service and headless Swing tests.">
+        <java classname="com.spendwise.service.FinancialReportingServiceTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+        <java classname="com.spendwise.ui.CalendarReportsFoundationTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <sysproperty key="java.awt.headless" value="true"/>
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+    </target>
+    <target name="test-reports-gui-smoke" depends="test-reports"
+            description="Runs the full-frame smoke test with Calendar and Reports tabs.">
+        <java classname="com.spendwise.ui.FinanceFrameSmokeTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+    </target>
 </project>

@@ -6,6 +6,7 @@ import com.spendwise.service.CategoryService;
 import com.spendwise.service.ExpenseAnalyticsService;
 import com.spendwise.service.ExpenseService;
 import com.spendwise.service.FinanceService;
+import com.spendwise.service.FinancialReportingService;
 import com.spendwise.service.IncomeService;
 import com.spendwise.service.TransferService;
 import java.awt.Dimension;
@@ -94,6 +95,13 @@ public final class SpendWiseFrame extends JFrame {
         Objects.requireNonNull(incomeService, "Income service is required.");
         Objects.requireNonNull(transferService, "Transfer service is required.");
         Objects.requireNonNull(financeService, "Finance service is required.");
+        FinancialReportingService reportingService =
+                new FinancialReportingService(
+                        expenseService,
+                        incomeService,
+                        transferService,
+                        accountService,
+                        budgetService);
 
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         DashboardPanel dashboardPanel =
@@ -101,6 +109,9 @@ public final class SpendWiseFrame extends JFrame {
         BudgetPanel budgetPanel =
                 new BudgetPanel(
                         analyticsService, budgetService, categoryService);
+        CalendarPanel calendarPanel = new CalendarPanel(reportingService);
+        AdvancedReportsPanel reportsPanel = new AdvancedReportsPanel(
+                reportingService, accountService, categoryService);
         final ExpensePanel[] expenseReference = new ExpensePanel[1];
         final FinancePanel[] financeReference = new FinancePanel[1];
         FinancePanel financePanel = new FinancePanel(
@@ -114,6 +125,8 @@ public final class SpendWiseFrame extends JFrame {
                     }
                     dashboardPanel.refreshDashboard();
                     budgetPanel.refreshBudgetStatus();
+                    calendarPanel.refreshCalendar();
+                    reportsPanel.refreshReports();
                 });
         financeReference[0] = financePanel;
         ExpensePanel expensePanel = new ExpensePanel(
@@ -127,8 +140,14 @@ public final class SpendWiseFrame extends JFrame {
                 () -> {
                     dashboardPanel.refreshDashboard();
                     budgetPanel.refreshBudgetStatus();
+                    calendarPanel.refreshCalendar();
+                    reportsPanel.refreshReports();
                 },
-                financePanel::refreshFinanceData);
+                () -> {
+                    financePanel.refreshFinanceData();
+                    calendarPanel.refreshCalendar();
+                    reportsPanel.refreshReports();
+                });
         expenseReference[0] = expensePanel;
 
         JTabbedPane mainTabs = new JTabbedPane();
@@ -136,6 +155,8 @@ public final class SpendWiseFrame extends JFrame {
         mainTabs.addTab("Dashboard", dashboardPanel);
         mainTabs.addTab("Budgets", budgetPanel);
         mainTabs.addTab("Finance", financePanel);
+        mainTabs.addTab("Calendar", calendarPanel);
+        mainTabs.addTab("Reports", reportsPanel);
         mainTabs.addChangeListener(event -> {
             if (mainTabs.getSelectedComponent() == dashboardPanel) {
                 dashboardPanel.refreshDashboard();
@@ -143,6 +164,10 @@ public final class SpendWiseFrame extends JFrame {
                 budgetPanel.refreshBudgetStatus();
             } else if (mainTabs.getSelectedComponent() == financeReference[0]) {
                 financeReference[0].refreshFinanceData();
+            } else if (mainTabs.getSelectedComponent() == calendarPanel) {
+                calendarPanel.refreshCalendar();
+            } else if (mainTabs.getSelectedComponent() == reportsPanel) {
+                reportsPanel.refreshReports();
             }
         });
         setContentPane(mainTabs);

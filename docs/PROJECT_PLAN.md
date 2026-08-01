@@ -2,7 +2,7 @@
 
 ## Current implementation status
 
-The project currently includes validated expense, income, account, transfer, category, and monthly-budget models; storage-independent repositories; safe UTF-8 CSV persistence; and a programmatic Swing application with Expenses, Dashboard, Budgets, and Finance tabs. Expense, income, account, transfer, category, analytics, and budget workflows are implemented. Legacy expenses remain compatible through a protected default Cash account. The chained dependency-free finance suite preserves every earlier test and adds focused path, model, repository, service, balance, headless Swing, and isolated full-frame checks.
+The project currently includes validated expense, income, account, transfer, category, and monthly-budget models; storage-independent repositories; safe UTF-8 CSV persistence; and a programmatic Swing application with Expenses, Dashboard, Budgets, Finance, Calendar, and Reports tabs. Expense, income, account, transfer, category, analytics, budget, calendar, and advanced read-only reporting workflows are implemented. Legacy expenses remain compatible through a protected default Cash account. The chained dependency-free reports suite preserves every earlier test and adds calendar/report service, headless Swing, and isolated full-frame checks.
 
 ## Problem statement
 
@@ -56,7 +56,7 @@ Advanced items are proposals, not implemented features or fixed delivery promise
 
 ### Main frame
 
-`SpendWiseFrame` owns the application window and constructs the Expenses, Dashboard, and Budgets panels once. Dashboard and budget status refresh when their tabs are selected without moving repository construction or business rules into the frame.
+`SpendWiseFrame` owns the application window and constructs all six primary panels once. Data views refresh when their tabs are selected and after related mutations without moving repository construction or business rules into the frame.
 
 ### Dashboard
 
@@ -77,6 +77,10 @@ Advanced items are proposals, not implemented features or fixed delivery promise
 ### Categories
 
 The Expenses header opens a modal category manager with Name, Type, and Status columns. It supports adding and renaming custom categories and archiving or restoring them without hard deletion. Built-ins remain protected, and referenced categories require confirmation before archiving.
+
+### Calendar and reports
+
+`CalendarPanel` presents a monthly activity grid and selected-day details from immutable reporting snapshots. `AdvancedReportsPanel` presents validated, optionally filtered date-range totals and breakdown tables. Both panels are read-only and delegate all calculations to `FinancialReportingService`.
 
 ## Proposed Java package architecture
 
@@ -101,6 +105,8 @@ com.spendwise.service
     BudgetService, BudgetUsage, BudgetStatusSnapshot, BudgetAlertLevel
     CategoryService
     ExpenseAnalyticsService, ExpenseAnalyticsSnapshot,
+    FinancialReportingService, CalendarMonthSnapshot,
+    DailyActivitySnapshot, AdvancedReportSnapshot,
     ExpenseService, ExpenseSummary, ExpenseSortOrder,
     ExpenseNotFoundException
 com.spendwise.ui
@@ -109,6 +115,7 @@ com.spendwise.ui
     BudgetPanel, BudgetLimitTableModel,
     CategoryManagerDialog, CategoryTableModel
     FinancePanel, AccountTableModel, IncomeTableModel, TransferTableModel
+    CalendarPanel, AdvancedReportsPanel, FinancialActivityTableModel
 com.spendwise.validation
     ExpenseValidator, FinanceValidator, ValidationException
 ```
@@ -156,9 +163,11 @@ The repository package now provides a storage-independent expense contract and a
 
 `AccountService` combines the protected default Cash account with persisted custom accounts and owns uniqueness, stable-ID resolution, selection, rename, archive, and restore rules. `IncomeService` provides validated CRUD, combined search/filtering, and stable sorting. `TransferService` validates one atomic transfer record between different active accounts. `FinanceService` calculates exact balances as opening balance plus income minus expenses plus incoming transfers minus outgoing transfers.
 
+`FinancialReportingService` builds immutable calendar and date-range report snapshots from existing services. It calculates daily and monthly cash flow, category and source totals, account activity, ranked categories, and budget actuals with exact `BigDecimal` arithmetic. Transfers appear in activity details and account movement totals but never inflate income or expense totals.
+
 ### UI
 
-The UI package creates programmatic Swing components, translates user actions into service calls, and displays results or validation messages. `SpendWiseFrame` exposes Expenses, Dashboard, Budgets, and Finance tabs, with Expenses still first. The Finance tab provides account, income, and transfer tables and workflows. The Expenses area includes account selection and opens the category manager. Budget and dashboard behavior remains unchanged. Export screens remain future work.
+The UI package creates programmatic Swing components, translates user actions into service calls, and displays results or validation messages. `SpendWiseFrame` exposes Expenses, Dashboard, Budgets, Finance, Calendar, and Reports tabs, with Expenses still first. The Calendar and Reports tabs are read-only; financial mutations refresh their derived views while preserving the chosen month or entered date range where practical. Export screens remain future work.
 
 ## CSV persistence plan
 
@@ -202,6 +211,7 @@ Testing will combine focused automated checks with repeatable manual GUI testing
 - Budget model, CSV corruption, safe-replacement, calculation-boundary, and headless editor/status checks
 - Category immutability, built-in compatibility, CSV corruption/replacement, service mutation, archived-history, selector-refresh, and headless manager-state checks
 - Account, income, and transfer validation; legacy expense compatibility; repository safe writes and corruption; CRUD, search, stable sorting, exact balances, transfer neutrality, refresh warnings, and Swing table foundations
+- Calendar alignment, leap years, daily totals and details, transfer exclusion, date-range validation, grouping, trends, budgets versus actuals, immutable read-only snapshots, and headless panel checks
 - An isolated graphical full-frame smoke test that uses temporary paths and verifies read-only startup and tab navigation
 - Isolated path-resolution checks that do not modify environment variables or production data
 - Manual checks for navigation, table updates, dialogs, keyboard focus, resizing, and error messages
@@ -270,6 +280,13 @@ On a graphical desktop, the Finance GUI-smoke target reruns the complete chain a
 C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-finance-gui-smoke
 ```
 
+The reports target chains after Finance and runs the calendar/report service and headless Swing suites. Its graphical variant also exercises all six frame tabs using temporary data:
+
+```powershell
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-reports
+C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-reports-gui-smoke
+```
+
 ## Milestones
 
 1. **Foundation (complete):** establish the Java 21 NetBeans project, repository baseline, documentation, and repeatable build.
@@ -281,7 +298,7 @@ C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-finance-gui-smoke
 7. **Monthly budgets (complete):** persist monthly overall and category limits, calculate exact usage warnings, add the Budgets tab, and integrate status into Dashboard.
 8. **Custom category management (complete):** persist stable custom definitions, support add, rename, archive, and restore, and preserve historical expense, analytics, and budget behavior.
 9. **Income, accounts, and transfers (complete):** implement stable local accounts, income CRUD and querying, transfer workflows, exact balances, compatible expense account assignment, and safe additive CSV persistence.
-10. **Calendar and advanced reports:** add coherent date-based activity and reporting snapshots.
+10. **Calendar and advanced reports (complete):** add coherent date-based activity and reporting snapshots.
 11. **Recurring entries and quick entry:** add explicit, idempotent due-item posting and reviewed shortcuts.
 12. **Backup, restore, and export:** add validated offline data protection.
 13. **Advanced account controls:** add statements, reconciliation adjustments, and account insights.
@@ -289,9 +306,9 @@ C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-finance-gui-smoke
 
 ### Execution Step 15 — Calendar and advanced reports
 
-Step 15 implements roadmap milestone 10. It will provide a calendar-based financial activity view and advanced read-only reporting from existing expense, income, transfer, account, budget, and category data.
+Step 15 implements roadmap milestone 10. It provides a calendar-based financial activity view and advanced read-only reporting from existing expense, income, transfer, account, budget, and category data.
 
-The calendar will:
+The calendar:
 
 - Display one month at a time with previous-month, next-month, and current-month navigation.
 - Show correct calendar days and weekday alignment, including leap years.
@@ -302,7 +319,7 @@ The calendar will:
 - Present a clear empty state and use `java.time` types.
 - Keep calculations outside Swing event handlers.
 
-Advanced reports will provide:
+Advanced reports provide:
 
 - Income-versus-expense and net-cash-flow totals for a validated date range.
 - Expense totals grouped by category and income totals grouped by source.
@@ -313,9 +330,9 @@ Advanced reports will provide:
 - Exact `BigDecimal` calculations with transfers excluded from income and expense totals.
 - Read-only behavior that never mutates repositories.
 
-The UI will reuse the current Swing styling and reporting architecture. It may use tables, summary cards, progress indicators, or lightweight custom visuals, but will not add an external chart dependency.
+The UI reuses the current Swing styling and reporting architecture with standard Swing tables and summary cards, without an external chart dependency.
 
-Step 15 tests will cover calendar alignment, leap years, daily totals, transfer exclusion, day details, empty months, date-range validation, income-versus-expense calculations, category and account grouping, monthly trends, budget-versus-actual calculations, repository immutability, and headless-compatible panel construction. Its Ant target will chain after the existing Finance suite.
+Step 15 tests cover calendar alignment, leap years, daily totals, transfer exclusion, day details, empty months, date-range validation, income-versus-expense calculations, category and account grouping, monthly trends, budget-versus-actual calculations, repository immutability, and headless-compatible panel construction. Its Ant target chains after the existing Finance suite.
 
 ### Execution Step 16 — Recurring entries and quick entry
 
@@ -447,10 +464,10 @@ Maintained documentation will accurately describe the project, architecture, com
 - No cloud synchronization or multi-device support
 - No multi-process CSV file locking
 - No user-facing backup or import/export workflow
-- No exported, printable, or advanced financial reports beyond the implemented on-screen monthly expense report
+- No exported or printable financial reports; advanced reports are currently on-screen and read-only
 - No bank, payment-provider, or financial-account integration
 - No authentication, shared accounts, or role management
-- No calendar, recurring definitions, or quick-entry workflow
+- No recurring definitions or quick-entry workflow
 - No dark mode or theme switching
 - No backup/restore, import/export, printing, or website
 - No encryption beyond protections provided by the local operating system

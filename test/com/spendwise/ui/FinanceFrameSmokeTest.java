@@ -96,10 +96,13 @@ public final class FinanceFrameSmokeTest {
                     throw new AssertionError(
                             "Main content must be a tabbed pane.");
                 }
-                assertEquals(4, tabs.getTabCount());
+                assertEquals(6, tabs.getTabCount());
                 assertEquals("Expenses", tabs.getTitleAt(0));
                 assertEquals("Finance", tabs.getTitleAt(3));
-                tabs.setSelectedIndex(3);
+                assertEquals("Calendar", tabs.getTitleAt(4));
+                assertEquals("Reports", tabs.getTitleAt(5));
+                tabs.setSelectedIndex(4);
+                tabs.setSelectedIndex(5);
                 tabs.setSelectedIndex(0);
             } catch (Throwable exception) {
                 failure.set(exception);
