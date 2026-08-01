@@ -287,6 +287,146 @@ C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-finance-gui-smoke
 13. **Advanced account controls:** add statements, reconciliation adjustments, and account insights.
 14. **Quality pass:** complete regression testing, usability fixes, documentation updates, and demo preparation.
 
+### Execution Step 15 — Calendar and advanced reports
+
+Step 15 implements roadmap milestone 10. It will provide a calendar-based financial activity view and advanced read-only reporting from existing expense, income, transfer, account, budget, and category data.
+
+The calendar will:
+
+- Display one month at a time with previous-month, next-month, and current-month navigation.
+- Show correct calendar days and weekday alignment, including leap years.
+- Show concise daily expense, income, and net-cash-flow totals and clearly distinguish days with activity.
+- Allow day selection and show that day's entry type, amount, account, category where applicable, description, and date.
+- Display transfers in day details without counting them as income or expense.
+- Refresh after expense, income, or transfer changes while preserving the selected month where practical.
+- Present a clear empty state and use `java.time` types.
+- Keep calculations outside Swing event handlers.
+
+Advanced reports will provide:
+
+- Income-versus-expense and net-cash-flow totals for a validated date range.
+- Expense totals grouped by category and income totals grouped by source.
+- Account activity summaries and monthly income/expense trends.
+- Highest expense categories for the selected period.
+- Budget-versus-actual information where existing monthly budget data permits it.
+- Relevant account and category filters.
+- Exact `BigDecimal` calculations with transfers excluded from income and expense totals.
+- Read-only behavior that never mutates repositories.
+
+The UI will reuse the current Swing styling and reporting architecture. It may use tables, summary cards, progress indicators, or lightweight custom visuals, but will not add an external chart dependency.
+
+Step 15 tests will cover calendar alignment, leap years, daily totals, transfer exclusion, day details, empty months, date-range validation, income-versus-expense calculations, category and account grouping, monthly trends, budget-versus-actual calculations, repository immutability, and headless-compatible panel construction. Its Ant target will chain after the existing Finance suite.
+
+### Execution Step 16 — Recurring entries and quick entry
+
+Step 16 implements roadmap milestone 11. It will provide typed recurring definitions and a compact path for creating common financial entries.
+
+A recurring definition will have:
+
+- A stable identifier and an expense, income, or transfer entry type.
+- An exact `BigDecimal` amount, description, relevant category, source account, and transfer destination account where required.
+- Daily, weekly, monthly, or yearly frequency with a positive interval.
+- A start date, optional end date, next due date, and active/inactive status.
+- Complete creation and update validation.
+
+The recurring service will:
+
+- Determine due occurrences and generate them only through an explicit user action.
+- Prevent duplicate occurrence generation and advance the next due date correctly.
+- Handle month-end dates and leap years safely.
+- Respect optional end dates and inactive definitions.
+- Generate expenses, income, and compatible transfers through existing services.
+- Persist definitions and posted-occurrence state using safe CSV behavior.
+- Reject malformed data instead of replacing it.
+- Use temporary locations during automated tests.
+
+The recurring UI will add, edit, activate/deactivate, display the next due date, and manually generate due entries. Definitions will be archived or deactivated when deletion would be unsafe.
+
+Quick Entry will:
+
+- Create expenses, income, and transfers through existing services and validation.
+- Avoid duplicating business logic.
+- Retain safe, non-sensitive session defaults where practical.
+- Support keyboard-focused navigation and a practical non-conflicting shortcut.
+- Keep failed input intact, prevent double submission, show clear messages, and refresh affected panels after success.
+
+Step 16 tests will cover every frequency, intervals greater than one, leap-year and month-end behavior, optional end dates, inactive definitions, duplicate prevention, due-date advancement, each generated entry type, invalid accounts, CSV round trips and corruption, Quick Entry validation/service integration, and production-data isolation. Its Ant target will chain after Step 15.
+
+### Execution Step 17 — Backup, restore, and export
+
+Step 17 implements roadmap milestone 12. It will add user-controlled local data protection and read-only exports.
+
+A backup will:
+
+- Include every managed application CSV file that currently exists.
+- Include a manifest with the backup format version, application name, creation timestamp, and included filenames.
+- Use a user-selected destination and temporary output before final replacement.
+- Never overwrite without explicit confirmation.
+- Exclude source, Git data, build output, credentials, and unrelated files.
+- Work when optional data files do not exist and clearly report success or failure.
+
+A standard-library ZIP format is approved.
+
+Restore will:
+
+- Require explicit backup selection and validate the manifest and every expected file before mutation.
+- Reject unsupported, malformed, corrupted, and path-traversal archives.
+- Show the restore summary and require explicit confirmation.
+- Create a safety backup when current data exists.
+- Use temporary files and safe same-directory replacement where practical.
+- Avoid partial restore, preserve original data after any validation or restore failure, and never delete unrelated files.
+- Refresh application state only after complete success.
+
+Export will support:
+
+- All expenses, income, and transfers as CSV.
+- Account summaries as CSV.
+- Date-range and compatible filtered Step 15 reports as CSV.
+- Clear headers, correct escaping, and exact monetary text.
+- User-selected destinations with explicit overwrite confirmation.
+- Read-only behavior that never mutates repositories.
+
+Step 17 tests will use temporary directories exclusively and cover complete and partial backups, manifest correctness, existing destinations, corrupted/unsupported/path-traversal archives, validation before mutation, failure preservation, safety backups, successful restore, export headers and escaping, exact money, filtered exports, and production-data isolation.
+
+### Execution Step 18 — Advanced account controls
+
+Step 18 implements roadmap milestone 13. It will improve account management without changing historical ledger meaning or allowing arbitrary balance edits.
+
+Advanced account controls will:
+
+- Edit account names and other allowed non-destructive metadata while preserving stable IDs and opening-balance design.
+- Set one active account as the user-selected default and persist that selection.
+- Archive and restore accounts and provide a clear active/archived view or filter.
+- Preserve all historical expense, income, and transfer references without rewriting old transactions.
+- Exclude archived accounts from new expenses, income, and transfers while retaining them in historical displays.
+- Continue rejecting same-account and archived-account transfers and duplicate names under current naming rules.
+- Ensure the selected default remains active and choose a valid replacement with clear feedback when the current default is archived.
+- Prevent archival from leaving no active account unless an equivalent safe rule exists.
+- Preserve exact balances and expose account activity history.
+- Show account-specific income, expense, incoming-transfer, outgoing-transfer, and current-balance totals.
+
+No unrestricted direct balance editing will be introduced.
+
+Step 18 tests will cover rename and stable IDs, duplicate names, default selection and persistence, archive/restore, historical compatibility, exclusion from new entries, replacement-default behavior, last-active-account protection, exact post-lifecycle balances, account activity totals, CSV backward compatibility, and production-data isolation.
+
+### Execution Step 19 — Quality pass
+
+Step 19 implements roadmap milestone 14 without introducing another major feature.
+
+The code-quality review will check for duplicate or unused code, dead handlers, package and naming problems, unsafe CSV handling, incorrect money calculations, missing validation, business logic in Swing handlers, swallowed exceptions, raw stack traces, machine-specific paths, temporary/resource leaks, production-data creation, test classes in the JAR, incomplete wiring, and incorrect cross-panel refresh behavior. A class will be removed only after proving it is unused and not required for compatibility, and passing architecture will not be rewritten unnecessarily.
+
+The UI-quality review will check spacing, labels, button names, empty states, validation messages, tab order, keyboard accessibility, resizing, clipping, duplicate submission, destructive confirmations, mutation refreshes, unrelated-refresh draft preservation, money formatting, archived indicators, and status feedback.
+
+Reliability validation will include:
+
+- A clean build and every test target separately.
+- The final chained target and isolated full-frame GUI smoke test.
+- Expense, budget, category, Finance, calendar/report, recurring-entry, backup/restore/export, and advanced-account workflow smoke tests.
+- An isolated restart-and-persistence smoke test.
+- JAR-content validation and production-data integrity verification.
+
+Maintained documentation will accurately describe the project, architecture, completed features, build and test commands, NetBeans and JAR execution, data-file behavior, backup/restore usage, limitations, project structure, safe development notes, and completion through Step 19. Only missing high-value regression tests found by the review will be added; passing tests will not be rewritten merely for style or assertion counts.
+
 ## Demo and viva preparation checklist
 
 - Build the project successfully from a clean checkout.
