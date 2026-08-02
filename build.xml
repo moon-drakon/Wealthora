@@ -507,6 +507,18 @@
             </classpath>
         </java>
     </target>
+    <target name="test-phase3-goals" depends="test-phase3-recurring"
+            description="Runs savings goal, contribution history, and balance-isolation tests.">
+        <java classname="com.spendwise.service.SavingsGoalServiceTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+    </target>
     <target name="test-quality-gui-smoke" depends="test-quality"
             description="Runs the final chained suite and isolated complete-frame GUI smoke test.">
         <java classname="com.spendwise.ui.FinanceFrameSmokeTest"

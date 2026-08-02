@@ -9,6 +9,7 @@ import com.spendwise.repository.CsvCategoryRepository;
 import com.spendwise.repository.CsvExpenseRepository;
 import com.spendwise.repository.CsvIncomeRepository;
 import com.spendwise.repository.CsvRecurringEntryRepository;
+import com.spendwise.repository.CsvSavingsGoalRepository;
 import com.spendwise.repository.CsvTransferRepository;
 import com.spendwise.repository.RepositoryException;
 import com.spendwise.validation.ValidationException;
@@ -237,6 +238,9 @@ public final class BackupService {
             new CsvBudgetPlanRepository(
                     validationDirectory.resolve("budget-plans.csv"),
                     categories::resolveCategory).findAll();
+            new CsvSavingsGoalRepository(
+                    validationDirectory.resolve("savings-goals.csv"),
+                    accounts::resolveAccount).findAllGoals();
         } catch (RuntimeException | IOException exception) {
             ValidationException failure = new ValidationException(
                     "Backup contains invalid managed CSV data: "

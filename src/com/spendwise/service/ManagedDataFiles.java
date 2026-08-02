@@ -8,6 +8,7 @@ public final class ManagedDataFiles {
             "expenses.csv",
             "budgets.csv",
             "budget-plans.csv",
+            "savings-goals.csv",
             "categories.csv",
             "accounts.csv",
             "account-settings.csv",
