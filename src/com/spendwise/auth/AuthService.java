@@ -2,16 +2,25 @@ package com.spendwise.auth;
 
 public interface AuthService {
 
-    UserSession signIn(String email, char[] password);
+    UserSession signInWithNsuEmail(String email, char[] password);
 
     UserSession continueWithGoogle();
 
-    UserSession createAccount(
-            String displayName, String email, char[] password);
+    AuthenticatedUser registerWithNsuEmail(
+            String fullName, String email, char[] password);
 
-    UserSession verifyEmail(String email, String verificationCode);
+    AuthenticatedUser verifyNsuEmail(
+            String email, String verificationCode);
 
-    void requestPasswordReset(String email);
+    void resendVerification(String email);
 
-    void resetPassword(String resetToken, char[] newPassword);
+    void forgotPassword(String email);
+
+    void resetPassword(String email, String resetToken, char[] newPassword);
+
+    UserSession refreshSession();
+
+    void logout();
+
+    AuthenticatedUser getCurrentUser();
 }

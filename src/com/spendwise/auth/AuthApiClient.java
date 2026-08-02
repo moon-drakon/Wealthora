@@ -1,17 +1,28 @@
 package com.spendwise.auth;
 
+/** Future transport boundary for the backend's /api/auth endpoints. */
 public interface AuthApiClient {
 
-    UserSession signIn(String email, char[] password);
+    UserSession signInWithNsuEmail(String email, char[] password);
 
-    UserSession signInWithGoogle();
+    UserSession continueWithGoogle(
+            char[] authorizationCode, String redirectUri);
 
-    UserSession createAccount(
-            String displayName, String email, char[] password);
+    AuthenticatedUser registerWithNsuEmail(
+            String fullName, String email, char[] password);
 
-    UserSession verifyEmail(String email, String verificationCode);
+    AuthenticatedUser verifyNsuEmail(
+            String email, String verificationCode);
 
-    void requestPasswordReset(String email);
+    void resendVerification(String email);
 
-    void resetPassword(String resetToken, char[] newPassword);
+    void forgotPassword(String email);
+
+    void resetPassword(String email, String resetToken, char[] newPassword);
+
+    UserSession refreshSession();
+
+    void logout();
+
+    AuthenticatedUser getCurrentUser();
 }

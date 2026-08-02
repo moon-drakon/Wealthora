@@ -1,49 +1,57 @@
-# Future Authentication Integration
+# Wealthora Authentication Integration
 
-Wealthora remains a local-first desktop application. The Settings page opens a
-desktop authentication preview, but local development does not require a login
-and the preview never simulates an authenticated user. Its unconfigured API
-client rejects every operation with a clear backend-configuration message.
-Passwords exist only in temporary character arrays that are cleared after each
-synchronous call.
+Wealthora remains local-first. Settings opens a complete authentication preview,
+but local development does not require login and the preview never unlocks data.
+`UnconfiguredAuthApiClient` and `UnconfiguredGoogleAuthService` reject every
+operation with a backend-configuration message.
 
-When the real Spring Boot backend is introduced, keep authentication behind
-small Swing-facing boundaries:
+## Two distinct policies
 
-- `com.spendwise.auth.ui.AuthFrame` owns sign-in, registration, verification,
-  forgot-password, reset-password, and Google sign-in preview screens.
-- `com.spendwise.auth.AuthService` is the Swing-facing authentication boundary;
-  `BackendAuthService` applies NSU email, password, and verification rules.
-- `com.spendwise.auth.AuthApiClient` is the future transport boundary.
-  `UnconfiguredAuthApiClient` performs no network activity and never reports
-  success.
-- `com.spendwise.auth.SessionManager` currently keeps only a verified
-  `UserSession` in memory. A future token implementation must use an approved
-  operating-system credential store and must never log tokens or passwords.
+`Continue with Google` is one create-or-sign-in flow for any verified Google
+account, including Gmail, `@northsouth.edu`, and other Google Workspace domains.
+The future backend must verify issuer, audience, signature, expiry, and verified
+email, then identify the account by Google's subject ID rather than email alone.
 
-The production startup sequence should become:
+Password registration, sign-in, email verification, forgot-password, and reset
+are restricted to the exact `northsouth.edu` domain on both client and backend.
+Password sign-in is unavailable until the NSU email is verified.
+
+## Desktop boundaries
+
+- `GoogleAuthService` owns the future system-browser authorization flow.
+- `AuthApiClient` represents `/api/auth` transport calls.
+- `BackendAuthService` applies client-side validation and clears temporary
+  password and Google authorization-code copies after each synchronous call.
+- `AuthenticatedUser` models provider, status, verified email, and the stable
+  Google subject ID. `UserSession` can only wrap an active verified account.
+- `SessionManager` holds an authenticated session in memory only.
+- `AuthFrame` provides sign-in, registration, verification, recovery, reset,
+  and verified-profile screens. A valid backend session is required to reach
+  the profile screen.
+
+The future backend endpoints are:
 
 ```text
-SpendWiseApplication
-  -> load local preferences and protected session metadata
-  -> SessionManager attempts a backend refresh
-     -> valid session: construct SpendWiseFrame and synchronize data
-     -> no session: show AuthFrame
-  -> AuthService completes email/password or browser-based Google OAuth
-  -> backend verifies the email and configured allowed domain
-  -> SessionManager publishes the authenticated session
-  -> construct SpendWiseFrame and start synchronization
+POST /api/auth/google
+POST /api/auth/register
+POST /api/auth/login
+POST /api/auth/verify-email
+POST /api/auth/resend-verification
+POST /api/auth/forgot-password
+POST /api/auth/reset-password
+POST /api/auth/refresh
+POST /api/auth/logout
+GET  /api/auth/me
 ```
 
-Google OAuth must open the user's system browser and return through a loopback
-redirect or backend-approved device flow. The backend must verify the Google ID
-token, issuer, audience, email verification status, and the configurable
-allowed domain (initially `northsouth.edu`). The Swing client must not embed an
-OAuth client secret or infer authorization from an email string.
+For safe linking, a verified Google identity whose verified email exactly
+matches an existing verified NSU password account may become
+`LOCAL_AND_GOOGLE` only after backend-controlled linking records the Google
+subject ID. The client never merges accounts. Unverified or unrelated providers
+must not be linked, and a non-NSU Google email can never become a password
+account.
 
-Keep the current service and repository interfaces available during the backend
-transition. A later API-backed repository layer can implement the same
-application operations, while the existing CSV repositories remain the offline
-cache until synchronization and conflict rules are tested. Database, SMTP,
-OAuth, JWT, and refresh-token secrets belong in backend environment variables or
-a deployment secret manager and must never enter this repository.
+The Google implementation must use the system browser with PKCE and a loopback
+redirect or backend-approved device flow. OAuth client secrets, Google
+passwords, plaintext passwords, and unprotected refresh tokens must never be
+stored in the desktop repository or logged.

@@ -14,10 +14,6 @@ public final class SessionManager {
     public synchronized void startSession(UserSession session) {
         UserSession required = Objects.requireNonNull(
                 session, "User session is required.");
-        if (!required.isVerified()) {
-            throw new AuthException(
-                    "Only verified @northsouth.edu accounts can start a session.");
-        }
         currentSession = required;
     }
 

@@ -10,6 +10,7 @@ import javax.swing.JPasswordField;
 public final class ResetPasswordPanel extends AuthFormPanel {
 
     private final AuthService authService;
+    private final StyledTextField email = textField("NSU email");
     private final StyledTextField token = textField("Reset token");
     private final JPasswordField password = passwordField("New password");
     private final JPasswordField confirmation =
@@ -17,16 +18,18 @@ public final class ResetPasswordPanel extends AuthFormPanel {
 
     public ResetPasswordPanel(
             AuthService authService, AuthNavigator navigator) {
-        super("Reset password", "Set a new password using the reset token "
-                + "issued by the configured backend.");
+        super("Reset Password", "Set a new password for a verified NSU "
+                + "account using the backend-issued reset token.");
         this.authService = Objects.requireNonNull(authService);
         AuthNavigator requiredNavigator = Objects.requireNonNull(navigator);
-        addField("Reset token", token);
-        addField("New password", password);
-        addField("Confirm new password", confirmation);
+        addWide(policyLabel());
+        addField("NSU Email", email);
+        addField("Reset Token", token);
+        addField("New Password", password);
+        addField("Confirm New Password", confirmation);
         addWide(buttonRow(
-                primary("Reset password", this::resetPassword),
-                secondary("Back to sign in", requiredNavigator::showSignIn)));
+                primary("Reset Password", this::resetPassword),
+                secondary("Back to Sign In", requiredNavigator::showSignIn)));
     }
 
     private void resetPassword() {
@@ -36,7 +39,8 @@ public final class ResetPasswordPanel extends AuthFormPanel {
             if (!Arrays.equals(entered, repeated)) {
                 throw new AuthException("Passwords do not match.");
             }
-            authService.resetPassword(token.getText(), entered);
+            authService.resetPassword(
+                    email.getText(), token.getText(), entered);
             showSuccess("Password reset completed. Return to sign in.");
         } catch (RuntimeException exception) {
             showFailure(exception);

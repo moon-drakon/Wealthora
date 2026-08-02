@@ -1,33 +1,31 @@
 package com.spendwise.auth.ui;
 
 import com.spendwise.auth.AuthService;
-import com.spendwise.auth.SessionManager;
-import com.spendwise.auth.UserSession;
+import com.spendwise.auth.AuthenticatedUser;
 import com.spendwise.ui.component.StyledTextField;
 import java.util.Objects;
 
 public final class VerificationPanel extends AuthFormPanel {
 
     private final AuthService authService;
-    private final SessionManager sessionManager;
     private final StyledTextField email = textField("NSU email");
     private final StyledTextField code = textField("Verification code");
 
     public VerificationPanel(
             AuthService authService,
-            SessionManager sessionManager,
             AuthNavigator navigator) {
-        super("Verify email", "Enter the verification code delivered by "
-                + "the configured authentication backend.");
+        super("Verify Email", "Activate your NSU password account using the "
+                + "verification code delivered by the configured backend.");
         this.authService = Objects.requireNonNull(authService);
-        this.sessionManager = Objects.requireNonNull(sessionManager);
         AuthNavigator requiredNavigator = Objects.requireNonNull(navigator);
         addWide(policyLabel());
-        addField("NSU email", email);
-        addField("Verification code", code);
+        addField("NSU Email", email);
+        addField("Verification Code", code);
         addWide(buttonRow(
-                primary("Verify email", this::verify),
-                secondary("Back to sign in", requiredNavigator::showSignIn)));
+                primary("Verify Email", this::verify),
+                secondary("Resend Code", this::resend)));
+        addWide(buttonRow(secondary(
+                "Back to Sign In", requiredNavigator::showSignIn)));
     }
 
     public void setEmail(String value) {
@@ -36,10 +34,19 @@ public final class VerificationPanel extends AuthFormPanel {
 
     private void verify() {
         try {
-            UserSession session = authService.verifyEmail(
+            AuthenticatedUser user = authService.verifyNsuEmail(
                     email.getText(), code.getText());
-            sessionManager.startSession(session);
-            showSuccess("Email verified for " + session.getEmail() + ".");
+            showSuccess("Email verified for " + user.getEmail()
+                    + ". Return to sign in.");
+        } catch (RuntimeException exception) {
+            showFailure(exception);
+        }
+    }
+
+    private void resend() {
+        try {
+            authService.resendVerification(email.getText());
+            showSuccess("A new verification message was requested.");
         } catch (RuntimeException exception) {
             showFailure(exception);
         }

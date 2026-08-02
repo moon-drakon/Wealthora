@@ -5,62 +5,50 @@ import java.util.Objects;
 
 public final class UserSession {
 
-    public enum Provider {
-        NSU_PASSWORD, GOOGLE
-    }
-
-    private final String userIdentifier;
-    private final String email;
-    private final String displayName;
-    private final boolean verified;
-    private final Provider provider;
+    private final AuthenticatedUser user;
     private final Instant authenticatedAt;
 
-    public UserSession(
-            String userIdentifier,
-            String email,
-            String displayName,
-            boolean verified,
-            Provider provider,
-            Instant authenticatedAt) {
-        this.userIdentifier = required(userIdentifier, "User ID");
-        this.email = NsuEmailPolicy.requireInstitutionalEmail(email);
-        this.displayName = required(displayName, "Display name");
-        this.verified = verified;
-        this.provider = Objects.requireNonNull(
-                provider, "Authentication provider is required.");
+    public UserSession(AuthenticatedUser user, Instant authenticatedAt) {
+        this.user = Objects.requireNonNull(user, "Authenticated user is required.");
+        if (!user.isEmailVerified()
+                || user.getAccountStatus() != AccountStatus.ACTIVE) {
+            throw new AuthException(
+                    "Only an active account with a verified email can start a session.");
+        }
         this.authenticatedAt = Objects.requireNonNull(
                 authenticatedAt, "Authentication time is required.");
     }
 
     public String getUserIdentifier() {
-        return userIdentifier;
+        return user.getUserIdentifier();
     }
 
     public String getEmail() {
-        return email;
+        return user.getEmail();
     }
 
     public String getDisplayName() {
-        return displayName;
+        return user.getFullName();
     }
 
     public boolean isVerified() {
-        return verified;
+        return user.isEmailVerified();
     }
 
-    public Provider getProvider() {
-        return provider;
+    public AuthProvider getProvider() {
+        return user.getPrimaryAuthProvider();
+    }
+
+    public String getGoogleSubjectId() {
+        return user.getGoogleSubjectId();
+    }
+
+    public AuthenticatedUser getUser() {
+        return user;
     }
 
     public Instant getAuthenticatedAt() {
         return authenticatedAt;
     }
 
-    private static String required(String value, String fieldName) {
-        if (value == null || value.isBlank()) {
-            throw new AuthException(fieldName + " is required.");
-        }
-        return value.strip();
-    }
 }

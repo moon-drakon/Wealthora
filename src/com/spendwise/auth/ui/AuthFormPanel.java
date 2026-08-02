@@ -20,6 +20,7 @@ import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
+import javax.swing.JSeparator;
 
 abstract class AuthFormPanel extends JPanel {
 
@@ -37,11 +38,26 @@ abstract class AuthFormPanel extends JPanel {
                 BorderFactory.createLineBorder(AppColors.border()),
                 BorderFactory.createEmptyBorder(24, 28, 24, 28)));
 
-        JPanel heading = new JPanel(new BorderLayout(0, 6));
+        JPanel heading = new JPanel(new BorderLayout(0, 14));
         heading.setOpaque(false);
         JLabel brand = new JLabel(AppBrand.APP_NAME);
-        brand.setFont(AppFonts.caption().deriveFont(java.awt.Font.BOLD));
-        brand.setForeground(AppColors.accent());
+        brand.setFont(AppFonts.pageTitle().deriveFont(28f));
+        AppTheme.mark(brand, AppTheme.PRIMARY_TEXT_ROLE);
+        JLabel tagline = new JLabel(AppBrand.TAGLINE);
+        tagline.setFont(AppFonts.sectionTitle());
+        tagline.setForeground(AppColors.accent());
+        JLabel productDescription = new JLabel(AppBrand.DESCRIPTION);
+        productDescription.setFont(AppFonts.caption());
+        AppTheme.mark(productDescription, AppTheme.SECONDARY_TEXT_ROLE);
+        JPanel product = new JPanel(new GridBagLayout());
+        product.setOpaque(false);
+        GridBagConstraints productConstraints = constraints(0);
+        productConstraints.insets = new Insets(0, 0, 2, 0);
+        product.add(brand, productConstraints);
+        productConstraints = constraints(1);
+        productConstraints.insets = new Insets(0, 0, 2, 0);
+        product.add(tagline, productConstraints);
+        product.add(productDescription, constraints(2));
         JLabel title = new JLabel(titleText);
         title.setFont(AppFonts.pageTitle());
         AppTheme.mark(title, AppTheme.PRIMARY_TEXT_ROLE);
@@ -54,7 +70,7 @@ abstract class AuthFormPanel extends JPanel {
         titleArea.setOpaque(false);
         titleArea.add(title, BorderLayout.NORTH);
         titleArea.add(description, BorderLayout.CENTER);
-        heading.add(brand, BorderLayout.NORTH);
+        heading.add(product, BorderLayout.NORTH);
         heading.add(titleArea, BorderLayout.CENTER);
         card.add(heading, BorderLayout.NORTH);
 
@@ -127,13 +143,50 @@ abstract class AuthFormPanel extends JPanel {
 
     protected final JLabel policyLabel() {
         JLabel policy = new JLabel(
-                "<html><b>NSU accounts only</b><br>Only verified "
-                + "@northsouth.edu accounts are accepted.<br>"
-                + "Personal Gmail accounts are not accepted.</html>");
+                "<html>Email and password access requires an official "
+                + "<b>@northsouth.edu</b> account.</html>");
         policy.setFont(AppFonts.caption());
         AppTheme.mark(policy, AppTheme.SECONDARY_TEXT_ROLE);
         policy.setBorder(BorderFactory.createEmptyBorder(6, 8, 6, 8));
         return policy;
+    }
+
+    protected final JLabel helperLabel(String text) {
+        JLabel helper = new JLabel("<html><body style='width:350px'>"
+                + text + "</body></html>");
+        helper.setFont(AppFonts.caption());
+        AppTheme.mark(helper, AppTheme.SECONDARY_TEXT_ROLE);
+        return helper;
+    }
+
+    protected final JPanel sectionHeading(String title, String subtitle) {
+        JPanel panel = new JPanel(new BorderLayout(0, 3));
+        panel.setOpaque(false);
+        JLabel heading = new JLabel(title);
+        heading.setFont(AppFonts.sectionTitle());
+        AppTheme.mark(heading, AppTheme.PRIMARY_TEXT_ROLE);
+        JLabel detail = new JLabel(subtitle);
+        detail.setFont(AppFonts.caption());
+        AppTheme.mark(detail, AppTheme.SECONDARY_TEXT_ROLE);
+        panel.add(heading, BorderLayout.NORTH);
+        panel.add(detail, BorderLayout.CENTER);
+        return panel;
+    }
+
+    protected final JPanel orDivider() {
+        JPanel divider = new JPanel(new BorderLayout(10, 0));
+        divider.setOpaque(false);
+        JLabel or = new JLabel("OR");
+        or.setFont(AppFonts.caption().deriveFont(java.awt.Font.BOLD));
+        AppTheme.mark(or, AppTheme.SECONDARY_TEXT_ROLE);
+        divider.add(new JSeparator(), BorderLayout.WEST);
+        divider.add(or, BorderLayout.CENTER);
+        divider.add(new JSeparator(), BorderLayout.EAST);
+        divider.getComponent(0).setPreferredSize(
+                new java.awt.Dimension(150, 1));
+        divider.getComponent(2).setPreferredSize(
+                new java.awt.Dimension(150, 1));
+        return divider;
     }
 
     protected final void showSuccess(String message) {

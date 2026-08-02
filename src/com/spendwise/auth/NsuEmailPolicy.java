@@ -1,7 +1,5 @@
 package com.spendwise.auth;
 
-import java.util.Locale;
-
 public final class NsuEmailPolicy {
 
     public static final String DOMAIN = "northsouth.edu";
@@ -10,15 +8,20 @@ public final class NsuEmailPolicy {
     }
 
     public static String requireInstitutionalEmail(String email) {
-        String normalized = email == null
-                ? "" : email.strip().toLowerCase(Locale.ROOT);
-        int separator = normalized.lastIndexOf('@');
-        if (separator <= 0
-                || !normalized.substring(separator + 1).equals(DOMAIN)) {
+        String normalized = EmailAddressPolicy.normalize(email);
+        if (!EmailAddressPolicy.domainOf(normalized).equals(DOMAIN)) {
             throw new AuthException(
-                    "Use a verified @northsouth.edu email address. "
-                    + "Personal Gmail accounts are not accepted.");
+                    "Email and password access requires an official "
+                    + "@northsouth.edu account.");
         }
         return normalized;
+    }
+
+    public static boolean isInstitutionalEmail(String email) {
+        try {
+            return EmailAddressPolicy.domainOf(email).equals(DOMAIN);
+        } catch (AuthException exception) {
+            return false;
+        }
     }
 }

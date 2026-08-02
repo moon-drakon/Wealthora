@@ -1,5 +1,7 @@
 package com.spendwise.auth.ui;
 
+import com.spendwise.auth.UserSession;
+
 public interface AuthNavigator {
 
     void showSignIn();
@@ -11,4 +13,6 @@ public interface AuthNavigator {
     void showForgotPassword();
 
     void showResetPassword();
+
+    void showAuthenticatedProfile(UserSession session);
 }

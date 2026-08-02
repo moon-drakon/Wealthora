@@ -155,11 +155,12 @@ public final class SettingsPanel extends JPanel {
 
     private static JPanel profileCard() {
         JPanel actions = actions();
-        SecondaryButton preview = new SecondaryButton("Open sign-in preview");
+        SecondaryButton preview = new SecondaryButton(
+                "Open authentication preview");
         preview.addActionListener(event -> AuthFrame.openUnconfiguredPreview());
         actions.add(preview);
         return card("Profile",
-                "Preview the NSU sign-in flow. Authentication remains inactive until a real backend is configured.",
+                "Preview Google and NSU email flows. Authentication remains inactive until a real backend is configured.",
                 actions);
     }
 

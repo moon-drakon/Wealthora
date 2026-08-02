@@ -3,33 +3,56 @@ package com.spendwise.auth;
 public final class UnconfiguredAuthApiClient implements AuthApiClient {
 
     @Override
-    public UserSession signIn(String email, char[] password) {
+    public UserSession signInWithNsuEmail(String email, char[] password) {
         throw new AuthConfigurationException();
     }
 
     @Override
-    public UserSession signInWithGoogle() {
+    public UserSession continueWithGoogle(
+            char[] authorizationCode, String redirectUri) {
         throw new AuthConfigurationException();
     }
 
     @Override
-    public UserSession createAccount(
-            String displayName, String email, char[] password) {
+    public AuthenticatedUser registerWithNsuEmail(
+            String fullName, String email, char[] password) {
         throw new AuthConfigurationException();
     }
 
     @Override
-    public UserSession verifyEmail(String email, String verificationCode) {
+    public AuthenticatedUser verifyNsuEmail(
+            String email, String verificationCode) {
         throw new AuthConfigurationException();
     }
 
     @Override
-    public void requestPasswordReset(String email) {
+    public void resendVerification(String email) {
         throw new AuthConfigurationException();
     }
 
     @Override
-    public void resetPassword(String resetToken, char[] newPassword) {
+    public void forgotPassword(String email) {
+        throw new AuthConfigurationException();
+    }
+
+    @Override
+    public void resetPassword(
+            String email, String resetToken, char[] newPassword) {
+        throw new AuthConfigurationException();
+    }
+
+    @Override
+    public UserSession refreshSession() {
+        throw new AuthConfigurationException();
+    }
+
+    @Override
+    public void logout() {
+        throw new AuthConfigurationException();
+    }
+
+    @Override
+    public AuthenticatedUser getCurrentUser() {
         throw new AuthConfigurationException();
     }
 }
