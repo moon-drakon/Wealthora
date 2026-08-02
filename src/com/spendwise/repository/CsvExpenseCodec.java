@@ -3,6 +3,7 @@ package com.spendwise.repository;
 import com.spendwise.model.Account;
 import com.spendwise.model.Category;
 import com.spendwise.model.Expense;
+import com.spendwise.model.PaymentMethod;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -17,11 +18,16 @@ final class CsvExpenseCodec {
     static final String HEADER = "id,description,amount,date,category,notes";
     static final String ACCOUNT_HEADER =
             "id,description,amount,date,category,account,notes";
+    static final String V2_HEADER =
+            "id,description,amount,date,category,account,paymentMethod,tags,notes";
     private static final List<String> LEGACY_HEADER_FIELDS = List.of(
             "id", "description", "amount", "date", "category", "notes");
     private static final List<String> ACCOUNT_HEADER_FIELDS = List.of(
             "id", "description", "amount", "date",
             "category", "account", "notes");
+    private static final List<String> V2_HEADER_FIELDS = List.of(
+            "id", "description", "amount", "date", "category", "account",
+            "paymentMethod", "tags", "notes");
 
     private CsvExpenseCodec() {
     }
@@ -30,12 +36,7 @@ final class CsvExpenseCodec {
         if (expenses == null) {
             throw new RepositoryException("Expense snapshot is required.");
         }
-        boolean accountAware = expenses.stream()
-                .filter(Objects::nonNull)
-                .anyMatch(expense -> !Account.DEFAULT_IDENTIFIER.equals(
-                        expense.getAccount().getIdentifier()));
-        StringBuilder csv = new StringBuilder(
-                accountAware ? ACCOUNT_HEADER : HEADER).append('\n');
+        StringBuilder csv = new StringBuilder(V2_HEADER).append('\n');
         Set<String> identifiers = new HashSet<>();
         for (Expense expense : expenses) {
             if (expense == null) {
@@ -48,11 +49,13 @@ final class CsvExpenseCodec {
             }
             appendCommonFields(csv, expense);
             csv.append(',');
-            if (accountAware) {
-                CsvFileSupport.appendField(
-                        csv, expense.getAccount().getIdentifier());
-                csv.append(',');
-            }
+            CsvFileSupport.appendField(
+                    csv, expense.getAccount().getIdentifier());
+            csv.append(',');
+            CsvFileSupport.appendField(csv, expense.getPaymentMethod().name());
+            csv.append(',');
+            CsvFileSupport.appendField(csv, String.join("|", expense.getTags()));
+            csv.append(',');
             CsvFileSupport.appendField(csv, expense.getNotes());
             csv.append('\n');
         }
@@ -82,13 +85,17 @@ final class CsvExpenseCodec {
             return List.of();
         }
 
-        boolean accountAware = beginsWithHeader(csvText, ACCOUNT_HEADER);
-        List<String> expectedHeader =
-                accountAware ? ACCOUNT_HEADER_FIELDS : LEGACY_HEADER_FIELDS;
-        if (!accountAware && !beginsWithHeader(csvText, HEADER)) {
+        int version = beginsWithHeader(csvText, V2_HEADER) ? 2
+                : beginsWithHeader(csvText, ACCOUNT_HEADER) ? 1 : 0;
+        List<String> expectedHeader = switch (version) {
+            case 2 -> V2_HEADER_FIELDS;
+            case 1 -> ACCOUNT_HEADER_FIELDS;
+            default -> LEGACY_HEADER_FIELDS;
+        };
+        if (version == 0 && !beginsWithHeader(csvText, HEADER)) {
             throw new RepositoryException(
                     "Expense CSV header must be exactly " + HEADER
-                    + " or " + ACCOUNT_HEADER + ".");
+                    + ", " + ACCOUNT_HEADER + ", or " + V2_HEADER + ".");
         }
 
         List<List<String>> records =
@@ -98,7 +105,7 @@ final class CsvExpenseCodec {
         for (int index = 1; index < records.size(); index++) {
             int recordNumber = index + 1;
             List<String> fields = records.get(index);
-            int expectedColumns = accountAware ? 7 : 6;
+            int expectedColumns = version == 2 ? 9 : version == 1 ? 7 : 6;
             if (fields.size() != expectedColumns) {
                 throw new RepositoryException(
                         "Expense CSV record " + recordNumber
@@ -108,7 +115,7 @@ final class CsvExpenseCodec {
             Expense expense = decodeExpense(
                     fields,
                     recordNumber,
-                    accountAware,
+                    version,
                     categoryResolver,
                     accountResolver);
             if (!identifiers.add(expense.getId())) {
@@ -125,17 +132,22 @@ final class CsvExpenseCodec {
     private static Expense decodeExpense(
             List<String> fields,
             int recordNumber,
-            boolean accountAware,
+            int version,
             Function<String, Category> categoryResolver,
             Function<String, Account> accountResolver) {
         try {
             BigDecimal amount = new BigDecimal(fields.get(2));
             LocalDate date = LocalDate.parse(fields.get(3));
             Category category = categoryResolver.apply(fields.get(4));
-            Account account = accountAware
+            Account account = version >= 1
                     ? accountResolver.apply(fields.get(5))
                     : Account.DEFAULT;
-            String notes = fields.get(accountAware ? 6 : 5);
+            PaymentMethod paymentMethod = version == 2
+                    ? PaymentMethod.valueOf(fields.get(6))
+                    : PaymentMethod.UNSPECIFIED;
+            List<String> tags = version == 2
+                    ? parseTags(fields.get(7)) : List.of();
+            String notes = fields.get(version == 2 ? 8 : version == 1 ? 6 : 5);
             return new Expense(
                     fields.get(0),
                     fields.get(1),
@@ -143,6 +155,8 @@ final class CsvExpenseCodec {
                     date,
                     category,
                     account,
+                    paymentMethod,
+                    tags,
                     notes);
         } catch (RuntimeException exception) {
             throw new RepositoryException(
@@ -189,5 +203,9 @@ final class CsvExpenseCodec {
         return message == null || message.isBlank()
                 ? "invalid value"
                 : message;
+    }
+
+    private static List<String> parseTags(String value) {
+        return value.isEmpty() ? List.of() : List.of(value.split("\\|", -1));
     }
 }

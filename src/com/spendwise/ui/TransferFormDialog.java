@@ -36,6 +36,7 @@ final class TransferFormDialog extends JDialog {
     private final JComboBox<Account> sourceComboBox = new JComboBox<>();
     private final JComboBox<Account> destinationComboBox = new JComboBox<>();
     private final JTextArea noteArea = new JTextArea(4, 26);
+    private final JTextField tagsField = new JTextField(26);
     private boolean saved;
 
     TransferFormDialog(
@@ -69,9 +70,10 @@ final class TransferFormDialog extends JDialog {
         addField(form, 1, "Amount", amountField);
         addField(form, 2, "From account", sourceComboBox);
         addField(form, 3, "To account", destinationComboBox);
+        addField(form, 4, "Tags (comma-separated)", tagsField);
         noteArea.setLineWrap(true);
         noteArea.setWrapStyleWord(true);
-        addField(form, 4, "Note", new JScrollPane(noteArea));
+        addField(form, 5, "Note", new JScrollPane(noteArea));
 
         SecondaryButton cancel = new SecondaryButton("Cancel");
         cancel.addActionListener(event -> dispose());
@@ -103,6 +105,7 @@ final class TransferFormDialog extends JDialog {
         sourceComboBox.setSelectedItem(transferToEdit.getSourceAccount());
         destinationComboBox.setSelectedItem(
                 transferToEdit.getDestinationAccount());
+        tagsField.setText(String.join(", ", transferToEdit.getTags()));
         noteArea.setText(transferToEdit.getNote());
     }
 
@@ -139,13 +142,15 @@ final class TransferFormDialog extends JDialog {
             Account source = (Account) sourceComboBox.getSelectedItem();
             Account destination =
                     (Account) destinationComboBox.getSelectedItem();
+            List<String> tags = ExpenseFormDialog.parseTags(tagsField.getText());
             if (transferToEdit == null) {
                 transferService.createTransfer(
-                        date, amount, source, destination, noteArea.getText());
+                        date, amount, source, destination, tags,
+                        noteArea.getText());
             } else {
                 transferService.updateTransfer(
                         transferToEdit.getId(), date, amount, source,
-                        destination, noteArea.getText());
+                        destination, tags, noteArea.getText());
             }
             saved = true;
             dispose();

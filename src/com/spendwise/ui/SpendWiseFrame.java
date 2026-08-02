@@ -14,6 +14,8 @@ import com.spendwise.service.IncomeService;
 import com.spendwise.service.QuickEntryService;
 import com.spendwise.service.RecurringService;
 import com.spendwise.service.TransferService;
+import com.spendwise.service.CurrencyService;
+import com.spendwise.service.PaymentCardService;
 import com.spendwise.ui.component.AppIcons;
 import com.spendwise.ui.shell.AppShellPanel;
 import com.spendwise.ui.theme.AppTheme;
@@ -103,6 +105,27 @@ public final class SpendWiseFrame extends JFrame {
             QuickEntryService quickEntryService,
             BackupService backupService,
             ExportService exportService) {
+        this(expenseService, analyticsService, budgetService, categoryService,
+                accountService, incomeService, transferService, financeService,
+                recurringService, quickEntryService, backupService, exportService,
+                null, null);
+    }
+
+    public SpendWiseFrame(
+            ExpenseService expenseService,
+            ExpenseAnalyticsService analyticsService,
+            BudgetService budgetService,
+            CategoryService categoryService,
+            AccountService accountService,
+            IncomeService incomeService,
+            TransferService transferService,
+            FinanceService financeService,
+            RecurringService recurringService,
+            QuickEntryService quickEntryService,
+            BackupService backupService,
+            ExportService exportService,
+            PaymentCardService paymentCardService,
+            CurrencyService currencyService) {
         super("SpendWise Expense Tracker");
         requireEventDispatchThread();
         Objects.requireNonNull(expenseService, "Expense service is required.");
@@ -204,7 +227,8 @@ public final class SpendWiseFrame extends JFrame {
                 transferService,
                 analyticsService,
                 budgetService,
-                recurringService);
+                recurringService,
+                currencyService);
         overviewReference[0] = overviewPanel;
         TransactionsPanel transactionsPanel = new TransactionsPanel(
                 expenseService,
@@ -260,6 +284,13 @@ public final class SpendWiseFrame extends JFrame {
                 expensePanel, expensePanel::refreshExpenses);
         shell.addPage("finance", "Accounts & Finance", AppIcons.Type.FINANCE,
                 financePanel, financePanel::refreshFinanceData);
+        if (paymentCardService != null && currencyService != null) {
+            CardsPanel cardsPanel = new CardsPanel(
+                    paymentCardService, accountService, currencyService,
+                    overviewPanel::refreshOverview);
+            shell.addPage("cards", "Cards & Currency", AppIcons.Type.CARDS,
+                    cardsPanel, cardsPanel::refreshCards);
+        }
         shell.addPage("budgets", "Budgets", AppIcons.Type.BUDGETS,
                 budgetPanel, budgetPanel::refreshBudgetStatus);
         shell.addPage("calendar", "Calendar", AppIcons.Type.CALENDAR,

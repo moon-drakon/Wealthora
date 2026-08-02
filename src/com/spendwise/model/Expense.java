@@ -1,9 +1,11 @@
 package com.spendwise.model;
 
 import com.spendwise.validation.ExpenseValidator;
+import com.spendwise.validation.FinanceValidator;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Objects;
+import java.util.List;
 import java.util.UUID;
 
 public class Expense {
@@ -15,6 +17,8 @@ public class Expense {
     private Category category;
     private Account account;
     private String notes;
+    private PaymentMethod paymentMethod;
+    private List<String> tags;
 
     public Expense(
             String description,
@@ -46,7 +50,45 @@ public class Expense {
                 date,
                 category,
                 account,
+                PaymentMethod.UNSPECIFIED,
+                List.of(),
                 notes);
+    }
+
+    public Expense(
+            String description,
+            BigDecimal amount,
+            LocalDate date,
+            Category category,
+            Account account,
+            PaymentMethod paymentMethod,
+            List<String> tags,
+            String notes) {
+        this(UUID.randomUUID().toString(), description, amount, date,
+                category, account, paymentMethod, tags, notes);
+    }
+
+    public Expense(
+            String id,
+            String description,
+            BigDecimal amount,
+            LocalDate date,
+            Category category,
+            Account account,
+            PaymentMethod paymentMethod,
+            List<String> tags,
+            String notes) {
+        this.id = ExpenseValidator.validateId(id);
+        this.description = ExpenseValidator.validateDescription(description);
+        this.amount = ExpenseValidator.validateAmount(amount);
+        this.date = ExpenseValidator.validateDate(date);
+        this.category = ExpenseValidator.validateCategory(category);
+        this.account = Objects.requireNonNull(
+                account, "Expense account is required.");
+        this.paymentMethod = Objects.requireNonNull(
+                paymentMethod, "Expense payment method is required.");
+        this.tags = FinanceValidator.validateTags(tags);
+        this.notes = ExpenseValidator.validateNotes(notes);
     }
 
     public Expense(
@@ -74,14 +116,8 @@ public class Expense {
             Category category,
             Account account,
             String notes) {
-        this.id = ExpenseValidator.validateId(id);
-        this.description = ExpenseValidator.validateDescription(description);
-        this.amount = ExpenseValidator.validateAmount(amount);
-        this.date = ExpenseValidator.validateDate(date);
-        this.category = ExpenseValidator.validateCategory(category);
-        this.account = Objects.requireNonNull(
-                account, "Expense account is required.");
-        this.notes = ExpenseValidator.validateNotes(notes);
+        this(id, description, amount, date, category, account,
+                PaymentMethod.UNSPECIFIED, List.of(), notes);
     }
 
     public String getId() {
@@ -110,6 +146,14 @@ public class Expense {
 
     public String getNotes() {
         return notes;
+    }
+
+    public PaymentMethod getPaymentMethod() {
+        return paymentMethod;
+    }
+
+    public List<String> getTags() {
+        return tags;
     }
 
     public void updateDetails(
@@ -143,6 +187,21 @@ public class Expense {
         this.category = validatedCategory;
         this.account = validatedAccount;
         this.notes = validatedNotes;
+    }
+
+    public void updateDetails(
+            String description,
+            BigDecimal amount,
+            LocalDate date,
+            Category category,
+            Account account,
+            PaymentMethod paymentMethod,
+            List<String> tags,
+            String notes) {
+        updateDetails(description, amount, date, category, account, notes);
+        this.paymentMethod = Objects.requireNonNull(
+                paymentMethod, "Expense payment method is required.");
+        this.tags = FinanceValidator.validateTags(tags);
     }
 
     @Override

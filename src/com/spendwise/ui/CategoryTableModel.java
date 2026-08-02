@@ -7,7 +7,9 @@ import javax.swing.table.AbstractTableModel;
 
 final class CategoryTableModel extends AbstractTableModel {
 
-    private static final String[] COLUMN_NAMES = {"Name", "Type", "Status"};
+    private static final String[] COLUMN_NAMES = {
+        "Name", "Parent", "Type", "Status"
+    };
     private List<Category> categories = List.of();
 
     void replaceCategories(List<Category> newCategories) {
@@ -53,8 +55,10 @@ final class CategoryTableModel extends AbstractTableModel {
         Category category = getCategoryAt(rowIndex);
         return switch (columnIndex) {
             case 0 -> category.getDisplayName();
-            case 1 -> category.isBuiltIn() ? "Built-in" : "Custom";
-            case 2 -> category.isActive() ? "Active" : "Archived";
+            case 1 -> category.getParentIdentifier().orElse("—");
+            case 2 -> category.isBuiltIn() ? "Built-in"
+                    : category.isSubcategory() ? "Subcategory" : "Custom";
+            case 3 -> category.isActive() ? "Active" : "Archived";
             default -> throw new IndexOutOfBoundsException(
                     "Category column index is out of range: " + columnIndex);
         };

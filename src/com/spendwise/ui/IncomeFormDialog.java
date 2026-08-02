@@ -2,6 +2,7 @@ package com.spendwise.ui;
 
 import com.spendwise.model.Account;
 import com.spendwise.model.Income;
+import com.spendwise.model.PaymentMethod;
 import com.spendwise.service.IncomeService;
 import com.spendwise.ui.component.PrimaryButton;
 import com.spendwise.ui.component.SecondaryButton;
@@ -37,6 +38,9 @@ final class IncomeFormDialog extends JDialog {
     private final JTextField sourceField = new JTextField(26);
     private final JComboBox<Account> accountComboBox = new JComboBox<>();
     private final JTextArea noteArea = new JTextArea(4, 26);
+    private final JComboBox<PaymentMethod> paymentMethodComboBox =
+            new JComboBox<>(PaymentMethod.values());
+    private final JTextField tagsField = new JTextField(26);
     private boolean saved;
 
     IncomeFormDialog(
@@ -71,9 +75,11 @@ final class IncomeFormDialog extends JDialog {
         addField(form, 1, "Amount", amountField);
         addField(form, 2, "Source", sourceField);
         addField(form, 3, "Account", accountComboBox);
+        addField(form, 4, "Payment method", paymentMethodComboBox);
+        addField(form, 5, "Tags (comma-separated)", tagsField);
         noteArea.setLineWrap(true);
         noteArea.setWrapStyleWord(true);
-        addField(form, 4, "Note", new JScrollPane(noteArea));
+        addField(form, 6, "Note", new JScrollPane(noteArea));
 
         SecondaryButton cancel = new SecondaryButton("Cancel");
         cancel.addActionListener(event -> dispose());
@@ -100,6 +106,8 @@ final class IncomeFormDialog extends JDialog {
         amountField.setText(incomeToEdit.getAmount().toPlainString());
         sourceField.setText(incomeToEdit.getSource());
         accountComboBox.setSelectedItem(incomeToEdit.getAccount());
+        paymentMethodComboBox.setSelectedItem(incomeToEdit.getPaymentMethod());
+        tagsField.setText(String.join(", ", incomeToEdit.getTags()));
         noteArea.setText(incomeToEdit.getNote());
     }
 
@@ -128,14 +136,19 @@ final class IncomeFormDialog extends JDialog {
             LocalDate date = LocalDate.parse(dateField.getText().strip());
             BigDecimal amount = new BigDecimal(amountField.getText().strip());
             Account account = (Account) accountComboBox.getSelectedItem();
+            PaymentMethod paymentMethod =
+                    (PaymentMethod) paymentMethodComboBox.getSelectedItem();
+            List<String> tags = ExpenseFormDialog.parseTags(tagsField.getText());
             if (incomeToEdit == null) {
                 incomeService.createIncome(
                         date, amount, sourceField.getText(), account,
+                        paymentMethod, tags,
                         noteArea.getText());
             } else {
                 incomeService.updateIncome(
                         incomeToEdit.getId(), date, amount,
-                        sourceField.getText(), account, noteArea.getText());
+                        sourceField.getText(), account, paymentMethod, tags,
+                        noteArea.getText());
             }
             saved = true;
             dispose();

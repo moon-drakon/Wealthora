@@ -3,6 +3,7 @@ package com.spendwise.ui;
 import com.spendwise.model.Account;
 import com.spendwise.model.Category;
 import com.spendwise.model.Expense;
+import com.spendwise.model.PaymentMethod;
 import com.spendwise.repository.RepositoryException;
 import com.spendwise.service.ExpenseNotFoundException;
 import com.spendwise.service.ExpenseService;
@@ -44,6 +45,9 @@ final class ExpenseFormDialog extends JDialog {
     private final JComboBox<Category> categoryComboBox = new JComboBox<>();
     private final JComboBox<Account> accountComboBox = new JComboBox<>();
     private final JTextArea notesArea = new JTextArea(5, 28);
+    private final JComboBox<PaymentMethod> paymentMethodComboBox =
+            new JComboBox<>(PaymentMethod.values());
+    private final JTextField tagsField = new JTextField(28);
 
     private boolean saved;
 
@@ -157,12 +161,14 @@ final class ExpenseFormDialog extends JDialog {
         addField(formPanel, 2, "Date (yyyy-MM-dd)", dateField);
         addField(formPanel, 3, "Category", categoryComboBox);
         addField(formPanel, 4, "Account", accountComboBox);
+        addField(formPanel, 5, "Payment method", paymentMethodComboBox);
+        addField(formPanel, 6, "Tags (comma-separated)", tagsField);
 
         notesArea.setLineWrap(true);
         notesArea.setWrapStyleWord(true);
         JScrollPane notesScrollPane = new JScrollPane(notesArea);
         notesScrollPane.setPreferredSize(new Dimension(320, 110));
-        addField(formPanel, 5, "Notes", notesScrollPane);
+        addField(formPanel, 7, "Notes", notesScrollPane);
 
         JButton saveButton = new PrimaryButton("Save Expense");
         saveButton.addActionListener(event -> saveExpense());
@@ -193,6 +199,9 @@ final class ExpenseFormDialog extends JDialog {
         dateField.setText(expenseToEdit.getDate().toString());
         categoryComboBox.setSelectedItem(expenseToEdit.getCategory());
         accountComboBox.setSelectedItem(expenseToEdit.getAccount());
+        paymentMethodComboBox.setSelectedItem(
+                expenseToEdit.getPaymentMethod());
+        tagsField.setText(String.join(", ", expenseToEdit.getTags()));
         notesArea.setText(expenseToEdit.getNotes());
     }
 
@@ -254,6 +263,9 @@ final class ExpenseFormDialog extends JDialog {
             LocalDate date = parseDate(dateField.getText());
             Category category = (Category) categoryComboBox.getSelectedItem();
             Account account = (Account) accountComboBox.getSelectedItem();
+            PaymentMethod paymentMethod =
+                    (PaymentMethod) paymentMethodComboBox.getSelectedItem();
+            List<String> tags = parseTags(tagsField.getText());
 
             if (expenseToEdit == null) {
                 expenseService.createExpense(
@@ -262,6 +274,8 @@ final class ExpenseFormDialog extends JDialog {
                         date,
                         category,
                         account,
+                        paymentMethod,
+                        tags,
                         notesArea.getText());
             } else {
                 expenseService.updateExpense(
@@ -271,6 +285,8 @@ final class ExpenseFormDialog extends JDialog {
                         date,
                         category,
                         account,
+                        paymentMethod,
+                        tags,
                         notesArea.getText());
             }
 
@@ -293,6 +309,16 @@ final class ExpenseFormDialog extends JDialog {
                 message,
                 "Unable to Save Expense",
                 JOptionPane.ERROR_MESSAGE);
+    }
+
+    static List<String> parseTags(String text) {
+        if (text == null || text.isBlank()) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(text.split(","))
+                .map(String::strip)
+                .filter(tag -> !tag.isEmpty())
+                .toList();
     }
 
     private static void addField(

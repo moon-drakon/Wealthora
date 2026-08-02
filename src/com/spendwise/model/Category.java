@@ -33,23 +33,37 @@ public final class Category implements Comparable<Category> {
     private final boolean builtIn;
     private final boolean archived;
     private final int builtInOrdinal;
+    private final String parentIdentifier;
 
     private Category(
             String identifier,
             String displayName,
             boolean builtIn,
             boolean archived,
-            int builtInOrdinal) {
+            int builtInOrdinal,
+            String parentIdentifier) {
         this.identifier = validateIdentifier(identifier, builtIn);
         this.displayName = validateDisplayName(displayName);
         this.builtIn = builtIn;
         this.archived = builtIn ? false : archived;
         this.builtInOrdinal = builtInOrdinal;
+        this.parentIdentifier = validateParentIdentifier(
+                parentIdentifier, identifier, builtIn);
     }
 
     public static Category createCustom(
             String identifier, String displayName, boolean archived) {
-        return new Category(identifier, displayName, false, archived, -1);
+        return new Category(identifier, displayName, false, archived, -1, null);
+    }
+
+    public static Category createSubcategory(
+            String identifier,
+            String displayName,
+            String parentIdentifier,
+            boolean archived) {
+        return new Category(identifier, displayName, false, archived, -1,
+                Objects.requireNonNull(
+                        parentIdentifier, "Parent category is required."));
     }
 
     public static Category[] values() {
@@ -105,6 +119,14 @@ public final class Category implements Comparable<Category> {
         return archived;
     }
 
+    public java.util.Optional<String> getParentIdentifier() {
+        return java.util.Optional.ofNullable(parentIdentifier);
+    }
+
+    public boolean isSubcategory() {
+        return parentIdentifier != null;
+    }
+
     /**
      * Built-ins retain their historical enum ordering; custom categories return -1.
      */
@@ -116,14 +138,20 @@ public final class Category implements Comparable<Category> {
         if (builtIn) {
             throw new ValidationException("Built-in categories cannot be renamed.");
         }
-        return createCustom(identifier, newDisplayName, archived);
+        return parentIdentifier == null
+                ? createCustom(identifier, newDisplayName, archived)
+                : createSubcategory(
+                        identifier, newDisplayName, parentIdentifier, archived);
     }
 
     public Category withArchived(boolean newArchived) {
         if (builtIn) {
             throw new ValidationException("Built-in categories cannot be archived.");
         }
-        return createCustom(identifier, displayName, newArchived);
+        return parentIdentifier == null
+                ? createCustom(identifier, displayName, newArchived)
+                : createSubcategory(
+                        identifier, displayName, parentIdentifier, newArchived);
     }
 
     @Override
@@ -168,7 +196,7 @@ public final class Category implements Comparable<Category> {
 
     private static Category builtIn(
             String identifier, String displayName, int ordinal) {
-        return new Category(identifier, displayName, true, false, ordinal);
+        return new Category(identifier, displayName, true, false, ordinal, null);
     }
 
     private static String validateIdentifier(String identifier, boolean builtIn) {
@@ -210,5 +238,25 @@ public final class Category implements Comparable<Category> {
             }
         }
         return normalizedName;
+    }
+
+    private static String validateParentIdentifier(
+            String parentIdentifier, String ownIdentifier, boolean builtIn) {
+        if (parentIdentifier == null || parentIdentifier.isBlank()) {
+            return null;
+        }
+        if (builtIn) {
+            throw new ValidationException(
+                    "Built-in categories cannot be subcategories.");
+        }
+        String normalized = parentIdentifier.strip();
+        if (!normalized.equals(parentIdentifier)
+                || normalized.equals(ownIdentifier)
+                || normalized.length() > MAX_IDENTIFIER_LENGTH
+                || !IDENTIFIER_PATTERN.matcher(normalized).matches()) {
+            throw new ValidationException(
+                    "Parent category identifier is invalid.");
+        }
+        return normalized;
     }
 }

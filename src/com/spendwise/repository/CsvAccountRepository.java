@@ -13,10 +13,14 @@ import java.util.Set;
 
 public final class CsvAccountRepository implements AccountRepository {
 
-    public static final String HEADER = "id,name,type,openingBalance,status";
-    private static final List<String> HEADER_FIELDS = List.of(
+    public static final String LEGACY_HEADER =
+            "id,name,type,openingBalance,status";
+    public static final String HEADER =
+            "id,name,type,openingBalance,status,icon,color";
+    private static final List<String> LEGACY_HEADER_FIELDS = List.of(
             "id", "name", "type", "openingBalance", "status");
-    private static final int COLUMN_COUNT = 5;
+    private static final List<String> HEADER_FIELDS = List.of(
+            "id", "name", "type", "openingBalance", "status", "icon", "color");
 
     private final java.nio.file.Path csvPath;
 
@@ -71,8 +75,11 @@ public final class CsvAccountRepository implements AccountRepository {
     }
 
     private List<Account> decode(String content) {
-        List<List<String>> records =
-                CsvFileSupport.parse(content, HEADER_FIELDS, "Account");
+        boolean legacy = startsWithHeader(content, LEGACY_HEADER);
+        List<List<String>> records = CsvFileSupport.parse(
+                content,
+                legacy ? LEGACY_HEADER_FIELDS : HEADER_FIELDS,
+                "Account");
         List<Account> accounts = new ArrayList<>();
         Set<String> identifiers = new HashSet<>();
         Set<String> names = new HashSet<>();
@@ -80,15 +87,17 @@ public final class CsvAccountRepository implements AccountRepository {
         for (int index = 1; index < records.size(); index++) {
             int recordNumber = index + 1;
             List<String> fields = records.get(index);
-            if (fields.size() != COLUMN_COUNT) {
-                throw corrupt(recordNumber, "must contain exactly 5 columns.");
+            if (fields.size() != (legacy ? 5 : 7)) {
+                throw corrupt(recordNumber, "has an unexpected column count.");
             }
             try {
                 Account account = Account.createCustom(
                         fields.get(0),
                         fields.get(1),
-                        AccountType.valueOf(fields.get(2)),
+                        AccountType.fromStoredValue(fields.get(2)),
                         new BigDecimal(fields.get(3)),
+                        legacy ? Account.DEFAULT_ICON : fields.get(5),
+                        legacy ? Account.DEFAULT_COLOR : fields.get(6),
                         parseArchived(fields.get(4), recordNumber));
                 String normalizedName =
                         account.getDisplayName().toLowerCase(Locale.ROOT);
@@ -132,6 +141,10 @@ public final class CsvAccountRepository implements AccountRepository {
             csv.append(',');
             CsvFileSupport.appendField(
                     csv, account.isArchived() ? "ARCHIVED" : "ACTIVE");
+            csv.append(',');
+            CsvFileSupport.appendField(csv, account.getIconName());
+            csv.append(',');
+            CsvFileSupport.appendField(csv, account.getColorHex());
             csv.append('\n');
         }
         CsvFileSupport.write(
@@ -207,5 +220,13 @@ public final class CsvAccountRepository implements AccountRepository {
         return message == null || message.isBlank()
                 ? "invalid value"
                 : message;
+    }
+
+    private static boolean startsWithHeader(String content, String header) {
+        String normalized = content.startsWith("\uFEFF")
+                ? content.substring(1) : content;
+        return normalized.equals(header)
+                || normalized.startsWith(header + "\n")
+                || normalized.startsWith(header + "\r\n");
     }
 }

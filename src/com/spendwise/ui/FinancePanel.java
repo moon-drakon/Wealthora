@@ -4,6 +4,7 @@ import com.spendwise.model.Account;
 import com.spendwise.model.AccountType;
 import com.spendwise.model.Income;
 import com.spendwise.model.Transfer;
+import com.spendwise.model.PaymentMethod;
 import com.spendwise.repository.RepositoryException;
 import com.spendwise.service.AccountArchiveResult;
 import com.spendwise.service.AccountBalanceSnapshot;
@@ -291,10 +292,14 @@ public final class FinancePanel extends JPanel {
         JComboBox<AccountType> type =
                 new JComboBox<>(AccountType.values());
         JTextField opening = new JTextField("0.00");
+        JTextField icon = new JTextField(Account.DEFAULT_ICON);
+        JTextField color = new JTextField(Account.DEFAULT_COLOR);
         JPanel form = form(
                 "Name", name,
                 "Type", type,
-                "Opening balance", opening);
+                "Opening balance", opening,
+                "Icon name", icon,
+                "Color (#RRGGBB)", color);
         while (JOptionPane.showConfirmDialog(
                 this,
                 form,
@@ -305,7 +310,9 @@ public final class FinancePanel extends JPanel {
                 accountService.addAccount(
                         name.getText(),
                         (AccountType) type.getSelectedItem(),
-                        new BigDecimal(opening.getText().strip()));
+                        new BigDecimal(opening.getText().strip()),
+                        icon.getText(),
+                        color.getText());
                 mutationSucceeded("Account added.");
                 return;
             } catch (NumberFormatException exception) {
@@ -325,11 +332,16 @@ public final class FinancePanel extends JPanel {
         JTextField name = new JTextField(account.getDisplayName());
         JComboBox<AccountType> type = new JComboBox<>(AccountType.values());
         type.setSelectedItem(account.getType());
+        JTextField opening = new JTextField(
+                account.getOpeningBalance().toPlainString());
+        JTextField icon = new JTextField(account.getIconName());
+        JTextField color = new JTextField(account.getColorHex());
         JPanel form = form(
                 "Name", name,
                 "Type", type,
-                "Opening balance (read-only)",
-                new JLabel(account.getOpeningBalance().toPlainString()));
+                "Opening balance", opening,
+                "Icon name", icon,
+                "Color (#RRGGBB)", color);
         if (JOptionPane.showConfirmDialog(
                 this,
                 form,
@@ -339,11 +351,16 @@ public final class FinancePanel extends JPanel {
             return;
         }
         try {
-            accountService.updateAccountMetadata(
+            accountService.updateAccountDetails(
                     account.getIdentifier(),
                     name.getText(),
-                    (AccountType) type.getSelectedItem());
+                    (AccountType) type.getSelectedItem(),
+                    new BigDecimal(opening.getText().strip()),
+                    icon.getText(),
+                    color.getText());
             mutationSucceeded("Account updated.");
+        } catch (NumberFormatException exception) {
+            showError("Opening balance must be a decimal number.");
         } catch (ValidationException | RepositoryException exception) {
             showError(safeMessage(exception));
         }
@@ -433,12 +450,21 @@ public final class FinancePanel extends JPanel {
                 availableAccounts.toArray(Account[]::new));
         JTextField note = new JTextField(
                 existing == null ? "" : existing.getNote());
+        JComboBox<PaymentMethod> paymentMethod =
+                new JComboBox<>(PaymentMethod.values());
+        JTextField tags = new JTextField(existing == null
+                ? "" : String.join(", ", existing.getTags()));
+        if (existing != null) {
+            paymentMethod.setSelectedItem(existing.getPaymentMethod());
+        }
         account.setSelectedItem(preferredAccount);
         JPanel form = form(
                 "Date (yyyy-MM-dd)", date,
                 "Amount", amount,
                 "Source", source,
                 "Account", account,
+                "Payment method", paymentMethod,
+                "Tags", tags,
                 "Note", note);
         String title = existing == null ? "Add Income" : "Edit Income";
         while (JOptionPane.showConfirmDialog(
@@ -454,6 +480,8 @@ public final class FinancePanel extends JPanel {
                             new BigDecimal(amount.getText().strip()),
                             source.getText(),
                             (Account) account.getSelectedItem(),
+                            (PaymentMethod) paymentMethod.getSelectedItem(),
+                            ExpenseFormDialog.parseTags(tags.getText()),
                             note.getText());
                 } else {
                     incomeService.updateIncome(
@@ -462,6 +490,8 @@ public final class FinancePanel extends JPanel {
                             new BigDecimal(amount.getText().strip()),
                             source.getText(),
                             (Account) account.getSelectedItem(),
+                            (PaymentMethod) paymentMethod.getSelectedItem(),
+                            ExpenseFormDialog.parseTags(tags.getText()),
                             note.getText());
                 }
                 mutationSucceeded(existing == null
@@ -541,6 +571,8 @@ public final class FinancePanel extends JPanel {
                 destinationAccounts.toArray(Account[]::new));
         JTextField note = new JTextField(
                 existing == null ? "" : existing.getNote());
+        JTextField tags = new JTextField(existing == null
+                ? "" : String.join(", ", existing.getTags()));
         source.setSelectedItem(preferredSource);
         if (existing != null) {
             destination.setSelectedItem(existing.getDestinationAccount());
@@ -552,6 +584,7 @@ public final class FinancePanel extends JPanel {
                 "Amount", amount,
                 "From", source,
                 "To", destination,
+                "Tags", tags,
                 "Note", note);
         String title = existing == null ? "Add Transfer" : "Edit Transfer";
         while (JOptionPane.showConfirmDialog(
@@ -567,6 +600,7 @@ public final class FinancePanel extends JPanel {
                             new BigDecimal(amount.getText().strip()),
                             (Account) source.getSelectedItem(),
                             (Account) destination.getSelectedItem(),
+                            ExpenseFormDialog.parseTags(tags.getText()),
                             note.getText());
                 } else {
                     transferService.updateTransfer(
@@ -575,6 +609,7 @@ public final class FinancePanel extends JPanel {
                             new BigDecimal(amount.getText().strip()),
                             (Account) source.getSelectedItem(),
                             (Account) destination.getSelectedItem(),
+                            ExpenseFormDialog.parseTags(tags.getText()),
                             note.getText());
                 }
                 mutationSucceeded(existing == null

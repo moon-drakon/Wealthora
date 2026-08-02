@@ -10,7 +10,7 @@ import javax.swing.table.AbstractTableModel;
 final class IncomeTableModel extends AbstractTableModel {
 
     private static final String[] COLUMNS = {
-        "Date", "Source", "Account", "Amount", "Note"
+        "Date", "Source", "Account", "Amount", "Payment Method", "Tags", "Note"
     };
     private List<Income> entries = List.of();
 
@@ -56,7 +56,9 @@ final class IncomeTableModel extends AbstractTableModel {
             case 1 -> income.getSource();
             case 2 -> income.getAccount().getDisplayName();
             case 3 -> income.getAmount();
-            case 4 -> income.getNote();
+            case 4 -> income.getPaymentMethod().getDisplayName();
+            case 5 -> String.join(", ", income.getTags());
+            case 6 -> income.getNote();
             default -> throw new IndexOutOfBoundsException(
                     "Income column is out of range: " + column);
         };

@@ -288,6 +288,9 @@ public final class BackupServiceTest {
                 "id,type,amount,description,category,sourceAccount,"
                 + "destinationAccount,frequency,interval,startDate,endDate,"
                 + "nextDueDate,status\n";
+            case "cards.csv" -> "id,name,bank,type,lastFour,creditLimit,"
+                + "billingDay,dueDay,cardAccount,paymentAccount,status\n";
+            case "currency-settings.csv" -> "currency\nBDT\n";
             default -> throw new IllegalArgumentException(
                     "Unknown managed test file: " + name);
         };

@@ -12,7 +12,7 @@ public final class AppIcons {
 
     public enum Type {
         DASHBOARD, TRANSACTIONS, EXPENSES, FINANCE, BUDGETS,
-        CALENDAR, REPORTS, RECURRING, ANALYTICS, SEARCH, THEME, ADD
+        CALENDAR, REPORTS, RECURRING, ANALYTICS, CARDS, SEARCH, THEME, ADD
     }
 
     private AppIcons() {
@@ -103,6 +103,13 @@ public final class AppIcons {
                             width / 3, height / 3, 70, 220);
                     drawing.drawArc(x + width / 3, y + height / 2,
                             width / 3, height / 3, 250, 220);
+                }
+                case CARDS -> {
+                    drawing.drawRoundRect(x, y + 2, width, height - 4, 3, 3);
+                    drawing.drawLine(x, y + height / 3,
+                            x + width, y + height / 3);
+                    drawing.drawLine(x + 3, y + height - 5,
+                            x + width / 2, y + height - 5);
                 }
                 case BUDGETS -> {
                     drawing.drawArc(x, y, width, height, 0, 270);

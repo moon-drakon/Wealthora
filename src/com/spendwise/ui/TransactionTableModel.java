@@ -3,12 +3,14 @@ package com.spendwise.ui;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import com.spendwise.model.TransactionType;
 import javax.swing.table.AbstractTableModel;
 
 final class TransactionTableModel extends AbstractTableModel {
 
     private static final String[] COLUMNS = {
-        "Date", "Type", "Description", "Category", "Account", "Amount"
+        "Date", "Type", "Description", "Category", "Account", "Amount",
+        "Payment Method", "Tags"
     };
     private List<TransactionRow> rows = List.of();
 
@@ -40,7 +42,7 @@ final class TransactionTableModel extends AbstractTableModel {
     public Class<?> getColumnClass(int column) {
         return switch (column) {
             case 0 -> LocalDate.class;
-            case 1 -> TransactionRow.Type.class;
+            case 1 -> TransactionType.class;
             case 5 -> BigDecimal.class;
             default -> String.class;
         };
@@ -56,6 +58,8 @@ final class TransactionTableModel extends AbstractTableModel {
             case 3 -> transaction.categoryDisplay();
             case 4 -> transaction.accountDisplay();
             case 5 -> transaction.amount();
+            case 6 -> transaction.paymentMethodDisplay();
+            case 7 -> transaction.tagsDisplay();
             default -> throw new IndexOutOfBoundsException(column);
         };
     }

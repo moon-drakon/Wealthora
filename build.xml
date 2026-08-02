@@ -459,7 +459,19 @@
             </classpath>
         </java>
     </target>
-    <target name="test-quality" depends="test-accounts"
+    <target name="test-phase2" depends="test-accounts"
+            description="Runs Phase 2 finance architecture, migration, balance, and safety tests.">
+        <java classname="com.spendwise.service.Phase2FinanceArchitectureTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+    </target>
+    <target name="test-quality" depends="test-phase2"
             description="Runs the final chained suite including isolated restart and persistence checks.">
         <java classname="com.spendwise.service.ApplicationPersistenceSmokeTest"
               fork="true"

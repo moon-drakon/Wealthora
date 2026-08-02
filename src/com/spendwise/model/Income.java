@@ -6,6 +6,7 @@ import java.time.LocalDate;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.List;
 
 public final class Income {
 
@@ -17,6 +18,8 @@ public final class Income {
     private final String source;
     private final Account account;
     private final String note;
+    private final PaymentMethod paymentMethod;
+    private final List<String> tags;
 
     public Income(
             LocalDate date,
@@ -31,7 +34,22 @@ public final class Income {
                 amount,
                 source,
                 account,
+                PaymentMethod.UNSPECIFIED,
+                List.of(),
                 note);
+    }
+
+    public Income(
+            LocalDate date,
+            BigDecimal amount,
+            String source,
+            Account account,
+            PaymentMethod paymentMethod,
+            List<String> tags,
+            String note) {
+        this(ID_PREFIX + UUID.randomUUID().toString()
+                .replace("-", "").toUpperCase(Locale.ROOT),
+                date, amount, source, account, paymentMethod, tags, note);
     }
 
     public Income(
@@ -40,6 +58,19 @@ public final class Income {
             BigDecimal amount,
             String source,
             Account account,
+            String note) {
+        this(id, date, amount, source, account,
+                PaymentMethod.UNSPECIFIED, List.of(), note);
+    }
+
+    public Income(
+            String id,
+            LocalDate date,
+            BigDecimal amount,
+            String source,
+            Account account,
+            PaymentMethod paymentMethod,
+            List<String> tags,
             String note) {
         this.id = FinanceValidator.validateIdentifier(
                 id, "Income", ID_PREFIX);
@@ -50,6 +81,9 @@ public final class Income {
                 source, "Income source", FinanceValidator.MAX_NAME_LENGTH);
         this.account = Objects.requireNonNull(
                 account, "Income account is required.");
+        this.paymentMethod = Objects.requireNonNull(
+                paymentMethod, "Income payment method is required.");
+        this.tags = FinanceValidator.validateTags(tags);
         this.note = FinanceValidator.validateOptionalText(
                 note, "Income note", FinanceValidator.MAX_NOTE_LENGTH);
     }
@@ -76,6 +110,14 @@ public final class Income {
 
     public String getNote() {
         return note;
+    }
+
+    public PaymentMethod getPaymentMethod() {
+        return paymentMethod;
+    }
+
+    public List<String> getTags() {
+        return tags;
     }
 
     @Override

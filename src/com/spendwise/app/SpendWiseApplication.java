@@ -9,6 +9,8 @@ import com.spendwise.repository.CsvExpenseRepository;
 import com.spendwise.repository.CsvIncomeRepository;
 import com.spendwise.repository.CsvRecurringEntryRepository;
 import com.spendwise.repository.CsvTransferRepository;
+import com.spendwise.repository.CsvPaymentCardRepository;
+import com.spendwise.repository.CsvCurrencyPreferenceRepository;
 import com.spendwise.service.AccountService;
 import com.spendwise.service.BackupService;
 import com.spendwise.service.BudgetService;
@@ -21,6 +23,8 @@ import com.spendwise.service.IncomeService;
 import com.spendwise.service.QuickEntryService;
 import com.spendwise.service.RecurringService;
 import com.spendwise.service.TransferService;
+import com.spendwise.service.PaymentCardService;
+import com.spendwise.service.CurrencyService;
 import com.spendwise.ui.SpendWiseFrame;
 import com.spendwise.ui.theme.AppTheme;
 import java.nio.file.Path;
@@ -78,6 +82,14 @@ public final class SpendWiseApplication {
                             expenseService,
                             incomeService,
                             transferService);
+            PaymentCardService paymentCardService = new PaymentCardService(
+                    new CsvPaymentCardRepository(
+                            AppPaths.getPaymentCardCsvPath(),
+                            accountService::resolveAccount),
+                    accountService);
+            CurrencyService currencyService = new CurrencyService(
+                    new CsvCurrencyPreferenceRepository(
+                            AppPaths.getCurrencySettingsCsvPath()));
             ExpenseAnalyticsService analyticsService =
                     new ExpenseAnalyticsService(expenseService);
             Path budgetCsvPath = AppPaths.getBudgetCsvPath();
@@ -120,7 +132,9 @@ public final class SpendWiseApplication {
                             recurringService,
                             quickEntryService,
                             backupService,
-                            exportService);
+                            exportService,
+                            paymentCardService,
+                            currencyService);
             frame.setVisible(true);
         } catch (RuntimeException exception) {
             JOptionPane.showMessageDialog(

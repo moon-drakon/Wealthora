@@ -97,7 +97,45 @@ public final class TransferService {
                 amount,
                 validatedSource,
                 validatedDestination,
+                existing.getTags(),
                 note);
+        repository.update(replacement);
+        return replacement;
+    }
+
+    public Transfer createTransfer(
+            LocalDate date,
+            BigDecimal amount,
+            Account sourceAccount,
+            Account destinationAccount,
+            List<String> tags,
+            String note) {
+        Transfer transfer = new Transfer(date, amount,
+                accountService.requireSelectable(sourceAccount),
+                accountService.requireSelectable(destinationAccount),
+                tags, note);
+        repository.add(transfer);
+        return transfer;
+    }
+
+    public Transfer updateTransfer(
+            String id,
+            LocalDate date,
+            BigDecimal amount,
+            Account sourceAccount,
+            Account destinationAccount,
+            List<String> tags,
+            String note) {
+        String normalizedId = validateId(id);
+        Transfer existing = repository.findById(normalizedId)
+                .orElseThrow(() -> new FinanceNotFoundException(
+                        "Transfer was not found."));
+        Account source = accountService.requireSelectableOrHistorical(
+                sourceAccount, existing.getSourceAccount());
+        Account destination = accountService.requireSelectableOrHistorical(
+                destinationAccount, existing.getDestinationAccount());
+        Transfer replacement = new Transfer(normalizedId, date, amount,
+                source, destination, tags, note);
         repository.update(replacement);
         return replacement;
     }

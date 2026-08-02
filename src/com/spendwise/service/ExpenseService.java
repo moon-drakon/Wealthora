@@ -3,6 +3,7 @@ package com.spendwise.service;
 import com.spendwise.model.Account;
 import com.spendwise.model.Category;
 import com.spendwise.model.Expense;
+import com.spendwise.model.PaymentMethod;
 import com.spendwise.repository.ExpenseRepository;
 import com.spendwise.validation.ExpenseValidator;
 import com.spendwise.validation.ValidationException;
@@ -78,6 +79,21 @@ public final class ExpenseService {
         return expense;
     }
 
+    public Expense createExpense(
+            String description,
+            BigDecimal amount,
+            LocalDate date,
+            Category category,
+            Account account,
+            PaymentMethod paymentMethod,
+            List<String> tags,
+            String notes) {
+        Expense expense = new Expense(description, amount, date, category,
+                requireSelectableAccount(account), paymentMethod, tags, notes);
+        repository.add(expense);
+        return expense;
+    }
+
     Expense createExpenseWithId(
             String id,
             String description,
@@ -127,6 +143,28 @@ public final class ExpenseService {
             LocalDate date,
             Category category,
             Account account,
+            PaymentMethod paymentMethod,
+            List<String> tags,
+            String notes) {
+        String normalizedId = ExpenseValidator.validateId(id);
+        Expense existing = repository.findById(normalizedId)
+                .orElseThrow(() -> new ExpenseNotFoundException(
+                        "Expense with ID '" + normalizedId + "' was not found."));
+        Account validatedAccount = requireSelectableOrHistoricalAccount(
+                account, existing.getAccount());
+        Expense replacement = new Expense(existing.getId(), description, amount,
+                date, category, validatedAccount, paymentMethod, tags, notes);
+        repository.update(replacement);
+        return replacement;
+    }
+
+    public Expense updateExpense(
+            String id,
+            String description,
+            BigDecimal amount,
+            LocalDate date,
+            Category category,
+            Account account,
             String notes) {
         String normalizedId = ExpenseValidator.validateId(id);
         Expense existing = repository.findById(normalizedId)
@@ -159,6 +197,8 @@ public final class ExpenseService {
                 date,
                 category,
                 account,
+                existing.getPaymentMethod(),
+                existing.getTags(),
                 notes);
         repository.update(replacement);
         return replacement;
@@ -255,6 +295,12 @@ public final class ExpenseService {
         }
         return containsIgnoreCase(expense.getDescription(), searchText)
                 || containsIgnoreCase(expense.getNotes(), searchText)
+                || containsIgnoreCase(
+                        expense.getAccount().getDisplayName(), searchText)
+                || containsIgnoreCase(
+                        expense.getPaymentMethod().getDisplayName(), searchText)
+                || expense.getTags().stream()
+                        .anyMatch(tag -> containsIgnoreCase(tag, searchText))
                 || containsIgnoreCase(expense.getCategory().name(), searchText)
                 || containsIgnoreCase(expense.getCategory().getDisplayName(), searchText);
     }

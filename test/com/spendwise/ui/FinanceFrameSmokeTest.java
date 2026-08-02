@@ -8,6 +8,8 @@ import com.spendwise.repository.CsvExpenseRepository;
 import com.spendwise.repository.CsvIncomeRepository;
 import com.spendwise.repository.CsvRecurringEntryRepository;
 import com.spendwise.repository.CsvTransferRepository;
+import com.spendwise.repository.CsvPaymentCardRepository;
+import com.spendwise.repository.CsvCurrencyPreferenceRepository;
 import com.spendwise.service.AccountService;
 import com.spendwise.service.BackupService;
 import com.spendwise.service.BudgetService;
@@ -20,6 +22,8 @@ import com.spendwise.service.IncomeService;
 import com.spendwise.service.QuickEntryService;
 import com.spendwise.service.RecurringService;
 import com.spendwise.service.TransferService;
+import com.spendwise.service.PaymentCardService;
+import com.spendwise.service.CurrencyService;
 import com.spendwise.ui.shell.AppShellPanel;
 import com.spendwise.ui.theme.AppTheme;
 import java.awt.GraphicsEnvironment;
@@ -117,7 +121,15 @@ public final class FinanceFrameSmokeTest {
                                 transfers,
                                 accounts,
                                 new FinanceService(
-                                    accounts, expenses, income, transfers)));
+                                    accounts, expenses, income, transfers)),
+                        new PaymentCardService(
+                                new CsvPaymentCardRepository(
+                                        directory.resolve("cards.csv"),
+                                        accounts::resolveAccount),
+                                accounts),
+                        new CurrencyService(
+                                new CsvCurrencyPreferenceRepository(
+                                        directory.resolve("currency-settings.csv"))));
                 frame.setLocation(-10000, -10000);
                 frame.setSize(1000, 650);
                 frame.setVisible(true);
@@ -125,10 +137,10 @@ public final class FinanceFrameSmokeTest {
                     throw new AssertionError(
                             "Main content must use the professional app shell.");
                 }
-                assertEquals(9, shell.getPageCount());
+                assertEquals(10, shell.getPageCount());
                 assertEquals("overview", shell.getCurrentPage());
                 for (String page : new String[] {
-                    "transactions", "expenses", "finance", "budgets",
+                    "transactions", "expenses", "finance", "cards", "budgets",
                     "calendar", "reports", "recurring", "analytics",
                     "overview"
                 }) {

@@ -214,7 +214,7 @@ public final class FinanceRepositoryTest {
             Path path = directory.resolve("income.csv");
             Files.writeString(
                     path,
-                    CsvIncomeRepository.HEADER
+                    CsvIncomeRepository.LEGACY_HEADER
                     + "\nINCOME_X,2026-07-01,10.00,Salary,ACCOUNT_UNKNOWN,\n",
                     StandardCharsets.UTF_8);
             byte[] before = Files.readAllBytes(path);
@@ -267,7 +267,7 @@ public final class FinanceRepositoryTest {
             Path path = directory.resolve("transfers.csv");
             Files.writeString(
                     path,
-                    CsvTransferRepository.HEADER
+                    CsvTransferRepository.LEGACY_HEADER
                     + "\nTRANSFER_X,2026-07-01,10.00,"
                     + "ACCOUNT_DEFAULT_CASH,ACCOUNT_DEFAULT_CASH,\n",
                     StandardCharsets.UTF_8);
@@ -307,7 +307,7 @@ public final class FinanceRepositoryTest {
                     "Weekly");
             repository.add(expense);
             assertTrue(Files.readString(path).startsWith(
-                    CsvExpenseCodec.ACCOUNT_HEADER + "\n"));
+                    CsvExpenseCodec.V2_HEADER + "\n"));
             Expense loaded = repository.findAll().get(0);
             assertEquals(BANK, loaded.getAccount());
             assertEquals(expense.getDescription(), loaded.getDescription());
@@ -332,7 +332,7 @@ public final class FinanceRepositoryTest {
     private static void readPreservesBytes() throws IOException {
         withDirectory(directory -> {
             Path path = directory.resolve("accounts.csv");
-            String text = CsvAccountRepository.HEADER + "\r\n"
+            String text = CsvAccountRepository.LEGACY_HEADER + "\r\n"
                     + "ACCOUNT_BANK,Savings,BANK,100.00,ACTIVE\r\n";
             Files.writeString(path, text, StandardCharsets.UTF_8);
             byte[] before = Files.readAllBytes(path);

@@ -82,6 +82,28 @@ public final class AccountService {
         return account;
     }
 
+    public Account addAccount(
+            String displayName,
+            AccountType type,
+            BigDecimal openingBalance,
+            String iconName,
+            String colorHex) {
+        String normalizedName = FinanceValidator.validateRequiredText(
+                displayName, "Account name", FinanceValidator.MAX_NAME_LENGTH);
+        rejectDuplicateName(normalizedName, null);
+        Account account = Account.createCustom(
+                ID_PREFIX + UUID.randomUUID().toString()
+                        .replace("-", "").toUpperCase(Locale.ROOT),
+                normalizedName,
+                Objects.requireNonNull(type, "Account type is required."),
+                openingBalance,
+                iconName,
+                colorHex,
+                false);
+        repository.add(account);
+        return account;
+    }
+
     public Account renameAccount(
             String identifier, String newDisplayName) {
         Account existing = requireCustomAccount(identifier);
@@ -102,6 +124,23 @@ public final class AccountService {
         Account replacement = existing.withMetadata(
                 normalizedName,
                 Objects.requireNonNull(newType, "Account type is required."));
+        repository.update(replacement);
+        return replacement;
+    }
+
+    public Account updateAccountDetails(
+            String identifier,
+            String displayName,
+            AccountType type,
+            BigDecimal openingBalance,
+            String iconName,
+            String colorHex) {
+        Account existing = requireCustomAccount(identifier);
+        String normalizedName = FinanceValidator.validateRequiredText(
+                displayName, "Account name", FinanceValidator.MAX_NAME_LENGTH);
+        rejectDuplicateName(normalizedName, existing.getIdentifier());
+        Account replacement = existing.withDetails(
+                normalizedName, type, openingBalance, iconName, colorHex);
         repository.update(replacement);
         return replacement;
     }

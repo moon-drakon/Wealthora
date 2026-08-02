@@ -5,27 +5,13 @@ import com.spendwise.model.Category;
 import com.spendwise.model.Expense;
 import com.spendwise.model.Income;
 import com.spendwise.model.Transfer;
+import com.spendwise.model.TransactionType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
 final class TransactionRow {
 
-    enum Type {
-        INCOME("Income"), EXPENSE("Expense"), TRANSFER("Transfer");
-
-        private final String label;
-
-        Type(String label) {
-            this.label = label;
-        }
-
-        @Override
-        public String toString() {
-            return label;
-        }
-    }
-
-    private final Type type;
+    private final TransactionType type;
     private final Object source;
     private final String identifier;
     private final LocalDate date;
@@ -36,7 +22,7 @@ final class TransactionRow {
     private final BigDecimal amount;
 
     private TransactionRow(
-            Type type,
+            TransactionType type,
             Object source,
             String identifier,
             LocalDate date,
@@ -57,26 +43,26 @@ final class TransactionRow {
     }
 
     static TransactionRow from(Expense expense) {
-        return new TransactionRow(Type.EXPENSE, expense, expense.getId(),
+        return new TransactionRow(TransactionType.EXPENSE, expense, expense.getId(),
                 expense.getDate(), expense.getDescription(),
                 expense.getCategory(), expense.getAccount(), null,
                 expense.getAmount());
     }
 
     static TransactionRow from(Income income) {
-        return new TransactionRow(Type.INCOME, income, income.getId(),
+        return new TransactionRow(TransactionType.INCOME, income, income.getId(),
                 income.getDate(), income.getSource(), null,
                 income.getAccount(), null, income.getAmount());
     }
 
     static TransactionRow from(Transfer transfer) {
-        return new TransactionRow(Type.TRANSFER, transfer, transfer.getId(),
+        return new TransactionRow(TransactionType.TRANSFER, transfer, transfer.getId(),
                 transfer.getDate(), "Account transfer", null,
                 transfer.getSourceAccount(), transfer.getDestinationAccount(),
                 transfer.getAmount());
     }
 
-    Type type() {
+    TransactionType type() {
         return type;
     }
 
@@ -121,6 +107,22 @@ final class TransactionRow {
 
     String categoryDisplay() {
         return category == null ? "—" : category.getDisplayName();
+    }
+
+    String paymentMethodDisplay() {
+        return switch (type) {
+            case EXPENSE -> ((Expense) source).getPaymentMethod().getDisplayName();
+            case INCOME -> ((Income) source).getPaymentMethod().getDisplayName();
+            case TRANSFER -> "—";
+        };
+    }
+
+    String tagsDisplay() {
+        return switch (type) {
+            case EXPENSE -> String.join(", ", ((Expense) source).getTags());
+            case INCOME -> String.join(", ", ((Income) source).getTags());
+            case TRANSFER -> String.join(", ", ((Transfer) source).getTags());
+        };
     }
 
     String amountDisplay() {

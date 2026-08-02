@@ -32,6 +32,20 @@ public final class CategoryService {
         List<Category> categories = new ArrayList<>(
                 List.of(Category.values()));
         categories.addAll(repository.findAll());
+        for (Category category : categories) {
+            category.getParentIdentifier().ifPresent(parentIdentifier -> {
+                Category parent = categories.stream()
+                        .filter(candidate -> candidate.getIdentifier()
+                                .equals(parentIdentifier))
+                        .findFirst()
+                        .orElseThrow(() -> new ValidationException(
+                                "Unknown parent category: " + parentIdentifier));
+                if (parent.isSubcategory()) {
+                    throw new ValidationException(
+                            "Subcategories cannot be nested more than one level.");
+                }
+            });
+        }
         return List.copyOf(categories);
     }
 
@@ -57,6 +71,27 @@ public final class CategoryService {
         return category;
     }
 
+    public Category addSubcategory(
+            String displayName, String parentIdentifier) {
+        Category parent = resolveCategory(parentIdentifier);
+        if (!parent.isActive()) {
+            throw new ValidationException(
+                    "Archived categories cannot receive new subcategories.");
+        }
+        if (parent.isSubcategory()) {
+            throw new ValidationException(
+                    "Subcategories cannot contain another subcategory.");
+        }
+        String normalizedName = validateUniqueName(displayName, null);
+        Category category = Category.createSubcategory(
+                Objects.requireNonNull(identifierSupplier.get()),
+                normalizedName,
+                parent.getIdentifier(),
+                false);
+        repository.add(category);
+        return category;
+    }
+
     public Category renameCategory(String identifier, String displayName) {
         Category existing = requireCustom(identifier, "rename");
         String normalizedName = validateUniqueName(
@@ -70,6 +105,15 @@ public final class CategoryService {
         Category existing = requireCustom(identifier, "archive");
         if (existing.isArchived()) {
             throw new ValidationException("Category is already archived.");
+        }
+        boolean hasActiveChildren = listAllCategories().stream()
+                .anyMatch(category -> category.isActive()
+                        && category.getParentIdentifier()
+                                .filter(existing.getIdentifier()::equals)
+                                .isPresent());
+        if (hasActiveChildren) {
+            throw new ValidationException(
+                    "Archive active subcategories before archiving their parent.");
         }
         Category replacement = existing.withArchived(true);
         repository.update(replacement);

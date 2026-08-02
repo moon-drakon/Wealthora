@@ -89,7 +89,7 @@ public final class CategoryManagementTest {
 
     private static void tableColumnsAreCorrect() {
         CategoryTableModel model = new CategoryTableModel();
-        assertEquals(List.of("Name", "Type", "Status"),
+        assertEquals(List.of("Name", "Parent", "Type", "Status"),
                 java.util.stream.IntStream.range(0, model.getColumnCount())
                         .mapToObj(model::getColumnName)
                         .toList(),
@@ -101,10 +101,11 @@ public final class CategoryManagementTest {
         model.replaceCategories(List.of(
                 Category.FOOD, custom("CUSTOM_001", "Travel", true)));
         assertEquals("Food", model.getValueAt(0, 0), "Built-in name is incorrect.");
-        assertEquals("Built-in", model.getValueAt(0, 1), "Built-in type is incorrect.");
-        assertEquals("Active", model.getValueAt(0, 2), "Built-in status is incorrect.");
-        assertEquals("Custom", model.getValueAt(1, 1), "Custom type is incorrect.");
-        assertEquals("Archived", model.getValueAt(1, 2), "Archived status is incorrect.");
+        assertEquals("—", model.getValueAt(0, 1), "Built-in parent is incorrect.");
+        assertEquals("Built-in", model.getValueAt(0, 2), "Built-in type is incorrect.");
+        assertEquals("Active", model.getValueAt(0, 3), "Built-in status is incorrect.");
+        assertEquals("Custom", model.getValueAt(1, 2), "Custom type is incorrect.");
+        assertEquals("Archived", model.getValueAt(1, 3), "Archived status is incorrect.");
     }
 
     private static void tableIsReadOnly() {

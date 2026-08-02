@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.List;
 
 public final class Transfer {
 
@@ -18,6 +19,7 @@ public final class Transfer {
     private final Account sourceAccount;
     private final Account destinationAccount;
     private final String note;
+    private final List<String> tags;
 
     public Transfer(
             LocalDate date,
@@ -32,7 +34,20 @@ public final class Transfer {
                 amount,
                 sourceAccount,
                 destinationAccount,
+                List.of(),
                 note);
+    }
+
+    public Transfer(
+            LocalDate date,
+            BigDecimal amount,
+            Account sourceAccount,
+            Account destinationAccount,
+            List<String> tags,
+            String note) {
+        this(ID_PREFIX + UUID.randomUUID().toString()
+                .replace("-", "").toUpperCase(Locale.ROOT),
+                date, amount, sourceAccount, destinationAccount, tags, note);
     }
 
     public Transfer(
@@ -41,6 +56,18 @@ public final class Transfer {
             BigDecimal amount,
             Account sourceAccount,
             Account destinationAccount,
+            String note) {
+        this(id, date, amount, sourceAccount, destinationAccount,
+                List.of(), note);
+    }
+
+    public Transfer(
+            String id,
+            LocalDate date,
+            BigDecimal amount,
+            Account sourceAccount,
+            Account destinationAccount,
+            List<String> tags,
             String note) {
         this.id = FinanceValidator.validateIdentifier(
                 id, "Transfer", ID_PREFIX);
@@ -55,6 +82,7 @@ public final class Transfer {
             throw new ValidationException(
                     "Source and destination accounts must be different.");
         }
+        this.tags = FinanceValidator.validateTags(tags);
         this.note = FinanceValidator.validateOptionalText(
                 note, "Transfer note", FinanceValidator.MAX_NOTE_LENGTH);
     }
@@ -81,6 +109,10 @@ public final class Transfer {
 
     public String getNote() {
         return note;
+    }
+
+    public List<String> getTags() {
+        return tags;
     }
 
     @Override

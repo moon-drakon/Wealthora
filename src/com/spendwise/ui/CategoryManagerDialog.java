@@ -16,6 +16,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JTextField;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -102,6 +104,8 @@ final class CategoryManagerDialog extends JDialog {
 
         JButton addButton = new JButton("Add");
         addButton.addActionListener(event -> addCategory());
+        JButton addSubcategoryButton = new JButton("Add Subcategory");
+        addSubcategoryButton.addActionListener(event -> addSubcategory());
         renameButton.addActionListener(event -> renameSelectedCategory());
         archiveButton.addActionListener(event -> archiveSelectedCategory());
         restoreButton.addActionListener(event -> restoreSelectedCategory());
@@ -110,6 +114,7 @@ final class CategoryManagerDialog extends JDialog {
 
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         buttons.add(addButton);
+        buttons.add(addSubcategoryButton);
         buttons.add(renameButton);
         buttons.add(archiveButton);
         buttons.add(restoreButton);
@@ -132,6 +137,29 @@ final class CategoryManagerDialog extends JDialog {
         performMutation(
                 () -> categoryService.addCategory(name),
                 "Category added.");
+    }
+
+    private void addSubcategory() {
+        List<Category> parents = categoryService.listSelectableCategories()
+                .stream().filter(category -> !category.isSubcategory()).toList();
+        JTextField name = new JTextField(20);
+        JComboBox<Category> parent = new JComboBox<>(
+                parents.toArray(Category[]::new));
+        JPanel form = new JPanel(new java.awt.GridLayout(2, 2, 8, 8));
+        form.add(new JLabel("Name:"));
+        form.add(name);
+        form.add(new JLabel("Parent:"));
+        form.add(parent);
+        if (JOptionPane.showConfirmDialog(this, form, "Add Subcategory",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE)
+                != JOptionPane.OK_OPTION) {
+            return;
+        }
+        Category selectedParent = (Category) parent.getSelectedItem();
+        performMutation(
+                () -> categoryService.addSubcategory(
+                        name.getText(), selectedParent.getIdentifier()),
+                "Subcategory added.");
     }
 
     private void renameSelectedCategory() {

@@ -2,6 +2,7 @@ package com.spendwise.service;
 
 import com.spendwise.model.Account;
 import com.spendwise.model.Income;
+import com.spendwise.model.PaymentMethod;
 import com.spendwise.repository.IncomeRepository;
 import com.spendwise.validation.FinanceValidator;
 import com.spendwise.validation.ValidationException;
@@ -51,6 +52,21 @@ public final class IncomeService {
         return income;
     }
 
+    public Income createIncome(
+            LocalDate date,
+            BigDecimal amount,
+            String source,
+            Account account,
+            PaymentMethod paymentMethod,
+            List<String> tags,
+            String note) {
+        Income income = new Income(date, amount, source,
+                accountService.requireSelectable(account),
+                paymentMethod, tags, note);
+        repository.add(income);
+        return income;
+    }
+
     Income createIncomeWithId(
             String id,
             LocalDate date,
@@ -89,7 +105,30 @@ public final class IncomeService {
                 amount,
                 source,
                 validatedAccount,
+                existing.getPaymentMethod(),
+                existing.getTags(),
                 note);
+        repository.update(replacement);
+        return replacement;
+    }
+
+    public Income updateIncome(
+            String id,
+            LocalDate date,
+            BigDecimal amount,
+            String source,
+            Account account,
+            PaymentMethod paymentMethod,
+            List<String> tags,
+            String note) {
+        String normalizedId = validateId(id);
+        Income existing = repository.findById(normalizedId)
+                .orElseThrow(() -> new FinanceNotFoundException(
+                        "Income entry was not found."));
+        Account validatedAccount = accountService.requireSelectableOrHistorical(
+                account, existing.getAccount());
+        Income replacement = new Income(normalizedId, date, amount, source,
+                validatedAccount, paymentMethod, tags, note);
         repository.update(replacement);
         return replacement;
     }
@@ -116,6 +155,8 @@ public final class IncomeService {
             boolean matchesText = search.isEmpty()
                     || contains(income.getSource(), search)
                     || contains(income.getNote(), search)
+                    || contains(income.getPaymentMethod().getDisplayName(), search)
+                    || income.getTags().stream().anyMatch(tag -> contains(tag, search))
                     || contains(income.getAccount().getDisplayName(), search);
             boolean matchesAccount = account == null
                     || income.getAccount().equals(account);

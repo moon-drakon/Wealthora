@@ -10,7 +10,7 @@ import javax.swing.table.AbstractTableModel;
 final class AccountTableModel extends AbstractTableModel {
 
     private static final String[] COLUMNS = {
-        "Account", "Type", "Opening Balance", "Current Balance",
+        "Account", "Type", "Icon", "Color", "Opening Balance", "Current Balance",
         "Default", "Status"
     };
     private List<Account> accounts = List.of();
@@ -57,7 +57,7 @@ final class AccountTableModel extends AbstractTableModel {
 
     @Override
     public Class<?> getColumnClass(int column) {
-        return column == 2 || column == 3
+        return column == 4 || column == 5
                 ? BigDecimal.class
                 : String.class;
     }
@@ -68,10 +68,12 @@ final class AccountTableModel extends AbstractTableModel {
         return switch (column) {
             case 0 -> account.getDisplayName();
             case 1 -> account.getType().getDisplayName();
-            case 2 -> account.getOpeningBalance();
-            case 3 -> balances.get(account);
-            case 4 -> account.equals(defaultAccount) ? "Yes" : "";
-            case 5 -> account.isProtected()
+            case 2 -> account.getIconName();
+            case 3 -> account.getColorHex();
+            case 4 -> account.getOpeningBalance();
+            case 5 -> balances.get(account);
+            case 6 -> account.equals(defaultAccount) ? "Yes" : "";
+            case 7 -> account.isProtected()
                     ? "Protected"
                     : account.isActive() ? "Active" : "Archived";
             default -> throw new IndexOutOfBoundsException(

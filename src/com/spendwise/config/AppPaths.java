@@ -57,6 +57,14 @@ public final class AppPaths {
         return currentDataPath("account-settings.csv");
     }
 
+    public static Path getPaymentCardCsvPath() {
+        return currentDataPath("cards.csv");
+    }
+
+    public static Path getCurrencySettingsCsvPath() {
+        return currentDataPath("currency-settings.csv");
+    }
+
     static Path resolveExpenseCsvPath(
             String operatingSystemName,
             String localAppData,

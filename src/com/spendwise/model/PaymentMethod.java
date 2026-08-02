@@ -1,31 +1,24 @@
 package com.spendwise.model;
 
-public enum AccountType {
+public enum PaymentMethod {
+    UNSPECIFIED("Unspecified"),
     CASH("Cash"),
-    BANK("Bank"),
-    SAVINGS("Savings"),
+    BANK_TRANSFER("Bank Transfer"),
     MOBILE_BANKING("Mobile Banking"),
     DIGITAL_WALLET("Digital Wallet"),
     CREDIT_CARD("Credit Card"),
     DEBIT_CARD("Debit Card"),
+    CHECK("Check"),
     OTHER("Other");
 
     private final String displayName;
 
-    AccountType(String displayName) {
+    PaymentMethod(String displayName) {
         this.displayName = displayName;
     }
 
     public String getDisplayName() {
         return displayName;
-    }
-
-    public static AccountType fromStoredValue(String value) {
-        return switch (value) {
-            case "MOBILE_WALLET" -> MOBILE_BANKING;
-            case "CARD" -> DEBIT_CARD;
-            default -> valueOf(value);
-        };
     }
 
     @Override

@@ -12,7 +12,9 @@ public final class ManagedDataFiles {
             "account-settings.csv",
             "income.csv",
             "transfers.csv",
-            "recurring.csv");
+            "recurring.csv",
+            "cards.csv",
+            "currency-settings.csv");
 
     private ManagedDataFiles() {
     }

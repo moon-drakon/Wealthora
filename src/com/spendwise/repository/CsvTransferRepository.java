@@ -14,12 +14,16 @@ import java.util.function.Function;
 
 public final class CsvTransferRepository implements TransferRepository {
 
-    public static final String HEADER =
+    public static final String LEGACY_HEADER =
             "id,date,amount,sourceAccount,destinationAccount,note";
-    private static final List<String> HEADER_FIELDS = List.of(
+    public static final String HEADER =
+            "id,date,amount,sourceAccount,destinationAccount,tags,note";
+    private static final List<String> LEGACY_HEADER_FIELDS = List.of(
             "id", "date", "amount", "sourceAccount",
             "destinationAccount", "note");
-    private static final int COLUMN_COUNT = 6;
+    private static final List<String> HEADER_FIELDS = List.of(
+            "id", "date", "amount", "sourceAccount",
+            "destinationAccount", "tags", "note");
 
     private final java.nio.file.Path csvPath;
     private final Function<String, Account> accountResolver;
@@ -95,15 +99,16 @@ public final class CsvTransferRepository implements TransferRepository {
     }
 
     private List<Transfer> decode(String content) {
-        List<List<String>> records =
-                CsvFileSupport.parse(content, HEADER_FIELDS, "Transfer");
+        boolean legacy = startsWithHeader(content, LEGACY_HEADER);
+        List<List<String>> records = CsvFileSupport.parse(
+                content, legacy ? LEGACY_HEADER_FIELDS : HEADER_FIELDS, "Transfer");
         List<Transfer> transfers = new ArrayList<>();
         Set<String> identifiers = new HashSet<>();
         for (int index = 1; index < records.size(); index++) {
             int recordNumber = index + 1;
             List<String> fields = records.get(index);
-            if (fields.size() != COLUMN_COUNT) {
-                throw corrupt(recordNumber, "must contain exactly 6 columns.", null);
+            if (fields.size() != (legacy ? 6 : 7)) {
+                throw corrupt(recordNumber, "has an unexpected column count.", null);
             }
             try {
                 Transfer transfer = new Transfer(
@@ -112,7 +117,8 @@ public final class CsvTransferRepository implements TransferRepository {
                         new BigDecimal(fields.get(2)),
                         accountResolver.apply(fields.get(3)),
                         accountResolver.apply(fields.get(4)),
-                        fields.get(5));
+                        legacy ? List.of() : parseTags(fields.get(5)),
+                        fields.get(legacy ? 5 : 6));
                 if (!identifiers.add(transfer.getId())) {
                     throw corrupt(
                             recordNumber,
@@ -149,6 +155,8 @@ public final class CsvTransferRepository implements TransferRepository {
             CsvFileSupport.appendField(
                     csv, transfer.getDestinationAccount().getIdentifier());
             csv.append(',');
+            CsvFileSupport.appendField(csv, String.join("|", transfer.getTags()));
+            csv.append(',');
             CsvFileSupport.appendField(csv, transfer.getNote());
             csv.append('\n');
         }
@@ -184,5 +192,17 @@ public final class CsvTransferRepository implements TransferRepository {
         return message == null || message.isBlank()
                 ? "invalid value"
                 : message;
+    }
+
+    private static List<String> parseTags(String value) {
+        return value.isEmpty() ? List.of() : List.of(value.split("\\|", -1));
+    }
+
+    private static boolean startsWithHeader(String content, String header) {
+        String normalized = content.startsWith("\uFEFF")
+                ? content.substring(1) : content;
+        return normalized.equals(header)
+                || normalized.startsWith(header + "\n")
+                || normalized.startsWith(header + "\r\n");
     }
 }

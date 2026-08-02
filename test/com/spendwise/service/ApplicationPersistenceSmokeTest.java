@@ -3,6 +3,7 @@ package com.spendwise.service;
 import com.spendwise.config.AppPaths;
 import com.spendwise.model.Account;
 import com.spendwise.model.AccountType;
+import com.spendwise.model.CardType;
 import com.spendwise.model.Category;
 import com.spendwise.model.MonthlyBudget;
 import com.spendwise.model.RecurrenceFrequency;
@@ -11,8 +12,10 @@ import com.spendwise.repository.CsvAccountPreferenceRepository;
 import com.spendwise.repository.CsvAccountRepository;
 import com.spendwise.repository.CsvBudgetRepository;
 import com.spendwise.repository.CsvCategoryRepository;
+import com.spendwise.repository.CsvCurrencyPreferenceRepository;
 import com.spendwise.repository.CsvExpenseRepository;
 import com.spendwise.repository.CsvIncomeRepository;
+import com.spendwise.repository.CsvPaymentCardRepository;
 import com.spendwise.repository.CsvRecurringEntryRepository;
 import com.spendwise.repository.CsvTransferRepository;
 import java.io.IOException;
@@ -100,6 +103,21 @@ public final class ApplicationPersistenceSmokeTest {
                 DATE.plusMonths(1),
                 null,
                 true);
+        Account creditCard = first.accounts.addAccount(
+                "Student Card",
+                AccountType.CREDIT_CARD,
+                BigDecimal.ZERO);
+        first.cards.addCard(
+                "Student Card",
+                "Example Bank",
+                CardType.CREDIT,
+                "4242",
+                new BigDecimal("50000.00"),
+                15,
+                25,
+                creditCard,
+                bank);
+        first.currency.setCurrency("USD");
 
         Services restarted = wire(directory);
         Category loadedTravel = restarted.categories.resolveCategory(
@@ -117,6 +135,9 @@ public final class ApplicationPersistenceSmokeTest {
         assertEquals(1, restarted.income.getAllIncome().size());
         assertEquals(1, restarted.transfers.getAllTransfers().size());
         assertEquals(1, restarted.recurring.listAll().size());
+        assertEquals(1, restarted.cards.listAll().size());
+        assertEquals("USD", restarted.currency.getCurrency()
+                .getCurrencyCode());
         assertMoney("500.00", restarted.budgets
                 .getBudget(YearMonth.from(DATE))
                 .getOverallLimit().orElseThrow());
@@ -151,6 +172,8 @@ public final class ApplicationPersistenceSmokeTest {
         restarted.transfers.getAllTransfers();
         restarted.budgets.getBudget(YearMonth.from(DATE));
         restarted.recurring.listAll();
+        restarted.cards.listAll();
+        restarted.currency.getCurrency();
         restarted.finance.calculateBalances();
         assertEquals(before, fingerprint(directory));
     }
@@ -194,6 +217,14 @@ public final class ApplicationPersistenceSmokeTest {
                 transfers,
                 accounts,
                 categories);
+        PaymentCardService cards = new PaymentCardService(
+                new CsvPaymentCardRepository(
+                        directory.resolve("cards.csv"),
+                        accounts::resolveAccount),
+                accounts);
+        CurrencyService currency = new CurrencyService(
+                new CsvCurrencyPreferenceRepository(
+                        directory.resolve("currency-settings.csv")));
         return new Services(
                 categories,
                 accounts,
@@ -202,6 +233,8 @@ public final class ApplicationPersistenceSmokeTest {
                 transfers,
                 budgets,
                 recurring,
+                cards,
+                currency,
                 new FinanceService(
                         accounts, expenses, income, transfers));
     }
@@ -263,6 +296,8 @@ public final class ApplicationPersistenceSmokeTest {
             TransferService transfers,
             BudgetService budgets,
             RecurringService recurring,
+            PaymentCardService cards,
+            CurrencyService currency,
             FinanceService finance) {
     }
 }

@@ -69,14 +69,14 @@ public final class FinanceFoundationTest {
         balances.put(BANK, new BigDecimal("150.00"));
         model.replace(List.of(Account.DEFAULT, BANK), balances, BANK);
         assertEquals(2, model.getRowCount());
-        assertEquals(6, model.getColumnCount());
+        assertEquals(8, model.getColumnCount());
         assertEquals("Account", model.getColumnName(0));
-        assertEquals("Current Balance", model.getColumnName(3));
-        assertEquals("Default", model.getColumnName(4));
+        assertEquals("Current Balance", model.getColumnName(5));
+        assertEquals("Default", model.getColumnName(6));
         assertEquals("Savings", model.getValueAt(1, 0));
-        assertEquals(new BigDecimal("150.00"), model.getValueAt(1, 3));
-        assertEquals("Yes", model.getValueAt(1, 4));
-        assertEquals("Protected", model.getValueAt(0, 5));
+        assertEquals(new BigDecimal("150.00"), model.getValueAt(1, 5));
+        assertEquals("Yes", model.getValueAt(1, 6));
+        assertEquals("Protected", model.getValueAt(0, 7));
     }
 
     private static void incomeTable() {

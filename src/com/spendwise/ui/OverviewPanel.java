@@ -9,6 +9,7 @@ import com.spendwise.service.FinanceService;
 import com.spendwise.service.IncomeService;
 import com.spendwise.service.RecurringService;
 import com.spendwise.service.TransferService;
+import com.spendwise.service.CurrencyService;
 import com.spendwise.service.ExpenseService;
 import com.spendwise.ui.component.EmptyStatePanel;
 import com.spendwise.ui.component.StyledTable;
@@ -54,6 +55,7 @@ public final class OverviewPanel extends JPanel {
     private final ExpenseAnalyticsService analyticsService;
     private final BudgetService budgetService;
     private final RecurringService recurringService;
+    private final CurrencyService currencyService;
     private final SummaryCard balanceCard = new SummaryCard(
             "Total balance", AppColors.transfer());
     private final SummaryCard incomeCard = new SummaryCard(
@@ -85,6 +87,19 @@ public final class OverviewPanel extends JPanel {
             ExpenseAnalyticsService analyticsService,
             BudgetService budgetService,
             RecurringService recurringService) {
+        this(financeService, expenseService, incomeService, transferService,
+                analyticsService, budgetService, recurringService, null);
+    }
+
+    public OverviewPanel(
+            FinanceService financeService,
+            ExpenseService expenseService,
+            IncomeService incomeService,
+            TransferService transferService,
+            ExpenseAnalyticsService analyticsService,
+            BudgetService budgetService,
+            RecurringService recurringService,
+            CurrencyService currencyService) {
         super(new BorderLayout());
         this.financeService = Objects.requireNonNull(financeService);
         this.expenseService = Objects.requireNonNull(expenseService);
@@ -93,6 +108,7 @@ public final class OverviewPanel extends JPanel {
         this.analyticsService = Objects.requireNonNull(analyticsService);
         this.budgetService = Objects.requireNonNull(budgetService);
         this.recurringService = Objects.requireNonNull(recurringService);
+        this.currencyService = currencyService;
         AppTheme.mark(this, AppTheme.PAGE_ROLE);
         buildInterface();
         refreshOverview();
@@ -194,6 +210,10 @@ public final class OverviewPanel extends JPanel {
         recentTable.getColumnModel().getColumn(3).setMinWidth(0);
         recentTable.getColumnModel().getColumn(3).setMaxWidth(0);
         recentTable.getColumnModel().getColumn(4).setPreferredWidth(135);
+        recentTable.getColumnModel().getColumn(6).setMinWidth(0);
+        recentTable.getColumnModel().getColumn(6).setMaxWidth(0);
+        recentTable.getColumnModel().getColumn(7).setMinWidth(0);
+        recentTable.getColumnModel().getColumn(7).setMaxWidth(0);
         JScrollPane scroll = new JScrollPane(recentTable);
         scroll.setBorder(BorderFactory.createLineBorder(AppColors.border()));
         recentContent.add(scroll, "table");
@@ -278,11 +298,13 @@ public final class OverviewPanel extends JPanel {
                 recurringContent, upcoming.isEmpty() ? "empty" : "list");
     }
 
-    private static String money(BigDecimal amount) {
-        return amount.setScale(2).toPlainString();
+    private String money(BigDecimal amount) {
+        return currencyService == null
+                ? amount.setScale(2).toPlainString()
+                : currencyService.format(amount);
     }
 
-    private static String signedMoney(BigDecimal amount) {
+    private String signedMoney(BigDecimal amount) {
         return amount.signum() > 0 ? "+" + money(amount) : money(amount);
     }
 

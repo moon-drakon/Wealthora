@@ -155,7 +155,7 @@ public final class CsvCategoryRepositoryTest {
 
     private static void optionalBomIsAccepted() throws Exception {
         withDirectory(directory -> {
-            write(path(directory), "\uFEFF" + CsvCategoryRepository.HEADER
+            write(path(directory), "\uFEFF" + CsvCategoryRepository.LEGACY_HEADER
                     + "\nCUSTOM_001,Travel,ACTIVE\n");
             assertEquals("Travel", repository(directory).findAll().get(0).getDisplayName(),
                     "BOM-prefixed file did not load.");
@@ -164,7 +164,7 @@ public final class CsvCategoryRepositoryTest {
 
     private static void crlfRecordsAreAccepted() throws Exception {
         withDirectory(directory -> {
-            write(path(directory), CsvCategoryRepository.HEADER
+            write(path(directory), CsvCategoryRepository.LEGACY_HEADER
                     + "\r\nCUSTOM_001,Travel,ACTIVE\r\n");
             assertEquals(1, repository(directory).findAll().size(),
                     "CRLF category data did not load.");
@@ -174,7 +174,7 @@ public final class CsvCategoryRepositoryTest {
     private static void duplicateIdentifierIsRejected() throws Exception {
         withDirectory(directory -> {
             Path path = path(directory);
-            write(path, CsvCategoryRepository.HEADER
+            write(path, CsvCategoryRepository.LEGACY_HEADER
                     + "\nCUSTOM_001,Travel,ACTIVE"
                     + "\nCUSTOM_001,Trips,ARCHIVED\n");
             expectThrows(RepositoryException.class,
@@ -185,7 +185,7 @@ public final class CsvCategoryRepositoryTest {
     private static void duplicateNameIsRejected() throws Exception {
         withDirectory(directory -> {
             Path path = path(directory);
-            write(path, CsvCategoryRepository.HEADER
+            write(path, CsvCategoryRepository.LEGACY_HEADER
                     + "\nCUSTOM_001,Travel,ACTIVE"
                     + "\nCUSTOM_002,tRaVeL,ARCHIVED\n");
             expectThrows(RepositoryException.class,
@@ -195,7 +195,7 @@ public final class CsvCategoryRepositoryTest {
 
     private static void builtInNameDuplicateIsRejected() throws Exception {
         withDirectory(directory -> {
-            write(path(directory), CsvCategoryRepository.HEADER
+            write(path(directory), CsvCategoryRepository.LEGACY_HEADER
                     + "\nCUSTOM_001,food,ACTIVE\n");
             expectThrows(RepositoryException.class,
                     () -> repository(directory).findAll());
@@ -212,7 +212,7 @@ public final class CsvCategoryRepositoryTest {
 
     private static void invalidRecordIsRejected() throws Exception {
         withDirectory(directory -> {
-            write(path(directory), CsvCategoryRepository.HEADER
+            write(path(directory), CsvCategoryRepository.LEGACY_HEADER
                     + "\nCUSTOM_001,Travel\n");
             expectThrows(RepositoryException.class,
                     () -> repository(directory).findAll());
@@ -221,7 +221,7 @@ public final class CsvCategoryRepositoryTest {
 
     private static void invalidStatusIsRejected() throws Exception {
         withDirectory(directory -> {
-            write(path(directory), CsvCategoryRepository.HEADER
+            write(path(directory), CsvCategoryRepository.LEGACY_HEADER
                     + "\nCUSTOM_001,Travel,DELETED\n");
             expectThrows(RepositoryException.class,
                     () -> repository(directory).findAll());

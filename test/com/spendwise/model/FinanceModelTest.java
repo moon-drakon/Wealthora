@@ -30,8 +30,9 @@ public final class FinanceModelTest {
     }
 
     private static void accountTypeLabels() {
-        assertEquals("Mobile Wallet", AccountType.MOBILE_WALLET.toString());
-        assertEquals("Card", AccountType.CARD.getDisplayName());
+        assertEquals("Mobile Banking", AccountType.MOBILE_BANKING.toString());
+        assertEquals("Credit Card", AccountType.CREDIT_CARD.getDisplayName());
+        assertEquals("Debit Card", AccountType.DEBIT_CARD.getDisplayName());
     }
 
     private static void protectedDefault() {

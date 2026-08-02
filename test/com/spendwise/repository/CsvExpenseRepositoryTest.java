@@ -108,7 +108,7 @@ public class CsvExpenseRepositoryTest {
             repository.add(createExpense("expense-001", "Lunch"));
 
             String csvText = Files.readString(csvPath, StandardCharsets.UTF_8);
-            assertTrue(csvText.startsWith(CsvExpenseCodec.HEADER + "\n"), "CSV header is missing.");
+            assertTrue(csvText.startsWith(CsvExpenseCodec.V2_HEADER + "\n"), "CSV header is missing.");
             assertEquals(2L, csvText.lines().count(), "CSV should contain a header and one record.");
         });
     }
@@ -540,7 +540,7 @@ public class CsvExpenseRepositoryTest {
 
             assertTrue(repository.deleteById("expense-001"), "Final expense should be deleted.");
             assertEquals(
-                    CsvExpenseCodec.HEADER + "\n",
+                    CsvExpenseCodec.V2_HEADER + "\n",
                     Files.readString(csvPath, StandardCharsets.UTF_8),
                     "Final delete should leave a header-only CSV.");
             assertTrue(repository.findAll().isEmpty(), "Header-only store should load as empty.");

@@ -19,11 +19,11 @@ import java.util.Set;
 
 public final class CsvCategoryRepository implements CategoryRepository {
 
-    public static final String HEADER = "id,name,status";
+    public static final String LEGACY_HEADER = "id,name,status";
+    public static final String HEADER = "id,name,parent,status";
     private static final String ACTIVE_STATUS = "ACTIVE";
     private static final String ARCHIVED_STATUS = "ARCHIVED";
     private static final char UTF_8_BOM = '\uFEFF';
-    private static final int COLUMN_COUNT = 3;
 
     private final Path csvPath;
     private final boolean attemptAtomicMove;
@@ -166,6 +166,8 @@ public final class CsvCategoryRepository implements CategoryRepository {
             csv.append(',');
             appendField(csv, requiredCategory.getDisplayName());
             csv.append(',');
+            appendField(csv, requiredCategory.getParentIdentifier().orElse(""));
+            csv.append(',');
             appendField(csv, requiredCategory.isArchived()
                     ? ARCHIVED_STATUS
                     : ACTIVE_STATUS);
@@ -190,10 +192,13 @@ public final class CsvCategoryRepository implements CategoryRepository {
         }
 
         List<List<String>> records = parseRecords(content);
-        if (records.isEmpty()
-                || !records.get(0).equals(List.of("id", "name", "status"))) {
+        boolean legacy = !records.isEmpty()
+                && records.get(0).equals(List.of("id", "name", "status"));
+        if (records.isEmpty() || (!legacy && !records.get(0).equals(
+                List.of("id", "name", "parent", "status")))) {
             throw new RepositoryException(
-                    "Category CSV header must be exactly: " + HEADER);
+                    "Category CSV header must be exactly: " + LEGACY_HEADER
+                    + " or " + HEADER);
         }
 
         List<Category> categories = new ArrayList<>();
@@ -202,11 +207,11 @@ public final class CsvCategoryRepository implements CategoryRepository {
         for (int index = 1; index < records.size(); index++) {
             int recordNumber = index + 1;
             List<String> fields = records.get(index);
-            if (fields.size() != COLUMN_COUNT) {
+            if (fields.size() != (legacy ? 3 : 4)) {
                 throw corrupt(
-                        recordNumber, "expected exactly three columns.");
+                        recordNumber, "has an unexpected column count.");
             }
-            boolean archived = switch (fields.get(2)) {
+            boolean archived = switch (fields.get(legacy ? 2 : 3)) {
                 case ACTIVE_STATUS -> false;
                 case ARCHIVED_STATUS -> true;
                 default -> throw corrupt(
@@ -215,8 +220,11 @@ public final class CsvCategoryRepository implements CategoryRepository {
 
             Category category;
             try {
-                category = Category.createCustom(
-                        fields.get(0), fields.get(1), archived);
+                category = !legacy && !fields.get(2).isEmpty()
+                        ? Category.createSubcategory(
+                                fields.get(0), fields.get(1), fields.get(2), archived)
+                        : Category.createCustom(
+                                fields.get(0), fields.get(1), archived);
             } catch (IllegalArgumentException exception) {
                 throw new RepositoryException(
                         "Category CSV record " + recordNumber

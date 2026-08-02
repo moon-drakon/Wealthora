@@ -5,6 +5,7 @@ import com.spendwise.model.Category;
 import com.spendwise.model.Expense;
 import com.spendwise.model.Income;
 import com.spendwise.model.Transfer;
+import com.spendwise.model.TransactionType;
 import com.spendwise.service.AccountService;
 import com.spendwise.service.CategoryService;
 import com.spendwise.service.ExpenseService;
@@ -69,8 +70,8 @@ public final class TransactionsPanel extends JPanel {
     private final JComboBox<Object> accountFilter = new JComboBox<>();
     private final JComboBox<Object> categoryFilter = new JComboBox<>();
     private final JComboBox<Object> typeFilter = new JComboBox<>(
-            new Object[] {ALL, TransactionRow.Type.INCOME,
-                TransactionRow.Type.EXPENSE, TransactionRow.Type.TRANSFER});
+            new Object[] {ALL, TransactionType.INCOME,
+                TransactionType.EXPENSE, TransactionType.TRANSFER});
     private final JTextField startDateField = new JTextField(10);
     private final JTextField endDateField = new JTextField(10);
     private final JComboBox<SortOrder> sortOrder =
@@ -127,7 +128,7 @@ public final class TransactionsPanel extends JPanel {
         commandArea.add(buildFilterRow(), BorderLayout.CENTER);
         add(commandArea, BorderLayout.NORTH);
 
-        table.setDefaultRenderer(TransactionRow.Type.class,
+        table.setDefaultRenderer(TransactionType.class,
                 new TypeRenderer());
         table.setDefaultRenderer(BigDecimal.class, new AmountRenderer());
         TableRowSorter<TransactionTableModel> rowSorter =
@@ -142,6 +143,8 @@ public final class TransactionsPanel extends JPanel {
         table.getColumnModel().getColumn(3).setPreferredWidth(120);
         table.getColumnModel().getColumn(4).setPreferredWidth(190);
         table.getColumnModel().getColumn(5).setPreferredWidth(105);
+        table.getColumnModel().getColumn(6).setPreferredWidth(125);
+        table.getColumnModel().getColumn(7).setPreferredWidth(130);
 
         JScrollPane scrollPane = new JScrollPane(table);
         scrollPane.setBorder(BorderFactory.createLineBorder(AppColors.border()));
@@ -266,8 +269,8 @@ public final class TransactionsPanel extends JPanel {
             Category category =
                     categoryFilter.getSelectedItem() instanceof Category item
                     ? item : null;
-            TransactionRow.Type type =
-                    typeFilter.getSelectedItem() instanceof TransactionRow.Type item
+            TransactionType type =
+                    typeFilter.getSelectedItem() instanceof TransactionType item
                     ? item : null;
 
             List<TransactionRow> rows = loadRows().stream()
@@ -309,6 +312,8 @@ public final class TransactionsPanel extends JPanel {
                 || contains(row.description(), search)
                 || contains(row.accountDisplay(), search)
                 || contains(row.categoryDisplay(), search)
+                || contains(row.paymentMethodDisplay(), search)
+                || contains(row.tagsDisplay(), search)
                 || contains(row.type().toString(), search)
                 || contains(row.identifier(), search);
     }
@@ -477,7 +482,7 @@ public final class TransactionsPanel extends JPanel {
             super.getTableCellRendererComponent(
                     table, value, selected, focused, row, column);
             setFont(getFont().deriveFont(Font.BOLD));
-            if (!selected && value instanceof TransactionRow.Type type) {
+            if (!selected && value instanceof TransactionType type) {
                 setForeground(colorFor(type));
             }
             return this;
@@ -508,7 +513,7 @@ public final class TransactionsPanel extends JPanel {
         }
     }
 
-    private static Color colorFor(TransactionRow.Type type) {
+    private static Color colorFor(TransactionType type) {
         return switch (type) {
             case INCOME -> AppColors.income();
             case EXPENSE -> AppColors.expense();

@@ -10,7 +10,7 @@ import javax.swing.table.AbstractTableModel;
 final class TransferTableModel extends AbstractTableModel {
 
     private static final String[] COLUMNS = {
-        "Date", "From", "To", "Amount", "Note"
+        "Date", "From", "To", "Amount", "Tags", "Note"
     };
     private List<Transfer> entries = List.of();
 
@@ -56,7 +56,8 @@ final class TransferTableModel extends AbstractTableModel {
             case 1 -> transfer.getSourceAccount().getDisplayName();
             case 2 -> transfer.getDestinationAccount().getDisplayName();
             case 3 -> transfer.getAmount();
-            case 4 -> transfer.getNote();
+            case 4 -> String.join(", ", transfer.getTags());
+            case 5 -> transfer.getNote();
             default -> throw new IndexOutOfBoundsException(
                     "Transfer column is out of range: " + column);
         };

@@ -4,6 +4,11 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.Objects;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 public final class FinanceValidator {
@@ -96,6 +101,29 @@ public final class FinanceValidator {
                     fieldName + " cannot be in the future.");
         }
         return requiredDate;
+    }
+
+    public static List<String> validateTags(List<String> tags) {
+        if (tags == null || tags.isEmpty()) {
+            return List.of();
+        }
+        if (tags.size() > 10) {
+            throw new ValidationException(
+                    "A transaction can have at most 10 tags.");
+        }
+        List<String> normalized = new ArrayList<>();
+        Set<String> unique = new HashSet<>();
+        for (String tag : tags) {
+            String value = validateRequiredText(tag, "Tag", 30);
+            if (value.indexOf('|') >= 0) {
+                throw new ValidationException("Tags cannot contain the | character.");
+            }
+            String key = value.toLowerCase(Locale.ROOT);
+            if (unique.add(key)) {
+                normalized.add(value);
+            }
+        }
+        return List.copyOf(normalized);
     }
 
     private static BigDecimal normalizeAmount(

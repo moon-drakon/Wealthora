@@ -102,8 +102,8 @@ public final class AdvancedAccountServiceTest {
     private static void metadataEdit() {
         Fixture fixture = populatedFixture();
         Account updated = fixture.accountService.updateAccountMetadata(
-                BANK.getIdentifier(), "Daily Card", AccountType.CARD);
-        assertEquals(AccountType.CARD, updated.getType());
+                BANK.getIdentifier(), "Daily Card", AccountType.DEBIT_CARD);
+        assertEquals(AccountType.DEBIT_CARD, updated.getType());
         assertMoney("100.00", updated.getOpeningBalance());
     }
 
@@ -220,7 +220,7 @@ public final class AdvancedAccountServiceTest {
     private static void balanceAfterLifecycle() {
         Fixture fixture = ledgerFixture();
         fixture.accountService.updateAccountMetadata(
-                BANK.getIdentifier(), "Reserve", AccountType.CARD);
+                BANK.getIdentifier(), "Reserve", AccountType.DEBIT_CARD);
         fixture.accountService.archiveAccount(BANK.getIdentifier());
         Account current = fixture.accountService.resolveAccount(
                 BANK.getIdentifier());
@@ -248,7 +248,7 @@ public final class AdvancedAccountServiceTest {
             Path settingsPath = directory.resolve("account-settings.csv");
             Files.writeString(
                     accountsPath,
-                    CsvAccountRepository.HEADER + "\n"
+                    CsvAccountRepository.LEGACY_HEADER + "\n"
                     + "ACCOUNT_LEGACY,Legacy,BANK,12.34,ACTIVE\n",
                     StandardCharsets.UTF_8);
             AccountService service = new AccountService(
