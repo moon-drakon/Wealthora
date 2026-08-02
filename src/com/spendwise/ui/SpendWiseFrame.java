@@ -16,6 +16,14 @@ import com.spendwise.service.RecurringService;
 import com.spendwise.service.TransferService;
 import com.spendwise.service.CurrencyService;
 import com.spendwise.service.PaymentCardService;
+import com.spendwise.service.AdvancedBudgetService;
+import com.spendwise.service.SavingsGoalService;
+import com.spendwise.service.DebtService;
+import com.spendwise.service.PortfolioAnalyticsService;
+import com.spendwise.service.FinanceNotificationService;
+import com.spendwise.service.JsonBackupService;
+import com.spendwise.service.CsvImportService;
+import com.spendwise.service.PdfReportService;
 import com.spendwise.ui.component.AppIcons;
 import com.spendwise.ui.shell.AppShellPanel;
 import com.spendwise.ui.theme.AppTheme;
@@ -126,6 +134,36 @@ public final class SpendWiseFrame extends JFrame {
             ExportService exportService,
             PaymentCardService paymentCardService,
             CurrencyService currencyService) {
+        this(expenseService, analyticsService, budgetService, categoryService,
+                accountService, incomeService, transferService, financeService,
+                recurringService, quickEntryService, backupService, exportService,
+                paymentCardService, currencyService, null, null, null, null,
+                null, null, null, null);
+    }
+
+    public SpendWiseFrame(
+            ExpenseService expenseService,
+            ExpenseAnalyticsService analyticsService,
+            BudgetService budgetService,
+            CategoryService categoryService,
+            AccountService accountService,
+            IncomeService incomeService,
+            TransferService transferService,
+            FinanceService financeService,
+            RecurringService recurringService,
+            QuickEntryService quickEntryService,
+            BackupService backupService,
+            ExportService exportService,
+            PaymentCardService paymentCardService,
+            CurrencyService currencyService,
+            AdvancedBudgetService advancedBudgetService,
+            SavingsGoalService savingsGoalService,
+            DebtService debtService,
+            PortfolioAnalyticsService portfolioAnalyticsService,
+            FinanceNotificationService notificationService,
+            JsonBackupService jsonBackupService,
+            CsvImportService csvImportService,
+            PdfReportService pdfReportService) {
         super("SpendWise Expense Tracker");
         requireEventDispatchThread();
         Objects.requireNonNull(expenseService, "Expense service is required.");
@@ -163,8 +201,11 @@ public final class SpendWiseFrame extends JFrame {
                 new BudgetPanel(
                         analyticsService, budgetService, categoryService);
         CalendarPanel calendarPanel = new CalendarPanel(reportingService);
-        AdvancedReportsPanel reportsPanel = new AdvancedReportsPanel(
-                reportingService, accountService, categoryService);
+        AdvancedReportsPanel reportsPanel = portfolioAnalyticsService == null
+                ? new AdvancedReportsPanel(
+                        reportingService, accountService, categoryService)
+                : new AdvancedReportsPanel(reportingService, accountService,
+                        categoryService, portfolioAnalyticsService);
         final ExpensePanel[] expenseReference = new ExpensePanel[1];
         final FinancePanel[] financeReference = new FinancePanel[1];
         final RecurringPanel[] recurringReference = new RecurringPanel[1];
@@ -299,6 +340,21 @@ public final class SpendWiseFrame extends JFrame {
                 reportsPanel, reportsPanel::refreshReports);
         shell.addPage("recurring", "Recurring", AppIcons.Type.RECURRING,
                 recurringPanel, recurringPanel::refreshRecurringEntries);
+        if (advancedBudgetService != null && savingsGoalService != null
+                && debtService != null) {
+            PlanningPanel planningPanel = new PlanningPanel(
+                    advancedBudgetService, savingsGoalService, debtService,
+                    accountService, categoryService);
+            shell.addPage("planning", "Planning", AppIcons.Type.PLANNING,
+                    planningPanel, planningPanel::refreshPlanning);
+        }
+        if (notificationService != null) {
+            NotificationCenterPanel notificationPanel =
+                    new NotificationCenterPanel(notificationService);
+            shell.addPage("notifications", "Notifications",
+                    AppIcons.Type.NOTIFICATIONS, notificationPanel,
+                    notificationPanel::refreshNotifications);
+        }
         shell.addPage("analytics", "Expense Analytics",
                 AppIcons.Type.ANALYTICS, analyticsPanel,
                 analyticsPanel::refreshDashboard);
@@ -320,12 +376,12 @@ public final class SpendWiseFrame extends JFrame {
         searchItem.addActionListener(event -> shell.focusGlobalSearch());
         entryMenu.add(searchItem);
         menuBar.add(entryMenu);
-        DataManagementActions dataActions = new DataManagementActions(
-                this,
-                backupService,
-                exportService,
-                reportsPanel::getLatestSnapshot,
-                refreshFinancialViews);
+        DataManagementActions dataActions = new DataManagementActions(this,
+                backupService, exportService, reportsPanel::getLatestSnapshot,
+                refreshFinancialViews, jsonBackupService, csvImportService,
+                pdfReportService, reportsPanel::getLatestPortfolioSnapshot,
+                () -> currencyService == null ? "BDT"
+                        : currencyService.getCurrency().getCurrencyCode());
         menuBar.add(dataActions.createMenu());
         setJMenuBar(menuBar);
         setContentPane(shell);

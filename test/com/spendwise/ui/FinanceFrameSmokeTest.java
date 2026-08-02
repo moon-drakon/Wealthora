@@ -10,6 +10,9 @@ import com.spendwise.repository.CsvRecurringEntryRepository;
 import com.spendwise.repository.CsvTransferRepository;
 import com.spendwise.repository.CsvPaymentCardRepository;
 import com.spendwise.repository.CsvCurrencyPreferenceRepository;
+import com.spendwise.repository.CsvBudgetPlanRepository;
+import com.spendwise.repository.CsvSavingsGoalRepository;
+import com.spendwise.repository.CsvDebtRepository;
 import com.spendwise.service.AccountService;
 import com.spendwise.service.BackupService;
 import com.spendwise.service.BudgetService;
@@ -24,6 +27,15 @@ import com.spendwise.service.RecurringService;
 import com.spendwise.service.TransferService;
 import com.spendwise.service.PaymentCardService;
 import com.spendwise.service.CurrencyService;
+import com.spendwise.service.AdvancedBudgetService;
+import com.spendwise.service.SavingsGoalService;
+import com.spendwise.service.DebtService;
+import com.spendwise.service.FinancialReportingService;
+import com.spendwise.service.PortfolioAnalyticsService;
+import com.spendwise.service.FinanceNotificationService;
+import com.spendwise.service.JsonBackupService;
+import com.spendwise.service.CsvImportService;
+import com.spendwise.service.PdfReportService;
 import com.spendwise.ui.shell.AppShellPanel;
 import com.spendwise.ui.theme.AppTheme;
 import java.awt.GraphicsEnvironment;
@@ -102,6 +114,33 @@ public final class FinanceFrameSmokeTest {
                         transfers,
                         accounts,
                         categories);
+                FinanceService finance = new FinanceService(
+                        accounts, expenses, income, transfers);
+                PaymentCardService cards = new PaymentCardService(
+                        new CsvPaymentCardRepository(
+                                directory.resolve("cards.csv"),
+                                accounts::resolveAccount), accounts);
+                CurrencyService currency = new CurrencyService(
+                        new CsvCurrencyPreferenceRepository(
+                                directory.resolve("currency-settings.csv")));
+                AdvancedBudgetService advancedBudgets =
+                        new AdvancedBudgetService(
+                                new CsvBudgetPlanRepository(
+                                    directory.resolve("budget-plans.csv"),
+                                    categories::resolveCategory), expenses);
+                SavingsGoalService goals = new SavingsGoalService(
+                        new CsvSavingsGoalRepository(
+                                directory.resolve("savings-goals.csv"),
+                                accounts::resolveAccount), accounts);
+                DebtService debts = new DebtService(new CsvDebtRepository(
+                        directory.resolve("debts.csv")));
+                FinancialReportingService reporting =
+                        new FinancialReportingService(expenses, income,
+                                transfers, accounts, budgets);
+                PortfolioAnalyticsService portfolio =
+                        new PortfolioAnalyticsService(reporting, finance,
+                                recurring, advancedBudgets, debts);
+                BackupService backups = new BackupService(directory);
                 frame = new SpendWiseFrame(
                         expenses,
                         analytics,
@@ -110,26 +149,28 @@ public final class FinanceFrameSmokeTest {
                         accounts,
                         income,
                         transfers,
-                        new FinanceService(
-                                accounts, expenses, income, transfers),
+                        finance,
                         recurring,
                         new QuickEntryService(expenses, income, transfers),
-                        new BackupService(directory),
+                        backups,
                         new ExportService(
                                 expenses,
                                 income,
                                 transfers,
                                 accounts,
-                                new FinanceService(
-                                    accounts, expenses, income, transfers)),
-                        new PaymentCardService(
-                                new CsvPaymentCardRepository(
-                                        directory.resolve("cards.csv"),
-                                        accounts::resolveAccount),
-                                accounts),
-                        new CurrencyService(
-                                new CsvCurrencyPreferenceRepository(
-                                        directory.resolve("currency-settings.csv"))));
+                                finance),
+                        cards,
+                        currency,
+                        advancedBudgets,
+                        goals,
+                        debts,
+                        portfolio,
+                        new FinanceNotificationService(recurring, cards,
+                                analytics, budgets, advancedBudgets, debts),
+                        new JsonBackupService(directory),
+                        new CsvImportService(directory, backups, expenses,
+                                income, transfers, accounts, categories),
+                        new PdfReportService());
                 frame.setLocation(-10000, -10000);
                 frame.setSize(1000, 650);
                 frame.setVisible(true);
@@ -137,11 +178,12 @@ public final class FinanceFrameSmokeTest {
                     throw new AssertionError(
                             "Main content must use the professional app shell.");
                 }
-                assertEquals(10, shell.getPageCount());
+                assertEquals(12, shell.getPageCount());
                 assertEquals("overview", shell.getCurrentPage());
                 for (String page : new String[] {
                     "transactions", "expenses", "finance", "cards", "budgets",
-                    "calendar", "reports", "recurring", "analytics",
+                    "calendar", "reports", "recurring", "planning",
+                    "notifications", "analytics",
                     "overview"
                 }) {
                     shell.showPage(page);

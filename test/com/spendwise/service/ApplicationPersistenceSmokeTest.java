@@ -8,6 +8,8 @@ import com.spendwise.model.Category;
 import com.spendwise.model.MonthlyBudget;
 import com.spendwise.model.RecurrenceFrequency;
 import com.spendwise.model.RecurringEntryType;
+import com.spendwise.model.BudgetRolloverMode;
+import com.spendwise.model.DebtDirection;
 import com.spendwise.repository.CsvAccountPreferenceRepository;
 import com.spendwise.repository.CsvAccountRepository;
 import com.spendwise.repository.CsvBudgetRepository;
@@ -18,6 +20,9 @@ import com.spendwise.repository.CsvIncomeRepository;
 import com.spendwise.repository.CsvPaymentCardRepository;
 import com.spendwise.repository.CsvRecurringEntryRepository;
 import com.spendwise.repository.CsvTransferRepository;
+import com.spendwise.repository.CsvBudgetPlanRepository;
+import com.spendwise.repository.CsvSavingsGoalRepository;
+import com.spendwise.repository.CsvDebtRepository;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
@@ -118,6 +123,18 @@ public final class ApplicationPersistenceSmokeTest {
                 creditCard,
                 bank);
         first.currency.setCurrency("USD");
+        var plan = first.advancedBudgets.addPlan("Semester budget", DATE,
+                DATE.plusMonths(3), new BigDecimal("600.00"),
+                Map.of(travel, new BigDecimal("150.00")),
+                BudgetRolloverMode.NONE);
+        var goal = first.goals.addGoal("Laptop", new BigDecimal("1000.00"),
+                DATE.plusYears(1), bank);
+        first.goals.addContribution(goal.getIdentifier(), DATE,
+                new BigDecimal("100.00"), "Saved");
+        var debt = first.debts.addDebt(DebtDirection.BORROWED, "Family",
+                new BigDecimal("200.00"), DATE.plusMonths(2), "Tuition");
+        first.debts.addRepayment(debt.getIdentifier(), DATE,
+                new BigDecimal("20.00"), "First payment");
 
         Services restarted = wire(directory);
         Category loadedTravel = restarted.categories.resolveCategory(
@@ -148,6 +165,13 @@ public final class ApplicationPersistenceSmokeTest {
                 .calculateBalances().getBalance(loadedBank));
         assertMoney("137.66", restarted.finance
                 .calculateBalances().getTotalBalance());
+        assertEquals(1, restarted.advancedBudgets.listHistory().size());
+        assertMoney("12.34", restarted.advancedBudgets.evaluate(
+                plan.getIdentifier()).getOverallUsage().getSpent());
+        assertMoney("100.00", restarted.goals.getProgress(
+                goal.getIdentifier()).contributedAmount());
+        assertMoney("180.00", restarted.debts.getProgress(
+                debt.getIdentifier(), DATE).remainingAmount());
 
         Set<String> storedNames;
         try (var files = Files.list(directory)) {
@@ -175,6 +199,9 @@ public final class ApplicationPersistenceSmokeTest {
         restarted.cards.listAll();
         restarted.currency.getCurrency();
         restarted.finance.calculateBalances();
+        restarted.advancedBudgets.listHistory();
+        restarted.goals.listGoals();
+        restarted.debts.listProgress(DATE);
         assertEquals(before, fingerprint(directory));
     }
 
@@ -225,6 +252,16 @@ public final class ApplicationPersistenceSmokeTest {
         CurrencyService currency = new CurrencyService(
                 new CsvCurrencyPreferenceRepository(
                         directory.resolve("currency-settings.csv")));
+        AdvancedBudgetService advancedBudgets = new AdvancedBudgetService(
+                new CsvBudgetPlanRepository(
+                        directory.resolve("budget-plans.csv"),
+                        categories::resolveCategory), expenses);
+        SavingsGoalService goals = new SavingsGoalService(
+                new CsvSavingsGoalRepository(
+                        directory.resolve("savings-goals.csv"),
+                        accounts::resolveAccount), accounts);
+        DebtService debts = new DebtService(new CsvDebtRepository(
+                directory.resolve("debts.csv")));
         return new Services(
                 categories,
                 accounts,
@@ -235,6 +272,9 @@ public final class ApplicationPersistenceSmokeTest {
                 recurring,
                 cards,
                 currency,
+                advancedBudgets,
+                goals,
+                debts,
                 new FinanceService(
                         accounts, expenses, income, transfers));
     }
@@ -298,6 +338,9 @@ public final class ApplicationPersistenceSmokeTest {
             RecurringService recurring,
             PaymentCardService cards,
             CurrencyService currency,
+            AdvancedBudgetService advancedBudgets,
+            SavingsGoalService goals,
+            DebtService debts,
             FinanceService finance) {
     }
 }

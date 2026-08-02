@@ -11,6 +11,9 @@ import com.spendwise.repository.CsvRecurringEntryRepository;
 import com.spendwise.repository.CsvTransferRepository;
 import com.spendwise.repository.CsvPaymentCardRepository;
 import com.spendwise.repository.CsvCurrencyPreferenceRepository;
+import com.spendwise.repository.CsvBudgetPlanRepository;
+import com.spendwise.repository.CsvSavingsGoalRepository;
+import com.spendwise.repository.CsvDebtRepository;
 import com.spendwise.service.AccountService;
 import com.spendwise.service.BackupService;
 import com.spendwise.service.BudgetService;
@@ -25,6 +28,15 @@ import com.spendwise.service.RecurringService;
 import com.spendwise.service.TransferService;
 import com.spendwise.service.PaymentCardService;
 import com.spendwise.service.CurrencyService;
+import com.spendwise.service.AdvancedBudgetService;
+import com.spendwise.service.SavingsGoalService;
+import com.spendwise.service.DebtService;
+import com.spendwise.service.FinancialReportingService;
+import com.spendwise.service.PortfolioAnalyticsService;
+import com.spendwise.service.FinanceNotificationService;
+import com.spendwise.service.JsonBackupService;
+import com.spendwise.service.CsvImportService;
+import com.spendwise.service.PdfReportService;
 import com.spendwise.ui.SpendWiseFrame;
 import com.spendwise.ui.theme.AppTheme;
 import java.nio.file.Path;
@@ -97,6 +109,10 @@ public final class SpendWiseApplication {
                     new CsvBudgetRepository(
                             budgetCsvPath, categoryService::resolveCategory);
             BudgetService budgetService = new BudgetService(budgetRepository);
+            AdvancedBudgetService advancedBudgetService =
+                    new AdvancedBudgetService(new CsvBudgetPlanRepository(
+                            AppPaths.getBudgetPlanCsvPath(),
+                            categoryService::resolveCategory), expenseService);
             CsvRecurringEntryRepository recurringRepository =
                     new CsvRecurringEntryRepository(
                             AppPaths.getRecurringCsvPath(),
@@ -119,6 +135,29 @@ public final class SpendWiseApplication {
                     transferService,
                     accountService,
                     financeService);
+            SavingsGoalService savingsGoalService = new SavingsGoalService(
+                    new CsvSavingsGoalRepository(
+                            AppPaths.getSavingsGoalCsvPath(),
+                            accountService::resolveAccount), accountService);
+            DebtService debtService = new DebtService(new CsvDebtRepository(
+                    AppPaths.getDebtCsvPath()));
+            FinancialReportingService reportingService =
+                    new FinancialReportingService(expenseService, incomeService,
+                            transferService, accountService, budgetService);
+            PortfolioAnalyticsService portfolioService =
+                    new PortfolioAnalyticsService(reportingService,
+                            financeService, recurringService,
+                            advancedBudgetService, debtService);
+            FinanceNotificationService notificationService =
+                    new FinanceNotificationService(recurringService,
+                            paymentCardService, analyticsService, budgetService,
+                            advancedBudgetService, debtService);
+            Path dataDirectory = expenseCsvPath.getParent();
+            JsonBackupService jsonBackupService =
+                    new JsonBackupService(dataDirectory);
+            CsvImportService csvImportService = new CsvImportService(
+                    dataDirectory, backupService, expenseService, incomeService,
+                    transferService, accountService, categoryService);
             SpendWiseFrame frame =
                     new SpendWiseFrame(
                             expenseService,
@@ -134,7 +173,15 @@ public final class SpendWiseApplication {
                             backupService,
                             exportService,
                             paymentCardService,
-                            currencyService);
+                            currencyService,
+                            advancedBudgetService,
+                            savingsGoalService,
+                            debtService,
+                            portfolioService,
+                            notificationService,
+                            jsonBackupService,
+                            csvImportService,
+                            new PdfReportService());
             frame.setVisible(true);
         } catch (RuntimeException exception) {
             JOptionPane.showMessageDialog(

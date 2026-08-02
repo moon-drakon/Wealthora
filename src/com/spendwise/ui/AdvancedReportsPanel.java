@@ -10,6 +10,8 @@ import com.spendwise.service.BudgetActualSummary;
 import com.spendwise.service.CategoryService;
 import com.spendwise.service.FinancialReportingService;
 import com.spendwise.service.MonthlyCashFlowSummary;
+import com.spendwise.service.PortfolioAnalyticsService;
+import com.spendwise.service.PortfolioAnalyticsSnapshot;
 import com.spendwise.validation.ValidationException;
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -42,6 +44,7 @@ public final class AdvancedReportsPanel extends JPanel {
     private final FinancialReportingService reportingService;
     private final AccountService accountService;
     private final CategoryService categoryService;
+    private final PortfolioAnalyticsService portfolioService;
     private final JTextField startDateField = new JTextField(10);
     private final JTextField endDateField = new JTextField(10);
     private final JComboBox<FilterChoice<Account>> accountFilter =
@@ -51,6 +54,9 @@ public final class AdvancedReportsPanel extends JPanel {
     private final JLabel incomeValue = metricValue();
     private final JLabel expenseValue = metricValue();
     private final JLabel netValue = metricValue();
+    private final JLabel netWorthValue = metricValue();
+    private final JLabel borrowedValue = metricValue();
+    private final JLabel recurringValue = metricValue();
     private final JLabel statusLabel = new JLabel("Loading advanced report...");
     private final ReportTableModel categoryModel = new ReportTableModel(
             new String[]{"Rank", "Category", "Expenses"},
@@ -72,11 +78,20 @@ public final class AdvancedReportsPanel extends JPanel {
                 BigDecimal.class, Object.class});
 
     private AdvancedReportSnapshot latestSnapshot;
+    private PortfolioAnalyticsSnapshot latestPortfolioSnapshot;
 
     public AdvancedReportsPanel(
             FinancialReportingService reportingService,
             AccountService accountService,
             CategoryService categoryService) {
+        this(reportingService, accountService, categoryService, null);
+    }
+
+    public AdvancedReportsPanel(
+            FinancialReportingService reportingService,
+            AccountService accountService,
+            CategoryService categoryService,
+            PortfolioAnalyticsService portfolioService) {
         requireEventDispatchThread();
         this.reportingService = Objects.requireNonNull(
                 reportingService, "Financial reporting service is required.");
@@ -84,6 +99,7 @@ public final class AdvancedReportsPanel extends JPanel {
                 accountService, "Account service is required.");
         this.categoryService = Objects.requireNonNull(
                 categoryService, "Category service is required.");
+        this.portfolioService = portfolioService;
         LocalDate today = LocalDate.now();
         startDateField.setText(today.withDayOfMonth(1).toString());
         endDateField.setText(today.toString());
@@ -98,13 +114,15 @@ public final class AdvancedReportsPanel extends JPanel {
             refreshFilterChoices();
             LocalDate startDate = LocalDate.parse(startDateField.getText().strip());
             LocalDate endDate = LocalDate.parse(endDateField.getText().strip());
-            AdvancedReportSnapshot snapshot =
-                    reportingService.buildAdvancedReport(
-                            startDate,
-                            endDate,
-                            selectedValue(accountFilter),
-                            selectedValue(categoryFilter));
+            Account selectedAccount = selectedValue(accountFilter);
+            Category selectedCategory = selectedValue(categoryFilter);
+            AdvancedReportSnapshot snapshot = reportingService.buildAdvancedReport(
+                    startDate, endDate, selectedAccount, selectedCategory);
             applySnapshot(snapshot);
+            if (portfolioService != null) {
+                applyPortfolio(portfolioService.build(startDate, endDate,
+                        selectedAccount, selectedCategory, LocalDate.now()));
+            }
         } catch (DateTimeParseException exception) {
             statusLabel.setText(
                     "Report dates must use yyyy-MM-dd.");
@@ -116,6 +134,10 @@ public final class AdvancedReportsPanel extends JPanel {
 
     AdvancedReportSnapshot getLatestSnapshot() {
         return latestSnapshot;
+    }
+
+    PortfolioAnalyticsSnapshot getLatestPortfolioSnapshot() {
+        return latestPortfolioSnapshot;
     }
 
     String getStatusText() {
@@ -180,11 +202,17 @@ public final class AdvancedReportsPanel extends JPanel {
         filters.add(runButton);
         header.add(filters, BorderLayout.EAST);
 
-        JPanel summary = new JPanel(new GridLayout(1, 3, 10, 0));
+        JPanel summary = new JPanel(new GridLayout(
+                portfolioService == null ? 1 : 2, 3, 10, 10));
         summary.setOpaque(false);
         summary.add(metricCard("Income", incomeValue));
         summary.add(metricCard("Expenses", expenseValue));
         summary.add(metricCard("Net Cash Flow", netValue));
+        if (portfolioService != null) {
+            summary.add(metricCard("Net Worth", netWorthValue));
+            summary.add(metricCard("Outstanding Borrowed", borrowedValue));
+            summary.add(metricCard("Recurring Expenses", recurringValue));
+        }
 
         JTabbedPane detailTabs = new JTabbedPane();
         detailTabs.addTab("Expense Categories", table(categoryModel));
@@ -287,6 +315,14 @@ public final class AdvancedReportsPanel extends JPanel {
                 snapshot.getStartDate() + " through " + snapshot.getEndDate()
                 + " · " + categoryRows.size() + " expense categories · "
                 + "Transfers excluded from income and expense totals.");
+    }
+
+    private void applyPortfolio(PortfolioAnalyticsSnapshot snapshot) {
+        latestPortfolioSnapshot = snapshot;
+        netWorthValue.setText(snapshot.netWorth().toPlainString());
+        borrowedValue.setText(snapshot.outstandingBorrowed().toPlainString());
+        recurringValue.setText(snapshot.recurringCommitments()
+                .scheduledExpenses().toPlainString());
     }
 
     private static JScrollPane table(ReportTableModel model) {

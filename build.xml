@@ -471,7 +471,7 @@
             </classpath>
         </java>
     </target>
-    <target name="test-quality" depends="test-phase2"
+    <target name="test-quality" depends="test-phase3-data"
             description="Runs the final chained suite including isolated restart and persistence checks.">
         <java classname="com.spendwise.service.ApplicationPersistenceSmokeTest"
               fork="true"

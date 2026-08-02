@@ -102,7 +102,8 @@ public final class Phase3DataPortabilityTest {
                     + "accountId,accountName,notes\n"
                     + "BROKEN,2025-02-01,Lunch,-2.00,FOOD,Food,"
                     + "ACCOUNT_DEFAULT_CASH,Cash,\n");
-            expect(RuntimeException.class, () -> fixture.csv.importFile(source));
+            expect(ValidationException.class,
+                    () -> fixture.csv.importFile(source));
             assertTrue(fixture.expenses.getAllExpenses().isEmpty());
             try (var paths = Files.list(fixture.root)) {
                 assertTrue(paths.noneMatch(path -> path.getFileName().toString()

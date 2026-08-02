@@ -99,8 +99,8 @@ public final class CsvImportService {
             }
             Category category = categoryService.resolveCategory(row.get(4));
             Account account = accountService.resolveAccount(row.get(6));
-            items.add(new Expense(id, row.get(2), new BigDecimal(row.get(3)),
-                    LocalDate.parse(row.get(1)), category, account, row.get(8)));
+            items.add(new Expense(id, row.get(2), amount(row.get(3), index + 1),
+                    date(row.get(1), index + 1), category, account, row.get(8)));
         }
         return new ImportBatch("expenses", items.size(), () -> items.forEach(item ->
                 expenseService.createExpenseWithId(item.getId(),
@@ -115,8 +115,8 @@ public final class CsvImportService {
             String id = uniqueId(row.get(0), ids, index + 1);
             if (incomeService.findById(id).isPresent()) throw duplicate(id);
             Account account = accountService.resolveAccount(row.get(4));
-            items.add(new Income(id, LocalDate.parse(row.get(1)),
-                    new BigDecimal(row.get(2)), row.get(3), account, row.get(6)));
+            items.add(new Income(id, date(row.get(1), index + 1),
+                    amount(row.get(2), index + 1), row.get(3), account, row.get(6)));
         }
         return new ImportBatch("income", items.size(), () -> items.forEach(item ->
                 incomeService.createIncomeWithId(item.getId(), item.getDate(),
@@ -132,8 +132,8 @@ public final class CsvImportService {
             if (transferService.findById(id).isPresent()) throw duplicate(id);
             Account source = accountService.resolveAccount(row.get(3));
             Account destination = accountService.resolveAccount(row.get(5));
-            items.add(new Transfer(id, LocalDate.parse(row.get(1)),
-                    new BigDecimal(row.get(2)), source, destination, row.get(7)));
+            items.add(new Transfer(id, date(row.get(1), index + 1),
+                    amount(row.get(2), index + 1), source, destination, row.get(7)));
         }
         return new ImportBatch("transfers", items.size(), () ->
                 items.forEach(item -> transferService.createTransferWithId(
@@ -210,6 +210,24 @@ public final class CsvImportService {
     private static ValidationException duplicate(String id) {
         return new ValidationException(
                 "A record with ID " + id + " already exists.");
+    }
+
+    private static LocalDate date(String value, int record) {
+        try {
+            return LocalDate.parse(value);
+        } catch (java.time.format.DateTimeParseException exception) {
+            throw new ValidationException(
+                    "CSV record " + record + " has an invalid date.");
+        }
+    }
+
+    private static BigDecimal amount(String value, int record) {
+        try {
+            return new BigDecimal(value);
+        } catch (NumberFormatException exception) {
+            throw new ValidationException(
+                    "CSV record " + record + " has an invalid amount.");
+        }
     }
 
     private record ImportBatch(String type, int size, Runnable action) {
