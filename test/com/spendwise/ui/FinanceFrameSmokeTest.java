@@ -201,6 +201,10 @@ public final class FinanceFrameSmokeTest {
                     throw new AssertionError(
                             "Quick Entry and Data menus must be available.");
                 }
+                assertEquals("Entry",
+                        frame.getJMenuBar().getMenu(0).getText());
+                assertEquals("Voice Quick Entry",
+                        frame.getJMenuBar().getMenu(0).getItem(1).getText());
                 assertEquals("Data", frame.getJMenuBar().getMenu(1).getText());
             } catch (Throwable exception) {
                 failure.set(exception);

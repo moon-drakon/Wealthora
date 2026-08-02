@@ -65,6 +65,7 @@ public final class TransactionsPanel extends JPanel {
     private final AccountService accountService;
     private final CategoryService categoryService;
     private final Runnable dataChangedListener;
+    private final Runnable voiceEntryAction;
     private final TransactionTableModel tableModel = new TransactionTableModel();
     private final StyledTable table = new StyledTable(tableModel);
     private final SearchField searchField =
@@ -93,6 +94,18 @@ public final class TransactionsPanel extends JPanel {
             AccountService accountService,
             CategoryService categoryService,
             Runnable dataChangedListener) {
+        this(expenseService, incomeService, transferService, accountService,
+                categoryService, dataChangedListener, null);
+    }
+
+    public TransactionsPanel(
+            ExpenseService expenseService,
+            IncomeService incomeService,
+            TransferService transferService,
+            AccountService accountService,
+            CategoryService categoryService,
+            Runnable dataChangedListener,
+            Runnable voiceEntryAction) {
         super(new BorderLayout(0, 14));
         this.expenseService = Objects.requireNonNull(expenseService);
         this.incomeService = Objects.requireNonNull(incomeService);
@@ -101,6 +114,7 @@ public final class TransactionsPanel extends JPanel {
         this.categoryService = Objects.requireNonNull(categoryService);
         this.dataChangedListener = dataChangedListener == null
                 ? () -> { } : dataChangedListener;
+        this.voiceEntryAction = voiceEntryAction;
         AppTheme.mark(this, AppTheme.PAGE_ROLE);
         setBorder(BorderFactory.createEmptyBorder(18, 20, 20, 20));
         buildInterface();
@@ -182,6 +196,11 @@ public final class TransactionsPanel extends JPanel {
         addActions.add(addExpense);
         addActions.add(addIncome);
         addActions.add(addTransfer);
+        if (voiceEntryAction != null) {
+            SecondaryButton voice = new SecondaryButton("Voice Quick Entry");
+            voice.addActionListener(event -> voiceEntryAction.run());
+            addActions.add(voice);
+        }
 
         JPanel selectedActions = new JPanel(
                 new FlowLayout(FlowLayout.RIGHT, 8, 0));

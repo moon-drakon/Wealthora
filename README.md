@@ -315,6 +315,10 @@ Each occurrence has a deterministic ID derived from its definition and due date.
 
 Quick Entry is available from **Entry > Quick Entry**, the Recurring tab, or `Ctrl+Q`. It delegates expense, income, and transfer creation to the existing services, keeps safe account/category choices for the current session, preserves failed input, and disables repeat submission while saving.
 
+Voice Quick Entry is available on the Dashboard, Transactions screen, Quick Entry dialog, **Entry > Voice Quick Entry**, and `Ctrl+Shift+V`. English and common Banglish commands are normalized into an editable draft containing type, exact `BigDecimal` amount, currency, accounts, category, date/time, payment method, notes, tags, and recurrence. Missing or ambiguous repository references are highlighted and never invented. A transaction is written through the existing services only after **Confirm and Add**.
+
+No speech provider or credential is bundled. The application therefore reports the provider as unconfigured and offers **Type or paste a transaction command** as a fully working fallback. Speech and manual input share the same parser. Microphone audio is never stored, and cancelling a draft has no financial effect. Provider, microphone, language, privacy, and manual-parser controls are shown under **Settings > Voice Entry**.
+
 ## Backup, restore, and export
 
 Use **Data > Create Backup** to choose a ZIP destination outside the application data directory. A backup contains a versioned manifest and every managed CSV file that currently exists; source, Git, build, credential, and unrelated files are never included. Existing destinations require explicit replacement confirmation.

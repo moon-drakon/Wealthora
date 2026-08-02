@@ -12,6 +12,10 @@ import com.spendwise.ui.component.StyledTextField;
 import com.spendwise.ui.theme.AppColors;
 import com.spendwise.ui.theme.AppFonts;
 import com.spendwise.ui.theme.AppTheme;
+import com.spendwise.voice.SpeechRecognitionProvider;
+import com.spendwise.voice.UnconfiguredSpeechRecognitionProvider;
+import com.spendwise.voice.VoiceEntrySettings;
+import com.spendwise.voice.VoiceInputLanguage;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
@@ -20,6 +24,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import javax.swing.BorderFactory;
+import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -32,11 +37,20 @@ public final class SettingsPanel extends JPanel {
     private final CurrencyService currencyService;
     private final Consumer<Boolean> themeChangeListener;
     private final Runnable settingsChangeListener;
+    private final VoiceEntrySettings voiceSettings;
+    private final SpeechRecognitionProvider speechProvider;
+    private final Runnable voiceEntryAction;
     private final StyledComboBox<String> themeBox =
             new StyledComboBox<>(new String[] {"Light", "Dark"});
     private final StyledTextField currencyField =
             new StyledTextField("ISO currency code", 8);
     private final JLabel statusLabel = new JLabel(" ");
+    private final JCheckBox voiceEnabled = new JCheckBox(
+            "Enable Voice Quick Entry");
+    private final StyledComboBox<VoiceInputLanguage> voiceLanguage =
+            new StyledComboBox<>(VoiceInputLanguage.values());
+    private final JCheckBox doNotStoreAudio = new JCheckBox(
+            "Do not store audio");
 
     public SettingsPanel(
             CategoryService categoryService,
@@ -44,6 +58,21 @@ public final class SettingsPanel extends JPanel {
             CurrencyService currencyService,
             Consumer<Boolean> themeChangeListener,
             Runnable settingsChangeListener) {
+        this(categoryService, categoryReferenceChecker, currencyService,
+                themeChangeListener, settingsChangeListener,
+                new VoiceEntrySettings(),
+                new UnconfiguredSpeechRecognitionProvider(), () -> { });
+    }
+
+    public SettingsPanel(
+            CategoryService categoryService,
+            Predicate<Category> categoryReferenceChecker,
+            CurrencyService currencyService,
+            Consumer<Boolean> themeChangeListener,
+            Runnable settingsChangeListener,
+            VoiceEntrySettings voiceSettings,
+            SpeechRecognitionProvider speechProvider,
+            Runnable voiceEntryAction) {
         super(new BorderLayout());
         this.categoryService = Objects.requireNonNull(categoryService);
         this.categoryReferenceChecker = Objects.requireNonNull(
@@ -52,6 +81,9 @@ public final class SettingsPanel extends JPanel {
         this.themeChangeListener = Objects.requireNonNull(themeChangeListener);
         this.settingsChangeListener = Objects.requireNonNull(
                 settingsChangeListener);
+        this.voiceSettings = Objects.requireNonNull(voiceSettings);
+        this.speechProvider = Objects.requireNonNull(speechProvider);
+        this.voiceEntryAction = Objects.requireNonNull(voiceEntryAction);
         AppTheme.mark(this, AppTheme.PAGE_ROLE);
         buildInterface();
         refreshSettings();
@@ -63,6 +95,9 @@ public final class SettingsPanel extends JPanel {
                 ? CurrencyService.DEFAULT_CURRENCY_CODE
                 : currencyService.getCurrency().getCurrencyCode());
         currencyField.setEnabled(currencyService != null);
+        voiceEnabled.setSelected(voiceSettings.isEnabled());
+        voiceLanguage.setSelectedItem(voiceSettings.getPreferredLanguage());
+        doNotStoreAudio.setSelected(voiceSettings.isDoNotStoreAudio());
     }
 
     private void buildInterface() {
@@ -89,6 +124,7 @@ public final class SettingsPanel extends JPanel {
         cards.add(currencyCard());
         cards.add(categoriesCard());
         cards.add(dataCard());
+        cards.add(voiceEntryCard());
         cards.add(profileCard());
         cards.add(privacyCard());
         cards.add(aboutCard());
@@ -150,6 +186,53 @@ public final class SettingsPanel extends JPanel {
         actions.add(hint);
         return card("Backup and exports",
                 "Create safe backups, restore validated data, import CSV, or export reports.",
+                actions);
+    }
+
+    private JPanel voiceEntryCard() {
+        JPanel actions = new JPanel(new GridLayout(0, 1, 0, 6));
+        actions.setOpaque(false);
+        voiceEnabled.setOpaque(false);
+        doNotStoreAudio.setOpaque(false);
+        actions.add(voiceEnabled);
+        JPanel languageRow = actions();
+        languageRow.add(new JLabel("Preferred input language"));
+        languageRow.add(voiceLanguage);
+        actions.add(languageRow);
+        JLabel provider = new JLabel(
+                "Provider: " + speechProvider.getStatus());
+        provider.setFont(AppFonts.caption());
+        AppTheme.mark(provider, AppTheme.SECONDARY_TEXT_ROLE);
+        actions.add(provider);
+        JLabel microphone = new JLabel(
+                "Microphone: " + speechProvider.getMicrophoneStatus());
+        microphone.setFont(AppFonts.caption());
+        AppTheme.mark(microphone, AppTheme.SECONDARY_TEXT_ROLE);
+        actions.add(microphone);
+        doNotStoreAudio.setSelected(true);
+        doNotStoreAudio.setEnabled(false);
+        doNotStoreAudio.setToolTipText(
+                "Required privacy safeguard: microphone audio is never stored.");
+        actions.add(doNotStoreAudio);
+        JPanel buttons = actions();
+        SecondaryButton test = new SecondaryButton("Test microphone");
+        test.addActionListener(event -> {
+            boolean available = speechProvider.testMicrophone();
+            microphone.setText("Microphone: "
+                    + speechProvider.getMicrophoneStatus());
+            status(available ? "Microphone test completed."
+                    : speechProvider.getMicrophoneStatus(), !available);
+        });
+        SecondaryButton manual = new SecondaryButton("Manual parser test");
+        manual.addActionListener(event -> voiceEntryAction.run());
+        PrimaryButton save = new PrimaryButton("Save voice settings");
+        save.addActionListener(event -> saveVoiceSettings());
+        buttons.add(test);
+        buttons.add(manual);
+        buttons.add(save);
+        actions.add(buttons);
+        return card("Voice Entry",
+                "Audio is not retained, and every parsed draft requires explicit review and confirmation.",
                 actions);
     }
 
@@ -239,6 +322,14 @@ public final class SettingsPanel extends JPanel {
                     status("Categories updated.", false);
                 });
         dialog.showDialog();
+    }
+
+    private void saveVoiceSettings() {
+        voiceSettings.setEnabled(voiceEnabled.isSelected());
+        voiceSettings.setPreferredLanguage(
+                (VoiceInputLanguage) voiceLanguage.getSelectedItem());
+        voiceSettings.setDoNotStoreAudio(true);
+        status("Voice Entry settings updated.", false);
     }
 
     private void status(String message, boolean error) {

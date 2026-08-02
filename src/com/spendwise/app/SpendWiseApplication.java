@@ -127,7 +127,8 @@ public final class SpendWiseApplication {
                     accountService,
                     categoryService);
             QuickEntryService quickEntryService = new QuickEntryService(
-                    expenseService, incomeService, transferService);
+                    expenseService, incomeService, transferService,
+                    recurringService);
             BackupService backupService = new BackupService(
                     expenseCsvPath.getParent());
             ExportService exportService = new ExportService(

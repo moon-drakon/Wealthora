@@ -15,6 +15,7 @@ import com.spendwise.service.ExpenseService;
 import com.spendwise.ui.component.EmptyStatePanel;
 import com.spendwise.ui.component.StyledTable;
 import com.spendwise.ui.component.SummaryCard;
+import com.spendwise.ui.component.SecondaryButton;
 import com.spendwise.ui.theme.AppColors;
 import com.spendwise.ui.theme.AppFonts;
 import com.spendwise.ui.theme.AppTheme;
@@ -60,6 +61,7 @@ public final class OverviewPanel extends JPanel {
     private final BudgetService budgetService;
     private final RecurringService recurringService;
     private final CurrencyService currencyService;
+    private final Runnable voiceEntryAction;
     private final SummaryCard balanceCard = new SummaryCard(
             "Total balance", AppColors.transfer());
     private final SummaryCard incomeCard = new SummaryCard(
@@ -93,7 +95,7 @@ public final class OverviewPanel extends JPanel {
             BudgetService budgetService,
             RecurringService recurringService) {
         this(financeService, expenseService, incomeService, transferService,
-                analyticsService, budgetService, recurringService, null);
+                analyticsService, budgetService, recurringService, null, null);
     }
 
     public OverviewPanel(
@@ -105,6 +107,21 @@ public final class OverviewPanel extends JPanel {
             BudgetService budgetService,
             RecurringService recurringService,
             CurrencyService currencyService) {
+        this(financeService, expenseService, incomeService, transferService,
+                analyticsService, budgetService, recurringService,
+                currencyService, null);
+    }
+
+    public OverviewPanel(
+            FinanceService financeService,
+            ExpenseService expenseService,
+            IncomeService incomeService,
+            TransferService transferService,
+            ExpenseAnalyticsService analyticsService,
+            BudgetService budgetService,
+            RecurringService recurringService,
+            CurrencyService currencyService,
+            Runnable voiceEntryAction) {
         super(new BorderLayout());
         this.financeService = Objects.requireNonNull(financeService);
         this.expenseService = Objects.requireNonNull(expenseService);
@@ -114,6 +131,7 @@ public final class OverviewPanel extends JPanel {
         this.budgetService = Objects.requireNonNull(budgetService);
         this.recurringService = Objects.requireNonNull(recurringService);
         this.currencyService = currencyService;
+        this.voiceEntryAction = voiceEntryAction;
         AppTheme.mark(this, AppTheme.PAGE_ROLE);
         buildInterface();
         refreshOverview();
@@ -182,7 +200,7 @@ public final class OverviewPanel extends JPanel {
         add(scrollPane, BorderLayout.CENTER);
     }
 
-    private static JPanel buildBrandHeading() {
+    private JPanel buildBrandHeading() {
         JPanel heading = new JPanel(new BorderLayout(16, 0));
         heading.setOpaque(false);
         JPanel text = new JPanel();
@@ -203,6 +221,11 @@ public final class OverviewPanel extends JPanel {
         text.add(Box.createVerticalStrut(2));
         text.add(description);
         heading.add(text, BorderLayout.CENTER);
+        if (voiceEntryAction != null) {
+            SecondaryButton voice = new SecondaryButton("Voice Quick Entry");
+            voice.addActionListener(event -> voiceEntryAction.run());
+            heading.add(voice, BorderLayout.EAST);
+        }
         return heading;
     }
 

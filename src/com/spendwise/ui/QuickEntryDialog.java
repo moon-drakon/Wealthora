@@ -38,6 +38,7 @@ final class QuickEntryDialog extends JDialog {
     private final AccountService accountService;
     private final CategoryService categoryService;
     private final Runnable successListener;
+    private final Runnable voiceEntryAction;
     private final JComboBox<RecurringEntryType> typeBox =
             new JComboBox<>(RecurringEntryType.values());
     private final JTextField dateField = new JTextField(12);
@@ -56,6 +57,17 @@ final class QuickEntryDialog extends JDialog {
             AccountService accountService,
             CategoryService categoryService,
             Runnable successListener) {
+        this(owner, quickEntryService, accountService, categoryService,
+                successListener, null);
+    }
+
+    QuickEntryDialog(
+            Window owner,
+            QuickEntryService quickEntryService,
+            AccountService accountService,
+            CategoryService categoryService,
+            Runnable successListener,
+            Runnable voiceEntryAction) {
         super(owner, "Quick Entry", Dialog.ModalityType.APPLICATION_MODAL);
         requireEventDispatchThread();
         this.quickEntryService = Objects.requireNonNull(
@@ -66,6 +78,7 @@ final class QuickEntryDialog extends JDialog {
                 categoryService, "Category service is required.");
         this.successListener = Objects.requireNonNull(
                 successListener, "Quick-entry success listener is required.");
+        this.voiceEntryAction = voiceEntryAction;
         buildInterface();
     }
 
@@ -118,6 +131,14 @@ final class QuickEntryDialog extends JDialog {
         JButton cancelButton = new JButton("Cancel");
         cancelButton.addActionListener(event -> setVisible(false));
         saveButton.addActionListener(event -> submit());
+        if (voiceEntryAction != null) {
+            JButton voiceButton = new JButton("Voice Quick Entry");
+            voiceButton.addActionListener(event -> {
+                setVisible(false);
+                voiceEntryAction.run();
+            });
+            actions.add(voiceButton);
+        }
         actions.add(saveButton);
         actions.add(cancelButton);
 

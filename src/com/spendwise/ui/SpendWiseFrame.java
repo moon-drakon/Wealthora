@@ -29,6 +29,11 @@ import com.spendwise.ui.component.AppIcons;
 import com.spendwise.ui.component.EmptyStatePanel;
 import com.spendwise.ui.shell.AppShellPanel;
 import com.spendwise.ui.theme.AppTheme;
+import com.spendwise.ui.voice.VoiceQuickEntryDialog;
+import com.spendwise.voice.SpeechRecognitionProvider;
+import com.spendwise.voice.UnconfiguredSpeechRecognitionProvider;
+import com.spendwise.voice.VoiceCaptureService;
+import com.spendwise.voice.VoiceEntrySettings;
 import java.awt.Dimension;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
@@ -215,6 +220,13 @@ public final class SpendWiseFrame extends JFrame {
         final TransactionsPanel[] transactionsReference =
                 new TransactionsPanel[1];
         final QuickEntryDialog[] quickEntryReference = new QuickEntryDialog[1];
+        final VoiceQuickEntryDialog[] voiceEntryReference =
+                new VoiceQuickEntryDialog[1];
+        Runnable openVoiceEntry = () -> {
+            if (voiceEntryReference[0] != null) {
+                voiceEntryReference[0].open();
+            }
+        };
         FinancePanel financePanel = new FinancePanel(
                 accountService,
                 incomeService,
@@ -271,7 +283,8 @@ public final class SpendWiseFrame extends JFrame {
                 analyticsService,
                 budgetService,
                 recurringService,
-                currencyService);
+                currencyService,
+                openVoiceEntry);
         overviewReference[0] = overviewPanel;
         TransactionsPanel transactionsPanel = new TransactionsPanel(
                 expenseService,
@@ -287,7 +300,8 @@ public final class SpendWiseFrame extends JFrame {
                     budgetPanel.refreshBudgetStatus();
                     calendarPanel.refreshCalendar();
                     reportsPanel.refreshReports();
-                });
+                },
+                openVoiceEntry);
         transactionsReference[0] = transactionsPanel;
         Runnable refreshFinancialViews = () -> {
             expensePanel.refreshExpenses();
@@ -309,12 +323,26 @@ public final class SpendWiseFrame extends JFrame {
                 () -> quickEntryReference[0].open(),
                 refreshFinancialViews);
         recurringReference[0] = recurringPanel;
+        VoiceEntrySettings voiceSettings = new VoiceEntrySettings();
+        SpeechRecognitionProvider speechProvider =
+                new UnconfiguredSpeechRecognitionProvider();
+        VoiceQuickEntryDialog voiceQuickEntryDialog =
+                new VoiceQuickEntryDialog(
+                        this,
+                        new VoiceCaptureService(speechProvider, voiceSettings),
+                        quickEntryService,
+                        accountService,
+                        categoryService,
+                        voiceSettings,
+                        refreshFinancialViews);
+        voiceEntryReference[0] = voiceQuickEntryDialog;
         QuickEntryDialog quickEntryDialog = new QuickEntryDialog(
                 this,
                 quickEntryService,
                 accountService,
                 categoryService,
-                refreshFinancialViews);
+                refreshFinancialViews,
+                openVoiceEntry);
         quickEntryReference[0] = quickEntryDialog;
 
         AppShellPanel shell = new AppShellPanel(quickEntryDialog::open);
@@ -378,7 +406,10 @@ public final class SpendWiseFrame extends JFrame {
                         || budgetService.isCategoryReferenced(category),
                 currencyService,
                 shell::setDarkMode,
-                refreshFinancialViews);
+                refreshFinancialViews,
+                voiceSettings,
+                speechProvider,
+                openVoiceEntry);
         shell.addPage("settings", "Settings", AppIcons.Type.SETTINGS,
                 settingsPanel, settingsPanel::refreshSettings);
         shell.setThemeChangedListener(settingsPanel::refreshSettings);
@@ -408,6 +439,12 @@ public final class SpendWiseFrame extends JFrame {
                 KeyEvent.VK_Q, InputEvent.CTRL_DOWN_MASK));
         quickEntryItem.addActionListener(event -> quickEntryDialog.open());
         entryMenu.add(quickEntryItem);
+        JMenuItem voiceEntryItem = new JMenuItem("Voice Quick Entry");
+        voiceEntryItem.setAccelerator(KeyStroke.getKeyStroke(
+                KeyEvent.VK_V,
+                InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK));
+        voiceEntryItem.addActionListener(event -> openVoiceEntry.run());
+        entryMenu.add(voiceEntryItem);
         JMenuItem searchItem = new JMenuItem("Search Transactions");
         searchItem.setAccelerator(KeyStroke.getKeyStroke(
                 KeyEvent.VK_K, InputEvent.CTRL_DOWN_MASK));
@@ -428,6 +465,12 @@ public final class SpendWiseFrame extends JFrame {
         getRootPane().registerKeyboardAction(
                 event -> shell.focusGlobalSearch(),
                 KeyStroke.getKeyStroke(KeyEvent.VK_K, InputEvent.CTRL_DOWN_MASK),
+                JComponent.WHEN_IN_FOCUSED_WINDOW);
+        getRootPane().registerKeyboardAction(
+                event -> openVoiceEntry.run(),
+                KeyStroke.getKeyStroke(KeyEvent.VK_V,
+                        InputEvent.CTRL_DOWN_MASK
+                        | InputEvent.SHIFT_DOWN_MASK),
                 JComponent.WHEN_IN_FOCUSED_WINDOW);
         AppTheme.applyCustomColors(this);
         setLocationRelativeTo(null);
