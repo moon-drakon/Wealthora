@@ -7,6 +7,7 @@ public final class ManagedDataFiles {
     public static final List<String> FILE_NAMES = List.of(
             "expenses.csv",
             "budgets.csv",
+            "budget-plans.csv",
             "categories.csv",
             "accounts.csv",
             "account-settings.csv",

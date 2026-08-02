@@ -10,6 +10,7 @@ import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.Objects;
+import java.util.List;
 
 public final class BudgetService {
 
@@ -45,6 +46,13 @@ public final class BudgetService {
     public boolean isCategoryReferenced(Category category) {
         return budgetRepository.isCategoryReferenced(
                 Objects.requireNonNull(category, "Budget category is required."));
+    }
+
+    public List<MonthlyBudget> listBudgetHistory() {
+        return budgetRepository.findAll().stream()
+                .sorted(java.util.Comparator.comparing(
+                        MonthlyBudget::getMonth).reversed())
+                .toList();
     }
 
     public BudgetStatusSnapshot evaluate(

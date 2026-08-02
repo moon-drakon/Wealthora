@@ -15,6 +15,7 @@ import java.nio.file.StandardOpenOption;
 import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -78,6 +79,11 @@ public class CsvBudgetRepository implements BudgetRepository {
         return readAll().values().stream()
                 .anyMatch(budget ->
                     budget.getCategoryLimits().containsKey(requiredCategory));
+    }
+
+    @Override
+    public List<MonthlyBudget> findAll() {
+        return List.copyOf(readAll().values());
     }
 
     private TreeMap<YearMonth, MonthlyBudget> readAll() {

@@ -65,6 +65,10 @@ public final class AppPaths {
         return currentDataPath("currency-settings.csv");
     }
 
+    public static Path getBudgetPlanCsvPath() {
+        return currentDataPath("budget-plans.csv");
+    }
+
     static Path resolveExpenseCsvPath(
             String operatingSystemName,
             String localAppData,

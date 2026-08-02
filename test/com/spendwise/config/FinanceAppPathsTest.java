@@ -65,16 +65,19 @@ public final class FinanceAppPathsTest {
         Path transfers = AppPaths.getTransferCsvPath();
         Path recurring = AppPaths.getRecurringCsvPath();
         Path accountSettings = AppPaths.getAccountSettingsCsvPath();
+        Path budgetPlans = AppPaths.getBudgetPlanCsvPath();
         assertEquals(account.getParent(), income.getParent());
         assertEquals(account.getParent(), transfers.getParent());
         assertEquals(account.getParent(), recurring.getParent());
         assertEquals(account.getParent(), accountSettings.getParent());
+        assertEquals(account.getParent(), budgetPlans.getParent());
         assertFalse(Files.exists(account) && Files.isDirectory(account));
         assertFalse(Files.exists(income) && Files.isDirectory(income));
         assertFalse(Files.exists(transfers) && Files.isDirectory(transfers));
         assertFalse(Files.exists(recurring) && Files.isDirectory(recurring));
         assertFalse(Files.exists(accountSettings)
                 && Files.isDirectory(accountSettings));
+        assertFalse(Files.exists(budgetPlans) && Files.isDirectory(budgetPlans));
     }
 
     private static void test(String name, Runnable test) {
