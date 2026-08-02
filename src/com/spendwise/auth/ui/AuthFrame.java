@@ -3,11 +3,14 @@ package com.spendwise.auth.ui;
 import com.spendwise.config.AppBrand;
 import com.spendwise.auth.AuthService;
 import com.spendwise.auth.BackendAuthService;
+import com.spendwise.auth.OwnerSetupService;
 import com.spendwise.auth.SessionManager;
+import com.spendwise.auth.UserSession;
 import com.spendwise.auth.UnconfiguredAuthApiClient;
 import java.awt.CardLayout;
 import java.awt.Dimension;
 import java.util.Objects;
+import java.util.function.Consumer;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -21,13 +24,23 @@ public final class AuthFrame extends JFrame implements AuthNavigator {
     private static final String FORGOT = "forgot";
     private static final String RESET = "reset";
     private static final String PROFILE = "profile";
+    private static final String OWNER_SETUP = "owner-setup";
 
     private final CardLayout cards = new CardLayout();
     private final JPanel content = new JPanel(cards);
     private final VerificationPanel verificationPanel;
     private final AuthenticatedProfilePanel profilePanel;
+    private final OwnerSetupPanel ownerSetupPanel;
+    private final Consumer<UserSession> authenticatedListener;
 
     public AuthFrame(AuthService authService, SessionManager sessionManager) {
+        this(authService, sessionManager, null);
+    }
+
+    public AuthFrame(
+            AuthService authService,
+            SessionManager sessionManager,
+            Consumer<UserSession> authenticatedListener) {
         super(AppBrand.APP_NAME + " Authentication");
         if (!SwingUtilities.isEventDispatchThread()) {
             throw new IllegalStateException(
@@ -35,6 +48,7 @@ public final class AuthFrame extends JFrame implements AuthNavigator {
         }
         AuthService requiredService = Objects.requireNonNull(authService);
         SessionManager requiredSessions = Objects.requireNonNull(sessionManager);
+        this.authenticatedListener = authenticatedListener;
         verificationPanel = new VerificationPanel(requiredService, this);
         profilePanel = new AuthenticatedProfilePanel(
                 requiredService, requiredSessions, this);
@@ -48,12 +62,22 @@ public final class AuthFrame extends JFrame implements AuthNavigator {
         content.add(scroll(new ResetPasswordPanel(
                 requiredService, this)), RESET);
         content.add(scroll(profilePanel), PROFILE);
+        ownerSetupPanel = requiredService instanceof OwnerSetupService setup
+                ? new OwnerSetupPanel(setup, requiredSessions, this) : null;
+        if (ownerSetupPanel != null) {
+            content.add(scroll(ownerSetupPanel), OWNER_SETUP);
+        }
         setContentPane(content);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setSize(640, 780);
         setMinimumSize(new Dimension(520, 620));
         setLocationRelativeTo(null);
-        showSignIn();
+        if (requiredService instanceof OwnerSetupService setup
+                && setup.isOwnerSetupRequired()) {
+            showOwnerSetup();
+        } else {
+            showSignIn();
+        }
     }
 
     public static void openUnconfiguredPreview() {
@@ -68,6 +92,16 @@ public final class AuthFrame extends JFrame implements AuthNavigator {
         } else {
             SwingUtilities.invokeLater(open);
         }
+    }
+
+    @Override
+    public void showOwnerSetup() {
+        if (ownerSetupPanel == null) {
+            showSignIn();
+            return;
+        }
+        ownerSetupPanel.reload();
+        cards.show(content, OWNER_SETUP);
     }
 
     @Override
@@ -97,8 +131,12 @@ public final class AuthFrame extends JFrame implements AuthNavigator {
     }
 
     @Override
-    public void showAuthenticatedProfile(
-            com.spendwise.auth.UserSession session) {
+    public void showAuthenticatedProfile(UserSession session) {
+        if (authenticatedListener != null) {
+            dispose();
+            authenticatedListener.accept(session);
+            return;
+        }
         profilePanel.setSession(session);
         cards.show(content, PROFILE);
     }

@@ -6,35 +6,21 @@ import java.util.Locale;
 public final class AppPaths {
 
     private static final String APPLICATION_DIRECTORY = "SpendWiseExpenseTracker";
+    private static volatile Path activeDataDirectory;
 
     private AppPaths() {
     }
 
     public static Path getExpenseCsvPath() {
-        return resolveDataFilePath(
-                System.getProperty("os.name"),
-                System.getenv("LOCALAPPDATA"),
-                System.getenv("XDG_DATA_HOME"),
-                System.getProperty("user.home"),
-                "expenses.csv");
+        return currentDataPath("expenses.csv");
     }
 
     public static Path getBudgetCsvPath() {
-        return resolveDataFilePath(
-                System.getProperty("os.name"),
-                System.getenv("LOCALAPPDATA"),
-                System.getenv("XDG_DATA_HOME"),
-                System.getProperty("user.home"),
-                "budgets.csv");
+        return currentDataPath("budgets.csv");
     }
 
     public static Path getCategoryCsvPath() {
-        return resolveDataFilePath(
-                System.getProperty("os.name"),
-                System.getenv("LOCALAPPDATA"),
-                System.getenv("XDG_DATA_HOME"),
-                System.getProperty("user.home"),
-                "categories.csv");
+        return currentDataPath("categories.csv");
     }
 
     public static Path getAccountCsvPath() {
@@ -75,6 +61,43 @@ public final class AppPaths {
 
     public static Path getDebtCsvPath() {
         return currentDataPath("debts.csv");
+    }
+
+    public static Path getDataDirectory() {
+        Path active = activeDataDirectory;
+        return active == null ? getLegacyDataDirectory() : active;
+    }
+
+    public static Path getLegacyDataDirectory() {
+        return applicationRoot().resolve("data").toAbsolutePath().normalize();
+    }
+
+    public static Path getAuthenticationDirectory() {
+        return applicationRoot().resolve("auth").toAbsolutePath().normalize();
+    }
+
+    public static Path getBackupDirectory() {
+        return applicationRoot().resolve("backups").toAbsolutePath().normalize();
+    }
+
+    public static Path getUserDataDirectory(String trustedUserIdentifier) {
+        String identifier = requiredValue(trustedUserIdentifier,
+                "A trusted user identifier is required.");
+        if (!identifier.matches("[A-Za-z0-9_-]{3,80}")) {
+            throw new IllegalArgumentException(
+                    "The trusted user identifier is invalid.");
+        }
+        return getLegacyDataDirectory().resolve("users").resolve(identifier)
+                .toAbsolutePath().normalize();
+    }
+
+    public static synchronized void activateUserDataDirectory(
+            String trustedUserIdentifier) {
+        activeDataDirectory = getUserDataDirectory(trustedUserIdentifier);
+    }
+
+    public static synchronized void clearUserDataDirectory() {
+        activeDataDirectory = null;
     }
 
     static Path resolveExpenseCsvPath(
@@ -182,12 +205,22 @@ public final class AppPaths {
     }
 
     private static Path currentDataPath(String fileName) {
+        Path active = activeDataDirectory;
+        return active == null ? resolveDataFilePath(
+                System.getProperty("os.name"),
+                System.getenv("LOCALAPPDATA"),
+                System.getenv("XDG_DATA_HOME"),
+                System.getProperty("user.home"),
+                fileName) : active.resolve(fileName).toAbsolutePath().normalize();
+    }
+
+    private static Path applicationRoot() {
         return resolveDataFilePath(
                 System.getProperty("os.name"),
                 System.getenv("LOCALAPPDATA"),
                 System.getenv("XDG_DATA_HOME"),
                 System.getProperty("user.home"),
-                fileName);
+                ".").getParent().toAbsolutePath().normalize();
     }
 
     private static Path resolveDataFilePath(

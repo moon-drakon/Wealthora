@@ -1,5 +1,6 @@
 package com.spendwise.ui.shell;
 
+import com.spendwise.auth.UserSession;
 import com.spendwise.ui.component.AppIcons;
 import com.spendwise.ui.component.NotificationBanner;
 import com.spendwise.ui.theme.AppTheme;
@@ -134,6 +135,11 @@ public final class AppShellPanel extends JPanel {
 
     public void focusGlobalSearch() {
         topBar.focusSearch();
+    }
+
+    public void configureProfile(
+            UserSession session, ProfileMenuActions actions) {
+        topBar.configureProfile(session, actions);
     }
 
     public void setDarkMode(boolean darkMode) {

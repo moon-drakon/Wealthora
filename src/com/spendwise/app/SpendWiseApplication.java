@@ -1,5 +1,18 @@
 package com.spendwise.app;
 
+import com.spendwise.auth.OwnerConfiguration;
+import com.spendwise.auth.PasswordService;
+import com.spendwise.auth.SessionManager;
+import com.spendwise.auth.UserSession;
+import com.spendwise.auth.admin.AdminService;
+import com.spendwise.auth.audit.CsvAuditRepository;
+import com.spendwise.auth.local.CsvLocalUserRepository;
+import com.spendwise.auth.local.LegacyDataMigrationService;
+import com.spendwise.auth.local.LocalDesktopAuthService;
+import com.spendwise.auth.ui.AccountProfileDialog;
+import com.spendwise.auth.ui.AdminConsoleDialog;
+import com.spendwise.auth.ui.AuthFrame;
+import com.spendwise.auth.ui.SecuritySessionsDialog;
 import com.spendwise.config.AppPaths;
 import com.spendwise.config.AppBrand;
 import com.spendwise.repository.CsvAccountRepository;
@@ -39,6 +52,8 @@ import com.spendwise.service.JsonBackupService;
 import com.spendwise.service.CsvImportService;
 import com.spendwise.service.PdfReportService;
 import com.spendwise.ui.SpendWiseFrame;
+import com.spendwise.ui.component.ConfirmationDialogs;
+import com.spendwise.ui.shell.ProfileMenuActions;
 import com.spendwise.ui.theme.AppTheme;
 import java.nio.file.Path;
 import javax.swing.JOptionPane;
@@ -56,6 +71,49 @@ public final class SpendWiseApplication {
     private static void startApplication() {
         AppTheme.initialize();
         try {
+            SessionManager sessionManager = new SessionManager();
+            CsvAuditRepository auditRepository = new CsvAuditRepository(
+                    AppPaths.getAuthenticationDirectory().resolve("audit.csv"));
+            LocalDesktopAuthService authService =
+                    new LocalDesktopAuthService(
+                            new CsvLocalUserRepository(
+                                    AppPaths.getAuthenticationDirectory()
+                                            .resolve("users.csv")),
+                            new PasswordService(),
+                            OwnerConfiguration.fromEnvironment(),
+                            sessionManager,
+                            auditRepository,
+                            new LegacyDataMigrationService(
+                                    AppPaths.getLegacyDataDirectory(),
+                                    AppPaths.getBackupDirectory(),
+                                    auditRepository));
+            AdminService adminService = new AdminService(
+                    authService.getUserRepository(), auditRepository,
+                    authService);
+            showAuthentication(authService, sessionManager, adminService);
+        } catch (RuntimeException exception) {
+            showStartupError(exception);
+        }
+    }
+
+    private static void showAuthentication(
+            LocalDesktopAuthService authService,
+            SessionManager sessionManager,
+            AdminService adminService) {
+        AuthFrame authFrame = new AuthFrame(authService, sessionManager,
+                session -> openFinanceWorkspace(session, authService,
+                        sessionManager, adminService));
+        authFrame.setVisible(true);
+    }
+
+    private static void openFinanceWorkspace(
+            UserSession session,
+            LocalDesktopAuthService authService,
+            SessionManager sessionManager,
+            AdminService adminService) {
+        try {
+            sessionManager.startSession(session);
+            AppPaths.activateUserDataDirectory(session.getUserIdentifier());
             Path categoryCsvPath = AppPaths.getCategoryCsvPath();
             CsvCategoryRepository categoryRepository =
                     new CsvCategoryRepository(categoryCsvPath);
@@ -184,14 +242,73 @@ public final class SpendWiseApplication {
                             jsonBackupService,
                             csvImportService,
                             new PdfReportService());
+            frame.configureProfileMenu(session, new ProfileMenuActions(
+                    frame::openMyFinance,
+                    () -> new AccountProfileDialog(frame, session)
+                            .setVisible(true),
+                    () -> new SecuritySessionsDialog(frame, session)
+                            .setVisible(true),
+                    () -> leaveWorkspace(frame, authService, sessionManager,
+                            adminService, true),
+                    session.canAccessAdminConsole()
+                            ? () -> new AdminConsoleDialog(
+                                    frame, adminService, session)
+                                    .setVisible(true)
+                            : null,
+                    () -> leaveWorkspace(frame, authService, sessionManager,
+                            adminService, false)));
             frame.setVisible(true);
         } catch (RuntimeException exception) {
-            JOptionPane.showMessageDialog(
-                    null,
-                    startupErrorMessage(exception),
-                    AppBrand.APP_NAME + " Could Not Start",
-                    JOptionPane.ERROR_MESSAGE);
+            try {
+                authService.logout();
+            } catch (RuntimeException ignored) {
+                sessionManager.clearSession();
+                AppPaths.clearUserDataDirectory();
+            }
+            showStartupError(exception);
+            showAuthentication(authService, sessionManager, adminService);
         }
+    }
+
+    private static void leaveWorkspace(
+            SpendWiseFrame frame,
+            LocalDesktopAuthService authService,
+            SessionManager sessionManager,
+            AdminService adminService,
+            boolean switchingAccount) {
+        String action = switchingAccount ? "Switch Account" : "Sign Out";
+        String message = switchingAccount
+                ? "Close My Finance and return to the account sign-in screen?"
+                : "Sign out of Wealthora on this device?";
+        if (!ConfirmationDialogs.confirm(
+                frame, action, message, JOptionPane.QUESTION_MESSAGE)) {
+            return;
+        }
+        for (java.awt.Window owned : frame.getOwnedWindows()) {
+            owned.dispose();
+        }
+        frame.dispose();
+        try {
+            if (switchingAccount) {
+                authService.switchAccount();
+            } else {
+                authService.logout();
+            }
+        } catch (RuntimeException exception) {
+            sessionManager.clearSession();
+            AppPaths.clearUserDataDirectory();
+            ConfirmationDialogs.showError(
+                    null, action + " audit warning", exception);
+        }
+        showAuthentication(authService, sessionManager, adminService);
+    }
+
+    private static void showStartupError(RuntimeException exception) {
+        JOptionPane.showMessageDialog(
+                null,
+                startupErrorMessage(exception),
+                AppBrand.APP_NAME + " Could Not Start",
+                JOptionPane.ERROR_MESSAGE);
     }
 
     private static String startupErrorMessage(RuntimeException exception) {

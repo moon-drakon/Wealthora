@@ -4,6 +4,8 @@ import com.spendwise.auth.UserSession;
 
 public interface AuthNavigator {
 
+    void showOwnerSetup();
+
     void showSignIn();
 
     void showSignUp();

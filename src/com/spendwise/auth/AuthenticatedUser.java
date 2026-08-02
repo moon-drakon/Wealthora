@@ -2,8 +2,11 @@ package com.spendwise.auth;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 
 public final class AuthenticatedUser {
 
@@ -16,6 +19,11 @@ public final class AuthenticatedUser {
     private final AccountStatus accountStatus;
     private final Instant createdAt;
     private final Instant updatedAt;
+    private final Instant lastLoginAt;
+    private final Set<UserRole> roles;
+    private final String studentIdentifier;
+    private final String preferredTheme;
+    private final String preferredCurrency;
 
     public AuthenticatedUser(
             String userIdentifier,
@@ -27,6 +35,27 @@ public final class AuthenticatedUser {
             AccountStatus accountStatus,
             Instant createdAt,
             Instant updatedAt) {
+        this(userIdentifier, fullName, email, emailVerified,
+                primaryAuthProvider, googleSubjectId, accountStatus,
+                createdAt, updatedAt, null, Set.of(UserRole.USER), "",
+                "System", "BDT");
+    }
+
+    public AuthenticatedUser(
+            String userIdentifier,
+            String fullName,
+            String email,
+            boolean emailVerified,
+            AuthProvider primaryAuthProvider,
+            String googleSubjectId,
+            AccountStatus accountStatus,
+            Instant createdAt,
+            Instant updatedAt,
+            Instant lastLoginAt,
+            Set<UserRole> roles,
+            String studentIdentifier,
+            String preferredTheme,
+            String preferredCurrency) {
         this.userIdentifier = required(userIdentifier, "User ID");
         this.fullName = required(fullName, "Full name");
         this.email = EmailAddressPolicy.normalize(email);
@@ -40,6 +69,12 @@ public final class AuthenticatedUser {
                 createdAt, "Created time is required.");
         this.updatedAt = Objects.requireNonNull(
                 updatedAt, "Updated time is required.");
+        this.lastLoginAt = lastLoginAt;
+        this.roles = validatedRoles(roles);
+        this.studentIdentifier = optional(studentIdentifier);
+        this.preferredTheme = required(preferredTheme, "Theme preference");
+        this.preferredCurrency = required(
+                preferredCurrency, "Currency preference").toUpperCase(Locale.ROOT);
         validateProviderIdentity();
     }
 
@@ -77,6 +112,51 @@ public final class AuthenticatedUser {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public Instant getLastLoginAt() {
+        return lastLoginAt;
+    }
+
+    public Set<UserRole> getRoles() {
+        return roles;
+    }
+
+    public boolean hasRole(UserRole role) {
+        return roles.contains(Objects.requireNonNull(role));
+    }
+
+    public UserRole getHighestRole() {
+        if (hasRole(UserRole.OWNER)) return UserRole.OWNER;
+        if (hasRole(UserRole.ADMIN)) return UserRole.ADMIN;
+        return UserRole.USER;
+    }
+
+    public String getStudentIdentifier() {
+        return studentIdentifier;
+    }
+
+    public String getPreferredTheme() {
+        return preferredTheme;
+    }
+
+    public String getPreferredCurrency() {
+        return preferredCurrency;
+    }
+
+    public AuthenticatedUser withLastLogin(Instant value) {
+        Instant required = Objects.requireNonNull(
+                value, "Last-login time is required.");
+        return copy(accountStatus, roles, required, required);
+    }
+
+    public AuthenticatedUser withRoles(Set<UserRole> value, Instant changedAt) {
+        return copy(accountStatus, value, lastLoginAt, changedAt);
+    }
+
+    public AuthenticatedUser withStatus(
+            AccountStatus value, Instant changedAt) {
+        return copy(value, roles, lastLoginAt, changedAt);
     }
 
     public boolean isNsuEmail() {
@@ -121,6 +201,33 @@ public final class AuthenticatedUser {
             throw new AuthException(
                     "An active account must have a verified email address.");
         }
+    }
+
+    private AuthenticatedUser copy(
+            AccountStatus status,
+            Set<UserRole> assignedRoles,
+            Instant lastLogin,
+            Instant changedAt) {
+        return new AuthenticatedUser(userIdentifier, fullName, email,
+                emailVerified, primaryAuthProvider, googleSubjectId, status,
+                createdAt, changedAt, lastLogin, assignedRoles,
+                studentIdentifier, preferredTheme, preferredCurrency);
+    }
+
+    private static Set<UserRole> validatedRoles(Set<UserRole> values) {
+        if (values == null || values.isEmpty()) {
+            throw new AuthException("At least the USER role is required.");
+        }
+        EnumSet<UserRole> copy = EnumSet.copyOf(values);
+        if (!copy.contains(UserRole.USER)) {
+            throw new AuthException("Every account must have the USER role.");
+        }
+        if (copy.contains(UserRole.OWNER)
+                && !copy.contains(UserRole.ADMIN)) {
+            throw new AuthException(
+                    "The OWNER role must include ADMIN capability.");
+        }
+        return Set.copyOf(copy);
     }
 
     private static String required(String value, String fieldName) {

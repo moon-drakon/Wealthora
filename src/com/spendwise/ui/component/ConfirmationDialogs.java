@@ -10,12 +10,17 @@ public final class ConfirmationDialogs {
 
     public static boolean confirmDestructive(
             Component owner, String title, String message) {
+        return confirm(owner, title, message, JOptionPane.WARNING_MESSAGE);
+    }
+
+    public static boolean confirm(
+            Component owner, String title, String message, int messageType) {
         return JOptionPane.showConfirmDialog(
                 owner,
                 message,
                 title,
                 JOptionPane.YES_NO_OPTION,
-                JOptionPane.WARNING_MESSAGE) == JOptionPane.YES_OPTION;
+                messageType) == JOptionPane.YES_OPTION;
     }
 
     public static void showError(

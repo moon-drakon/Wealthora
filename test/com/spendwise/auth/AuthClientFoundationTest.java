@@ -212,7 +212,7 @@ public final class AuthClientFoundationTest {
                 assertContains(signInText, AppBrand.DESCRIPTION);
                 assertContains(signInText, "Continue with Google");
                 assertContainsPart(signInText,
-                        "any verified Google account");
+                        "never simulates a successful Google sign-in");
                 assertContains(signInText, "NSU Email Access");
                 assertContains(signInText, AppBrand.NSU_EMAIL_SUBTITLE);
                 assertContains(signInText, "Remember Me");
@@ -393,6 +393,10 @@ public final class AuthClientFoundationTest {
     }
 
     private static final class NoOpNavigator implements AuthNavigator {
+
+        @Override
+        public void showOwnerSetup() {
+        }
 
         @Override
         public void showSignIn() {

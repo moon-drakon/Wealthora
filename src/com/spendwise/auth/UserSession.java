@@ -51,4 +51,16 @@ public final class UserSession {
         return authenticatedAt;
     }
 
+    public boolean hasRole(UserRole role) {
+        return user.hasRole(role);
+    }
+
+    public boolean canAccessAdminConsole() {
+        return hasRole(UserRole.ADMIN) || hasRole(UserRole.OWNER);
+    }
+
+    public boolean isOwner() {
+        return hasRole(UserRole.OWNER);
+    }
+
 }

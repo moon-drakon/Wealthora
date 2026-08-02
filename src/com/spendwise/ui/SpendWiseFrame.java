@@ -28,6 +28,8 @@ import com.spendwise.service.PdfReportService;
 import com.spendwise.ui.component.AppIcons;
 import com.spendwise.ui.component.EmptyStatePanel;
 import com.spendwise.ui.shell.AppShellPanel;
+import com.spendwise.auth.UserSession;
+import com.spendwise.ui.shell.ProfileMenuActions;
 import com.spendwise.ui.theme.AppTheme;
 import com.spendwise.ui.voice.VoiceQuickEntryDialog;
 import com.spendwise.voice.SpeechRecognitionProvider;
@@ -48,6 +50,8 @@ import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 
 public final class SpendWiseFrame extends JFrame {
+
+    private AppShellPanel appShell;
 
     public SpendWiseFrame(
             ExpenseService expenseService,
@@ -346,6 +350,7 @@ public final class SpendWiseFrame extends JFrame {
         quickEntryReference[0] = quickEntryDialog;
 
         AppShellPanel shell = new AppShellPanel(quickEntryDialog::open);
+        appShell = shell;
         shell.addNavigationSection("Workspace");
         shell.addPage("dashboard", "Dashboard", AppIcons.Type.DASHBOARD,
                 overviewPanel, overviewPanel::refreshOverview);
@@ -474,6 +479,19 @@ public final class SpendWiseFrame extends JFrame {
                 JComponent.WHEN_IN_FOCUSED_WINDOW);
         AppTheme.applyCustomColors(this);
         setLocationRelativeTo(null);
+    }
+
+    public void configureProfileMenu(
+            UserSession session, ProfileMenuActions actions) {
+        if (appShell == null) {
+            throw new IllegalStateException(
+                    "The professional application shell is not active.");
+        }
+        appShell.configureProfile(session, actions);
+    }
+
+    public void openMyFinance() {
+        if (appShell != null) appShell.showPage("dashboard");
     }
 
     private static void requireEventDispatchThread() {

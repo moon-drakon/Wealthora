@@ -1,6 +1,7 @@
 package com.spendwise.auth.ui;
 
 import com.spendwise.auth.AuthService;
+import com.spendwise.auth.OwnerSetupService;
 import com.spendwise.auth.SessionManager;
 import com.spendwise.auth.UserSession;
 import com.spendwise.config.AppBrand;
@@ -33,7 +34,8 @@ public final class SignInPanel extends AuthFormPanel {
                 "Continue with Google", this::continueWithGoogle);
         addWide(google);
         addWide(helperLabel(
-                "Continue with any verified Google account."));
+                "Requires a configured Google authentication backend. "
+                        + "Wealthora never simulates a successful Google sign-in."));
         addWide(orDivider());
         addWide(sectionHeading(
                 "NSU Email Access", AppBrand.NSU_EMAIL_SUBTITLE));
@@ -43,9 +45,14 @@ public final class SignInPanel extends AuthFormPanel {
         rememberMe.setToolTipText(
                 "Session persistence will be enabled by the configured backend.");
         addWide(rememberMe);
-        addWide(buttonRow(
-                primary("Sign In", this::signIn),
-                secondary("Create Account", navigator::showSignUp)));
+        JButton createAccount = secondary(
+                "Create Account", navigator::showSignUp);
+        if (authService instanceof OwnerSetupService) {
+            createAccount.setEnabled(false);
+            createAccount.setToolTipText(
+                    "Self-service registration requires an authentication backend.");
+        }
+        addWide(buttonRow(primary("Sign In", this::signIn), createAccount));
         addWide(buttonRow(secondary(
                 "Forgot Password?", navigator::showForgotPassword)));
         addWide(policyLabel());

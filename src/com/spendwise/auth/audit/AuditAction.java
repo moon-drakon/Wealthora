@@ -1,0 +1,15 @@
+package com.spendwise.auth.audit;
+
+public enum AuditAction {
+    OWNER_BOOTSTRAP,
+    LOGIN_SUCCESS,
+    LOGIN_FAILED,
+    LOGOUT,
+    SWITCH_ACCOUNT,
+    USER_ACTIVATED,
+    USER_SUSPENDED,
+    ADMIN_GRANTED,
+    ADMIN_REVOKED,
+    SAFETY_BACKUP_CREATED,
+    LEGACY_DATA_ASSIGNED
+}

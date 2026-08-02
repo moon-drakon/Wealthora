@@ -1,5 +1,6 @@
 package com.spendwise.ui.shell;
 
+import com.spendwise.auth.UserSession;
 import com.spendwise.ui.component.AppIcons;
 import com.spendwise.ui.component.PrimaryButton;
 import com.spendwise.ui.component.SearchField;
@@ -13,8 +14,11 @@ import java.awt.Color;
 import java.util.Objects;
 import java.util.function.Consumer;
 import javax.swing.BorderFactory;
+import javax.swing.JButton;
 import javax.swing.JLabel;
+import javax.swing.JMenuItem;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 
 public final class TopBar extends JPanel {
 
@@ -22,6 +26,9 @@ public final class TopBar extends JPanel {
     private final SearchField searchField =
             new SearchField("Search all transactions", 24);
     private final SecondaryButton themeButton = new SecondaryButton("Dark");
+    private final JLabel avatar = new JLabel("?", JLabel.CENTER);
+    private final JButton profileButton = new SecondaryButton("Account");
+    private final JPopupMenu profileMenu = new JPopupMenu();
     private final Consumer<String> searchListener;
     private final Runnable themeListener;
 
@@ -63,26 +70,55 @@ public final class TopBar extends JPanel {
             this.themeListener.run();
             refreshThemeText();
         });
-        JPanel profile = new JPanel(new FlowLayout(FlowLayout.LEFT, 7, 2));
+        JPanel profile = new JPanel(new FlowLayout(FlowLayout.LEFT, 7, 0));
         profile.setOpaque(false);
-        JLabel avatar = new JLabel("SW", JLabel.CENTER);
         avatar.setOpaque(true);
         avatar.setBackground(new Color(220, 239, 233));
         avatar.setForeground(new Color(25, 105, 80));
         avatar.setFont(AppFonts.caption().deriveFont(java.awt.Font.BOLD));
         avatar.setPreferredSize(new Dimension(30, 30));
-        JLabel profileLabel = new JLabel("Local profile");
-        profileLabel.setFont(AppFonts.caption());
-        profileLabel.setToolTipText(
-                "Local development profile; no online authentication is active.");
-        AppTheme.mark(profileLabel, AppTheme.SECONDARY_TEXT_ROLE);
         profile.add(avatar);
-        profile.add(profileLabel);
+        profileButton.setToolTipText("Open account menu");
+        profileButton.addActionListener(event -> profileMenu.show(
+                profileButton, 0, profileButton.getHeight()));
+        profile.add(profileButton);
         actions.add(quickButton);
         actions.add(themeButton);
         actions.add(profile);
         add(actions, BorderLayout.EAST);
         refreshThemeText();
+    }
+
+    public void configureProfile(
+            UserSession session, ProfileMenuActions actions) {
+        Objects.requireNonNull(session, "User session is required.");
+        Objects.requireNonNull(actions, "Profile-menu actions are required.");
+        avatar.setText(initials(session.getDisplayName()));
+        profileButton.setText(shortDisplayName(session.getDisplayName())
+                + "  ▾");
+        profileButton.setToolTipText(session.getEmail() + " · "
+                + session.getUser().getHighestRole().name());
+        profileMenu.removeAll();
+        JMenuItem identity = new JMenuItem(session.getEmail());
+        identity.setEnabled(false);
+        profileMenu.add(identity);
+        JMenuItem role = new JMenuItem("Role: "
+                + session.getUser().getHighestRole().name());
+        role.setEnabled(false);
+        profileMenu.add(role);
+        profileMenu.addSeparator();
+        addMenuItem("My Finance", actions.openMyFinance());
+        addMenuItem("My Profile", actions.openProfile());
+        addMenuItem("Security and Sessions",
+                actions.openSecurityAndSessions());
+        if (session.canAccessAdminConsole()
+                && actions.openAdminConsole() != null) {
+            profileMenu.addSeparator();
+            addMenuItem("Admin Console", actions.openAdminConsole());
+        }
+        profileMenu.addSeparator();
+        addMenuItem("Switch Account", actions.switchAccount());
+        addMenuItem("Sign Out", actions.signOut());
     }
 
     public void setPageTitle(String pageTitle) {
@@ -100,5 +136,27 @@ public final class TopBar extends JPanel {
 
     void refreshThemeText() {
         themeButton.setText(AppTheme.isDarkMode() ? "Light" : "Dark");
+    }
+
+    private void addMenuItem(String label, Runnable action) {
+        JMenuItem item = new JMenuItem(label);
+        item.addActionListener(event -> action.run());
+        profileMenu.add(item);
+    }
+
+    private static String initials(String name) {
+        StringBuilder initials = new StringBuilder();
+        for (String part : name.strip().split("\\s+")) {
+            if (!part.isEmpty() && initials.length() < 2) {
+                initials.append(Character.toUpperCase(part.charAt(0)));
+            }
+        }
+        return initials.isEmpty() ? "?" : initials.toString();
+    }
+
+    private static String shortDisplayName(String name) {
+        String normalized = name.strip();
+        return normalized.length() <= 22
+                ? normalized : normalized.substring(0, 19) + "...";
     }
 }

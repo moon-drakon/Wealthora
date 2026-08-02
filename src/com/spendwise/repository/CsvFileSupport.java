@@ -14,14 +14,14 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-final class CsvFileSupport {
+public final class CsvFileSupport {
 
     private static final char UTF_8_BOM = '\uFEFF';
 
     private CsvFileSupport() {
     }
 
-    static Optional<String> read(Path path, String dataName) {
+    public static Optional<String> read(Path path, String dataName) {
         try {
             if (Files.notExists(path)) {
                 return Optional.empty();
@@ -33,7 +33,7 @@ final class CsvFileSupport {
         }
     }
 
-    static void write(
+    public static void write(
             Path path,
             String temporaryPrefix,
             String csvText,
@@ -71,7 +71,7 @@ final class CsvFileSupport {
         }
     }
 
-    static List<List<String>> parse(
+    public static List<List<String>> parse(
             String csvText,
             List<String> expectedHeader,
             String dataName) {
@@ -99,7 +99,7 @@ final class CsvFileSupport {
         return records;
     }
 
-    static void appendField(StringBuilder csv, String value) {
+    public static void appendField(StringBuilder csv, String value) {
         String requiredValue = Objects.requireNonNull(
                 value, "CSV field value is required.");
         boolean quote = requiredValue.indexOf(',') >= 0
