@@ -1,9 +1,8 @@
 package com.spendwise.ui.component;
 
 import com.formdev.flatlaf.FlatClientProperties;
-import javax.swing.JTextField;
 
-public final class SearchField extends JTextField {
+public final class SearchField extends StyledTextField {
 
     public SearchField(String placeholder, int columns) {
         super(columns);

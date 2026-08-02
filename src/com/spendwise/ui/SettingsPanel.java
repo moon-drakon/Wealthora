@@ -1,0 +1,235 @@
+package com.spendwise.ui;
+
+import com.spendwise.model.Category;
+import com.spendwise.service.CategoryService;
+import com.spendwise.service.CurrencyService;
+import com.spendwise.ui.component.PrimaryButton;
+import com.spendwise.ui.component.StyledComboBox;
+import com.spendwise.ui.component.StyledTextField;
+import com.spendwise.ui.theme.AppColors;
+import com.spendwise.ui.theme.AppFonts;
+import com.spendwise.ui.theme.AppTheme;
+import java.awt.BorderLayout;
+import java.awt.FlowLayout;
+import java.awt.GridLayout;
+import java.awt.Window;
+import java.util.Objects;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
+import javax.swing.BorderFactory;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.SwingUtilities;
+
+public final class SettingsPanel extends JPanel {
+
+    private final CategoryService categoryService;
+    private final Predicate<Category> categoryReferenceChecker;
+    private final CurrencyService currencyService;
+    private final Consumer<Boolean> themeChangeListener;
+    private final Runnable settingsChangeListener;
+    private final StyledComboBox<String> themeBox =
+            new StyledComboBox<>(new String[] {"Light", "Dark"});
+    private final StyledTextField currencyField =
+            new StyledTextField("ISO currency code", 8);
+    private final JLabel statusLabel = new JLabel(" ");
+
+    public SettingsPanel(
+            CategoryService categoryService,
+            Predicate<Category> categoryReferenceChecker,
+            CurrencyService currencyService,
+            Consumer<Boolean> themeChangeListener,
+            Runnable settingsChangeListener) {
+        super(new BorderLayout());
+        this.categoryService = Objects.requireNonNull(categoryService);
+        this.categoryReferenceChecker = Objects.requireNonNull(
+                categoryReferenceChecker);
+        this.currencyService = currencyService;
+        this.themeChangeListener = Objects.requireNonNull(themeChangeListener);
+        this.settingsChangeListener = Objects.requireNonNull(
+                settingsChangeListener);
+        AppTheme.mark(this, AppTheme.PAGE_ROLE);
+        buildInterface();
+        refreshSettings();
+    }
+
+    public void refreshSettings() {
+        themeBox.setSelectedItem(AppTheme.isDarkMode() ? "Dark" : "Light");
+        currencyField.setText(currencyService == null
+                ? CurrencyService.DEFAULT_CURRENCY_CODE
+                : currencyService.getCurrency().getCurrencyCode());
+        currencyField.setEnabled(currencyService != null);
+    }
+
+    private void buildInterface() {
+        JPanel content = new JPanel(new BorderLayout(0, 16));
+        AppTheme.mark(content, AppTheme.PAGE_ROLE);
+        content.setBorder(BorderFactory.createEmptyBorder(20, 22, 22, 22));
+
+        JPanel heading = new JPanel(new GridLayout(0, 1, 0, 3));
+        heading.setOpaque(false);
+        JLabel title = new JLabel("Settings");
+        title.setFont(AppFonts.pageTitle());
+        AppTheme.mark(title, AppTheme.PRIMARY_TEXT_ROLE);
+        JLabel subtitle = new JLabel(
+                "Appearance, finance preferences, categories, and local data");
+        subtitle.setFont(AppFonts.body());
+        AppTheme.mark(subtitle, AppTheme.SECONDARY_TEXT_ROLE);
+        heading.add(title);
+        heading.add(subtitle);
+        content.add(heading, BorderLayout.NORTH);
+
+        JPanel cards = new JPanel(new GridLayout(0, 2, 14, 14));
+        cards.setOpaque(false);
+        cards.add(appearanceCard());
+        cards.add(currencyCard());
+        cards.add(categoriesCard());
+        cards.add(dataCard());
+        cards.add(profileCard());
+        cards.add(privacyCard());
+        content.add(cards, BorderLayout.CENTER);
+
+        statusLabel.setFont(AppFonts.caption());
+        AppTheme.mark(statusLabel, AppTheme.SECONDARY_TEXT_ROLE);
+        content.add(statusLabel, BorderLayout.SOUTH);
+
+        JScrollPane scroll = new JScrollPane(content);
+        scroll.setBorder(BorderFactory.createEmptyBorder());
+        scroll.getVerticalScrollBar().setUnitIncrement(16);
+        scroll.getViewport().setBackground(AppColors.pageBackground());
+        add(scroll, BorderLayout.CENTER);
+    }
+
+    private JPanel appearanceCard() {
+        JPanel actions = actions();
+        actions.add(themeBox);
+        PrimaryButton apply = new PrimaryButton("Apply theme");
+        apply.addActionListener(event -> {
+            boolean dark = "Dark".equals(themeBox.getSelectedItem());
+            themeChangeListener.accept(dark);
+            status("Theme updated.", false);
+        });
+        actions.add(apply);
+        return card("Appearance",
+                "Choose a comfortable theme. The header switch remains available.",
+                actions);
+    }
+
+    private JPanel currencyCard() {
+        JPanel actions = actions();
+        actions.add(currencyField);
+        PrimaryButton save = new PrimaryButton("Save currency");
+        save.setEnabled(currencyService != null);
+        save.addActionListener(event -> saveCurrency());
+        actions.add(save);
+        return card("Currency",
+                "Use a valid ISO 4217 code such as BDT, USD, EUR, or GBP.",
+                actions);
+    }
+
+    private JPanel categoriesCard() {
+        JPanel actions = actions();
+        PrimaryButton manage = new PrimaryButton("Manage categories");
+        manage.addActionListener(event -> openCategoryManager());
+        actions.add(manage);
+        return card("Categories",
+                "Create, rename, archive, or restore custom expense categories.",
+                actions);
+    }
+
+    private static JPanel dataCard() {
+        JPanel actions = actions();
+        JLabel hint = new JLabel("Use Data in the application menu");
+        hint.setFont(AppFonts.button());
+        AppTheme.mark(hint, AppTheme.PRIMARY_TEXT_ROLE);
+        actions.add(hint);
+        return card("Backup and exports",
+                "Create safe backups, restore validated data, import CSV, or export reports.",
+                actions);
+    }
+
+    private static JPanel profileCard() {
+        JPanel actions = actions();
+        JLabel value = new JLabel("Local development profile");
+        value.setFont(AppFonts.button());
+        AppTheme.mark(value, AppTheme.PRIMARY_TEXT_ROLE);
+        actions.add(value);
+        return card("Profile",
+                "Online authentication is intentionally inactive until a real backend is configured.",
+                actions);
+    }
+
+    private static JPanel privacyCard() {
+        JPanel actions = actions();
+        JLabel value = new JLabel("Local storage · no cloud sync");
+        value.setFont(AppFonts.button());
+        AppTheme.mark(value, AppTheme.PRIMARY_TEXT_ROLE);
+        actions.add(value);
+        return card("Privacy",
+                "SpendWise keeps its finance records in the existing local data directory.",
+                actions);
+    }
+
+    private static JPanel card(
+            String titleText, String descriptionText, JPanel actions) {
+        JPanel card = new JPanel(new BorderLayout(0, 12));
+        AppTheme.mark(card, AppTheme.CARD_ROLE);
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(AppColors.border()),
+                BorderFactory.createEmptyBorder(16, 16, 16, 16)));
+        JLabel title = new JLabel(titleText);
+        title.setFont(AppFonts.sectionTitle());
+        AppTheme.mark(title, AppTheme.PRIMARY_TEXT_ROLE);
+        JLabel description = new JLabel(
+                "<html><body style='width:260px'>" + descriptionText
+                        + "</body></html>");
+        description.setFont(AppFonts.body());
+        AppTheme.mark(description, AppTheme.SECONDARY_TEXT_ROLE);
+        JPanel text = new JPanel(new BorderLayout(0, 7));
+        text.setOpaque(false);
+        text.add(title, BorderLayout.NORTH);
+        text.add(description, BorderLayout.CENTER);
+        card.add(text, BorderLayout.NORTH);
+        card.add(actions, BorderLayout.SOUTH);
+        return card;
+    }
+
+    private static JPanel actions() {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        panel.setOpaque(false);
+        return panel;
+    }
+
+    private void saveCurrency() {
+        try {
+            String code = currencyService.setCurrency(currencyField.getText())
+                    .getCurrencyCode();
+            currencyField.setText(code);
+            settingsChangeListener.run();
+            status("Currency changed to " + code + ".", false);
+        } catch (RuntimeException exception) {
+            status(exception.getMessage(), true);
+        }
+    }
+
+    private void openCategoryManager() {
+        Window owner = SwingUtilities.getWindowAncestor(this);
+        CategoryManagerDialog dialog = new CategoryManagerDialog(
+                owner,
+                categoryService,
+                categoryReferenceChecker,
+                () -> {
+                    settingsChangeListener.run();
+                    status("Categories updated.", false);
+                });
+        dialog.showDialog();
+    }
+
+    private void status(String message, boolean error) {
+        statusLabel.setForeground(error
+                ? AppColors.expense() : AppColors.income());
+        statusLabel.setText(message == null || message.isBlank()
+                ? "Unable to update settings." : message);
+    }
+}

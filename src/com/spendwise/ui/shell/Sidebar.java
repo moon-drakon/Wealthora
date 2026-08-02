@@ -17,6 +17,8 @@ import javax.swing.ButtonGroup;
 import javax.swing.Icon;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.ScrollPaneConstants;
 import javax.swing.JToggleButton;
 
 public final class Sidebar extends JPanel {
@@ -28,16 +30,49 @@ public final class Sidebar extends JPanel {
     private final ButtonGroup navigationGroup = new ButtonGroup();
     private final Map<String, JToggleButton> buttons = new LinkedHashMap<>();
     private final Consumer<String> selectionListener;
+    private final JPanel navigationPanel = new JPanel();
 
     public Sidebar(Consumer<String> selectionListener) {
         this.selectionListener = java.util.Objects.requireNonNull(
                 selectionListener, "Sidebar selection listener is required.");
-        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
-        setBorder(BorderFactory.createEmptyBorder(20, 14, 16, 14));
-        setPreferredSize(new Dimension(218, 600));
+        setLayout(new java.awt.BorderLayout());
+        setBorder(BorderFactory.createEmptyBorder(20, 12, 12, 10));
+        setPreferredSize(new Dimension(224, 600));
         AppTheme.mark(this, AppTheme.SIDEBAR_ROLE);
-        addBranding();
-        add(Box.createVerticalStrut(24));
+
+        JPanel brandingPanel = new JPanel();
+        brandingPanel.setLayout(new BoxLayout(brandingPanel, BoxLayout.Y_AXIS));
+        brandingPanel.setOpaque(false);
+        addBranding(brandingPanel);
+        brandingPanel.add(Box.createVerticalStrut(20));
+        add(brandingPanel, java.awt.BorderLayout.NORTH);
+
+        navigationPanel.setLayout(new BoxLayout(
+                navigationPanel, BoxLayout.Y_AXIS));
+        navigationPanel.setOpaque(false);
+        JScrollPane navigationScroll = new JScrollPane(navigationPanel);
+        navigationScroll.setBorder(BorderFactory.createEmptyBorder());
+        navigationScroll.setOpaque(false);
+        navigationScroll.getViewport().setOpaque(false);
+        navigationScroll.setHorizontalScrollBarPolicy(
+                ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        navigationScroll.setVerticalScrollBarPolicy(
+                ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
+        navigationScroll.getVerticalScrollBar().setUnitIncrement(14);
+        add(navigationScroll, java.awt.BorderLayout.CENTER);
+    }
+
+    public void addSection(String label) {
+        if (navigationPanel.getComponentCount() > 0) {
+            navigationPanel.add(Box.createVerticalStrut(12));
+        }
+        JLabel heading = new JLabel(label.toUpperCase(java.util.Locale.ROOT));
+        heading.setFont(AppFonts.caption().deriveFont(
+                java.awt.Font.BOLD, 10f));
+        heading.setForeground(SIDEBAR_MUTED);
+        heading.setBorder(BorderFactory.createEmptyBorder(0, 12, 5, 0));
+        heading.setAlignmentX(Component.LEFT_ALIGNMENT);
+        navigationPanel.add(heading);
     }
 
     public void addNavigationItem(
@@ -48,22 +83,25 @@ public final class Sidebar extends JPanel {
         button.setFont(AppFonts.button());
         button.setForeground(SIDEBAR_TEXT);
         button.setFocusPainted(true);
-        button.setBorder(BorderFactory.createEmptyBorder(10, 12, 10, 12));
-        button.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
+        button.setContentAreaFilled(false);
+        button.setBorderPainted(false);
+        button.setBorder(BorderFactory.createEmptyBorder(9, 12, 9, 12));
+        button.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
         button.setAlignmentX(Component.LEFT_ALIGNMENT);
         button.putClientProperty(
                 FlatClientProperties.BUTTON_TYPE,
                 FlatClientProperties.BUTTON_TYPE_ROUND_RECT);
         button.addItemListener(event -> {
             button.setOpaque(button.isSelected());
+            button.setContentAreaFilled(button.isSelected());
             button.setBackground(button.isSelected()
                     ? SELECTED_BACKGROUND : AppColors.sidebarBackground());
         });
         button.addActionListener(event -> selectionListener.accept(identifier));
         navigationGroup.add(button);
         buttons.put(identifier, button);
-        add(button);
-        add(Box.createVerticalStrut(3));
+        navigationPanel.add(button);
+        navigationPanel.add(Box.createVerticalStrut(2));
     }
 
     public void select(String identifier) {
@@ -82,7 +120,7 @@ public final class Sidebar extends JPanel {
         }
     }
 
-    private void addBranding() {
+    private static void addBranding(JPanel panel) {
         JLabel brand = new JLabel("SpendWise");
         brand.setFont(AppFonts.pageTitle());
         brand.setForeground(Color.WHITE);
@@ -91,8 +129,8 @@ public final class Sidebar extends JPanel {
         subtitle.setFont(AppFonts.caption().deriveFont(11f));
         subtitle.setForeground(SIDEBAR_MUTED);
         subtitle.setAlignmentX(Component.LEFT_ALIGNMENT);
-        add(brand);
-        add(Box.createVerticalStrut(2));
-        add(subtitle);
+        panel.add(brand);
+        panel.add(Box.createVerticalStrut(2));
+        panel.add(subtitle);
     }
 }

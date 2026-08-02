@@ -63,6 +63,7 @@ public final class FinancePanel extends JPanel {
             new JComboBox<>(AccountFilter.values());
     private final JLabel statementSummaryLabel =
             new JLabel("Select an account to view its activity.");
+    private final JTabbedPane financeTabs = new JTabbedPane();
 
     public FinancePanel(
             AccountService accountService,
@@ -110,6 +111,11 @@ public final class FinancePanel extends JPanel {
     public void refreshFinanceData() {
         requireEventDispatchThread();
         refreshFinanceDataSafely();
+    }
+
+    public void showAccounts() {
+        financeTabs.setSelectedIndex(0);
+        refreshFinanceData();
     }
 
     boolean refreshIncomeData() {
@@ -219,7 +225,6 @@ public final class FinancePanel extends JPanel {
         heading.add(title, BorderLayout.WEST);
         heading.add(totalBalanceLabel, BorderLayout.EAST);
 
-        JTabbedPane financeTabs = new JTabbedPane();
         financeTabs.addTab("Accounts", createAccountsTab());
         financeTabs.addTab("Income", createIncomeTab());
         financeTabs.addTab("Transfers", createTransfersTab());

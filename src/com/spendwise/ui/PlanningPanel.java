@@ -66,6 +66,7 @@ public final class PlanningPanel extends JPanel {
     private final StyledTable goalTable = table(goalModel);
     private final StyledTable debtTable = table(debtModel);
     private final JLabel status = new JLabel("Ready");
+    private final JTabbedPane tabs = new JTabbedPane();
 
     public PlanningPanel(
             AdvancedBudgetService budgetService,
@@ -96,6 +97,16 @@ public final class PlanningPanel extends JPanel {
         }
     }
 
+    public void showGoals() {
+        tabs.setSelectedIndex(1);
+        refreshPlanning();
+    }
+
+    public void showLoansAndDebts() {
+        tabs.setSelectedIndex(2);
+        refreshPlanning();
+    }
+
     private void buildInterface() {
         setLayout(new BorderLayout(12, 12));
         setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
@@ -111,7 +122,6 @@ public final class PlanningPanel extends JPanel {
         heading.add(subtitle);
         add(heading, BorderLayout.NORTH);
 
-        JTabbedPane tabs = new JTabbedPane();
         tabs.addTab("Budget Plans", section(budgetTable,
                 button("New Budget", this::addBudget, true),
                 button("Archive / Restore", this::toggleBudget, false),

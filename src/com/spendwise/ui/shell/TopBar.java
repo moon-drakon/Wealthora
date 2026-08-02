@@ -9,6 +9,7 @@ import com.spendwise.ui.theme.AppTheme;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.Color;
 import java.util.Objects;
 import java.util.function.Consumer;
 import javax.swing.BorderFactory;
@@ -45,13 +46,14 @@ public final class TopBar extends JPanel {
         JPanel searchArea = new JPanel(new BorderLayout());
         searchArea.setOpaque(false);
         searchArea.add(searchField, BorderLayout.CENTER);
+        searchArea.setMinimumSize(new Dimension(120, 38));
         searchArea.setMaximumSize(new Dimension(520, 40));
         searchField.addActionListener(event -> submitSearch());
         add(searchArea, BorderLayout.CENTER);
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         actions.setOpaque(false);
-        PrimaryButton quickButton = new PrimaryButton("Quick Transaction");
+        PrimaryButton quickButton = new PrimaryButton("Quick Add Transaction");
         quickButton.setIcon(AppIcons.icon(AppIcons.Type.ADD, 15));
         quickButton.setMnemonic('Q');
         quickButton.addActionListener(event -> quickEntryListener.run());
@@ -61,11 +63,21 @@ public final class TopBar extends JPanel {
             this.themeListener.run();
             refreshThemeText();
         });
-        JLabel profile = new JLabel("Local workspace");
-        profile.setFont(AppFonts.caption());
-        profile.setToolTipText(
-                "Authentication will be connected when a real backend exists.");
-        AppTheme.mark(profile, AppTheme.SECONDARY_TEXT_ROLE);
+        JPanel profile = new JPanel(new FlowLayout(FlowLayout.LEFT, 7, 2));
+        profile.setOpaque(false);
+        JLabel avatar = new JLabel("SW", JLabel.CENTER);
+        avatar.setOpaque(true);
+        avatar.setBackground(new Color(220, 239, 233));
+        avatar.setForeground(new Color(25, 105, 80));
+        avatar.setFont(AppFonts.caption().deriveFont(java.awt.Font.BOLD));
+        avatar.setPreferredSize(new Dimension(30, 30));
+        JLabel profileLabel = new JLabel("Local profile");
+        profileLabel.setFont(AppFonts.caption());
+        profileLabel.setToolTipText(
+                "Local development profile; no online authentication is active.");
+        AppTheme.mark(profileLabel, AppTheme.SECONDARY_TEXT_ROLE);
+        profile.add(avatar);
+        profile.add(profileLabel);
         actions.add(quickButton);
         actions.add(themeButton);
         actions.add(profile);
@@ -86,7 +98,7 @@ public final class TopBar extends JPanel {
         searchListener.accept(searchField.getText());
     }
 
-    private void refreshThemeText() {
+    void refreshThemeText() {
         themeButton.setText(AppTheme.isDarkMode() ? "Light" : "Dark");
     }
 }

@@ -37,6 +37,7 @@ import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.SwingUtilities;
 import javax.swing.JTable;
 import javax.swing.ListSelectionModel;
 import javax.swing.table.DefaultTableCellRenderer;
@@ -78,6 +79,7 @@ public final class OverviewPanel extends JPanel {
     private final CategoryDonutChartPanel categoryChart =
             new CategoryDonutChartPanel();
     private final JLabel updatedLabel = new JLabel(" ");
+    private final JScrollPane scrollPane = new JScrollPane();
 
     public OverviewPanel(
             FinanceService financeService,
@@ -144,6 +146,8 @@ public final class OverviewPanel extends JPanel {
                 + month.format(MONTH_LABEL));
         revalidate();
         repaint();
+        SwingUtilities.invokeLater(() ->
+                scrollPane.getVerticalScrollBar().setValue(0));
     }
 
     private void buildInterface() {
@@ -162,7 +166,7 @@ public final class OverviewPanel extends JPanel {
         AppTheme.mark(updatedLabel, AppTheme.SECONDARY_TEXT_ROLE);
         content.add(updatedLabel, BorderLayout.SOUTH);
 
-        JScrollPane scrollPane = new JScrollPane(content);
+        scrollPane.setViewportView(content);
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
         scrollPane.getVerticalScrollBar().setUnitIncrement(18);
         scrollPane.getViewport().setBackground(AppColors.pageBackground());

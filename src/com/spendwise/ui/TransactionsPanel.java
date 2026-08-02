@@ -17,6 +17,8 @@ import com.spendwise.ui.component.PrimaryButton;
 import com.spendwise.ui.component.SearchField;
 import com.spendwise.ui.component.SecondaryButton;
 import com.spendwise.ui.component.StyledTable;
+import com.spendwise.ui.component.StyledComboBox;
+import com.spendwise.ui.component.StyledTextField;
 import com.spendwise.ui.theme.AppColors;
 import com.spendwise.ui.theme.AppFonts;
 import com.spendwise.ui.theme.AppTheme;
@@ -67,15 +69,17 @@ public final class TransactionsPanel extends JPanel {
     private final StyledTable table = new StyledTable(tableModel);
     private final SearchField searchField =
             new SearchField("Search descriptions, accounts, or categories", 25);
-    private final JComboBox<Object> accountFilter = new JComboBox<>();
-    private final JComboBox<Object> categoryFilter = new JComboBox<>();
-    private final JComboBox<Object> typeFilter = new JComboBox<>(
+    private final JComboBox<Object> accountFilter = new StyledComboBox<>();
+    private final JComboBox<Object> categoryFilter = new StyledComboBox<>();
+    private final JComboBox<Object> typeFilter = new StyledComboBox<>(
             new Object[] {ALL, TransactionType.INCOME,
                 TransactionType.EXPENSE, TransactionType.TRANSFER});
-    private final JTextField startDateField = new JTextField(10);
-    private final JTextField endDateField = new JTextField(10);
+    private final JTextField startDateField =
+            new StyledTextField("Start date", 10);
+    private final JTextField endDateField =
+            new StyledTextField("End date", 10);
     private final JComboBox<SortOrder> sortOrder =
-            new JComboBox<>(SortOrder.values());
+            new StyledComboBox<>(SortOrder.values());
     private final JButton editButton = new SecondaryButton("Edit selected");
     private final JButton deleteButton = new SecondaryButton("Delete selected");
     private final JLabel statusLabel = new JLabel(" ");
@@ -192,16 +196,19 @@ public final class TransactionsPanel extends JPanel {
     }
 
     private JPanel buildFilterRow() {
-        JPanel filters = new JPanel(new GridLayout(2, 1, 0, 8));
+        JPanel filters = new JPanel(new GridLayout(3, 1, 0, 8));
         AppTheme.mark(filters, AppTheme.CARD_ROLE);
         filters.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         JPanel primaryRow = new JPanel(
                 new FlowLayout(FlowLayout.LEFT, 8, 0));
         primaryRow.setOpaque(false);
         primaryRow.add(searchField);
-        addLabeled(primaryRow, "Account", accountFilter);
-        addLabeled(primaryRow, "Category", categoryFilter);
-        addLabeled(primaryRow, "Type", typeFilter);
+        JPanel classificationRow = new JPanel(
+                new FlowLayout(FlowLayout.LEFT, 8, 0));
+        classificationRow.setOpaque(false);
+        addLabeled(classificationRow, "Account", accountFilter);
+        addLabeled(classificationRow, "Category", categoryFilter);
+        addLabeled(classificationRow, "Type", typeFilter);
         JPanel secondaryRow = new JPanel(
                 new FlowLayout(FlowLayout.LEFT, 8, 0));
         secondaryRow.setOpaque(false);
@@ -214,6 +221,7 @@ public final class TransactionsPanel extends JPanel {
         refresh.addActionListener(event -> refreshTransactions());
         secondaryRow.add(refresh);
         filters.add(primaryRow);
+        filters.add(classificationRow);
         filters.add(secondaryRow);
 
         searchField.getDocument().addDocumentListener(new FilterListener());

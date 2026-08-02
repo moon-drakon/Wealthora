@@ -13,7 +13,7 @@ public final class AppIcons {
     public enum Type {
         DASHBOARD, TRANSACTIONS, EXPENSES, FINANCE, BUDGETS,
         CALENDAR, REPORTS, RECURRING, ANALYTICS, CARDS, PLANNING,
-        NOTIFICATIONS, SEARCH, THEME, ADD
+        NOTIFICATIONS, GOALS, LOANS, SETTINGS, SEARCH, THEME, ADD
     }
 
     private AppIcons() {
@@ -149,6 +149,36 @@ public final class AppIcons {
                     drawing.drawLine(x + width / 2, y + height / 2,
                             x + width - 2, y + 2);
                     drawing.drawOval(x + width - 4, y, 4, 4);
+                }
+                case GOALS -> {
+                    drawing.drawOval(x, y, width, height);
+                    drawing.drawOval(x + width / 4, y + height / 4,
+                            width / 2, height / 2);
+                    drawing.drawLine(x + width / 2, y + height / 2,
+                            x + width, y);
+                }
+                case LOANS -> {
+                    drawing.drawRoundRect(x, y + height / 4,
+                            width, height * 3 / 4, 3, 3);
+                    drawing.drawLine(x + 2, y + height / 2,
+                            x + width - 2, y + height / 2);
+                    drawing.drawLine(x + width / 3, y,
+                            x + width * 2 / 3, y);
+                    drawing.drawLine(x + width / 2, y,
+                            x + width / 2, y + height / 4);
+                }
+                case SETTINGS -> {
+                    drawing.drawOval(x + width / 3, y + height / 3,
+                            width / 3, height / 3);
+                    drawing.drawOval(x + 2, y + 2, width - 4, height - 4);
+                    drawing.drawLine(x + width / 2, y,
+                            x + width / 2, y + height / 4);
+                    drawing.drawLine(x + width / 2, y + height * 3 / 4,
+                            x + width / 2, y + height);
+                    drawing.drawLine(x, y + height / 2,
+                            x + width / 4, y + height / 2);
+                    drawing.drawLine(x + width * 3 / 4, y + height / 2,
+                            x + width, y + height / 2);
                 }
                 case NOTIFICATIONS -> {
                     drawing.drawArc(x + 2, y + 2, width - 4, height,

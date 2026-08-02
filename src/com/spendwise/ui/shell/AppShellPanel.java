@@ -22,6 +22,7 @@ public final class AppShellPanel extends JPanel {
             new NotificationBanner();
     private final Map<String, PageRegistration> pages = new LinkedHashMap<>();
     private Consumer<String> globalSearchListener = ignored -> { };
+    private Runnable themeChangedListener = () -> { };
     private String currentPage;
 
     public AppShellPanel(Runnable quickEntryListener) {
@@ -56,6 +57,7 @@ public final class AppShellPanel extends JPanel {
         PageRegistration page = new PageRegistration(
                 title,
                 Objects.requireNonNull(component, "Page component is required."),
+                identifier,
                 onShow == null ? () -> { } : onShow);
         pages.put(identifier, page);
         pageContainer.add(component, identifier);
@@ -66,13 +68,42 @@ public final class AppShellPanel extends JPanel {
         }
     }
 
+    public void addPageAlias(
+            String identifier,
+            String title,
+            AppIcons.Type iconType,
+            String targetIdentifier,
+            Runnable onShow) {
+        if (pages.containsKey(identifier)) {
+            throw new IllegalArgumentException(
+                    "A page with this identifier already exists: " + identifier);
+        }
+        PageRegistration target = pages.get(targetIdentifier);
+        if (target == null) {
+            throw new IllegalArgumentException(
+                    "Unknown alias target: " + targetIdentifier);
+        }
+        PageRegistration page = new PageRegistration(
+                title,
+                target.component(),
+                target.cardIdentifier(),
+                onShow == null ? () -> { } : onShow);
+        pages.put(identifier, page);
+        sidebar.addNavigationItem(
+                identifier, title, AppIcons.icon(iconType, 18));
+    }
+
+    public void addNavigationSection(String title) {
+        sidebar.addSection(title);
+    }
+
     public void showPage(String identifier) {
         PageRegistration page = pages.get(identifier);
         if (page == null) {
             throw new IllegalArgumentException("Unknown page: " + identifier);
         }
         currentPage = identifier;
-        cardLayout.show(pageContainer, identifier);
+        cardLayout.show(pageContainer, page.cardIdentifier());
         sidebar.select(identifier);
         topBar.setPageTitle(page.title());
         page.onShow().run();
@@ -81,6 +112,11 @@ public final class AppShellPanel extends JPanel {
     public void setGlobalSearchListener(Consumer<String> listener) {
         globalSearchListener = Objects.requireNonNull(
                 listener, "Global search listener is required.");
+    }
+
+    public void setThemeChangedListener(Runnable listener) {
+        themeChangedListener = Objects.requireNonNull(
+                listener, "Theme-change listener is required.");
     }
 
     public void showNotification(
@@ -100,15 +136,24 @@ public final class AppShellPanel extends JPanel {
         topBar.focusSearch();
     }
 
-    private void toggleTheme() {
-        AppTheme.toggle();
+    public void setDarkMode(boolean darkMode) {
+        AppTheme.setDarkMode(darkMode);
         sidebar.refreshTheme();
+        topBar.refreshThemeText();
         AppTheme.applyCustomColors(this);
+        themeChangedListener.run();
         revalidate();
         repaint();
     }
 
+    private void toggleTheme() {
+        setDarkMode(!AppTheme.isDarkMode());
+    }
+
     private record PageRegistration(
-            String title, Component component, Runnable onShow) {
+            String title,
+            Component component,
+            String cardIdentifier,
+            Runnable onShow) {
     }
 }

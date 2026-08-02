@@ -37,7 +37,6 @@ import com.spendwise.service.JsonBackupService;
 import com.spendwise.service.CsvImportService;
 import com.spendwise.service.PdfReportService;
 import com.spendwise.ui.shell.AppShellPanel;
-import com.spendwise.ui.theme.AppTheme;
 import java.awt.GraphicsEnvironment;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -178,13 +177,13 @@ public final class FinanceFrameSmokeTest {
                     throw new AssertionError(
                             "Main content must use the professional app shell.");
                 }
-                assertEquals(12, shell.getPageCount());
-                assertEquals("overview", shell.getCurrentPage());
+                assertEquals(14, shell.getPageCount());
+                assertEquals("dashboard", shell.getCurrentPage());
                 for (String page : new String[] {
-                    "transactions", "expenses", "finance", "cards", "budgets",
-                    "calendar", "reports", "recurring", "planning",
-                    "notifications", "analytics",
-                    "overview"
+                    "dashboard", "transactions", "accounts", "budgets",
+                    "cards", "calendar", "recurring", "reports", "goals",
+                    "loans", "settings", "expenses", "notifications",
+                    "analytics"
                 }) {
                     shell.showPage(page);
                     assertEquals(page, shell.getCurrentPage());
@@ -193,8 +192,8 @@ public final class FinanceFrameSmokeTest {
                 frame.validate();
                 frame.setSize(1440, 900);
                 frame.validate();
-                AppTheme.setDarkMode(true);
-                AppTheme.setDarkMode(false);
+                shell.setDarkMode(true);
+                shell.setDarkMode(false);
                 if (frame.getJMenuBar() == null
                         || frame.getJMenuBar().getMenuCount() != 2) {
                     throw new AssertionError(

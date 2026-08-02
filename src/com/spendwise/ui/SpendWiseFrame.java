@@ -25,6 +25,7 @@ import com.spendwise.service.JsonBackupService;
 import com.spendwise.service.CsvImportService;
 import com.spendwise.service.PdfReportService;
 import com.spendwise.ui.component.AppIcons;
+import com.spendwise.ui.component.EmptyStatePanel;
 import com.spendwise.ui.shell.AppShellPanel;
 import com.spendwise.ui.theme.AppTheme;
 import java.awt.Dimension;
@@ -316,38 +317,72 @@ public final class SpendWiseFrame extends JFrame {
         quickEntryReference[0] = quickEntryDialog;
 
         AppShellPanel shell = new AppShellPanel(quickEntryDialog::open);
-        shell.addPage("overview", "Overview", AppIcons.Type.DASHBOARD,
+        shell.addNavigationSection("Workspace");
+        shell.addPage("dashboard", "Dashboard", AppIcons.Type.DASHBOARD,
                 overviewPanel, overviewPanel::refreshOverview);
         shell.addPage("transactions", "Transactions",
                 AppIcons.Type.TRANSACTIONS, transactionsPanel,
                 transactionsPanel::refreshTransactions);
-        shell.addPage("expenses", "Expenses", AppIcons.Type.EXPENSES,
-                expensePanel, expensePanel::refreshExpenses);
-        shell.addPage("finance", "Accounts & Finance", AppIcons.Type.FINANCE,
-                financePanel, financePanel::refreshFinanceData);
+        shell.addPage("accounts", "Accounts", AppIcons.Type.FINANCE,
+                financePanel, financePanel::showAccounts);
+
+        shell.addNavigationSection("Plan and review");
+        shell.addPage("budgets", "Budgets", AppIcons.Type.BUDGETS,
+                budgetPanel, budgetPanel::refreshBudgetStatus);
         if (paymentCardService != null && currencyService != null) {
             CardsPanel cardsPanel = new CardsPanel(
                     paymentCardService, accountService, currencyService,
                     overviewPanel::refreshOverview);
-            shell.addPage("cards", "Cards & Currency", AppIcons.Type.CARDS,
+            shell.addPage("cards", "Cards", AppIcons.Type.CARDS,
                     cardsPanel, cardsPanel::refreshCards);
+        } else {
+            shell.addPage("cards", "Cards", AppIcons.Type.CARDS,
+                    new EmptyStatePanel("Cards are unavailable",
+                            "Start SpendWise with the complete finance services to manage cards."),
+                    null);
         }
-        shell.addPage("budgets", "Budgets", AppIcons.Type.BUDGETS,
-                budgetPanel, budgetPanel::refreshBudgetStatus);
         shell.addPage("calendar", "Calendar", AppIcons.Type.CALENDAR,
                 calendarPanel, calendarPanel::refreshCalendar);
-        shell.addPage("reports", "Reports", AppIcons.Type.REPORTS,
-                reportsPanel, reportsPanel::refreshReports);
         shell.addPage("recurring", "Recurring", AppIcons.Type.RECURRING,
                 recurringPanel, recurringPanel::refreshRecurringEntries);
+        shell.addPage("reports", "Reports", AppIcons.Type.REPORTS,
+                reportsPanel, reportsPanel::refreshReports);
         if (advancedBudgetService != null && savingsGoalService != null
                 && debtService != null) {
             PlanningPanel planningPanel = new PlanningPanel(
                     advancedBudgetService, savingsGoalService, debtService,
                     accountService, categoryService);
-            shell.addPage("planning", "Planning", AppIcons.Type.PLANNING,
-                    planningPanel, planningPanel::refreshPlanning);
+            shell.addPage("goals", "Goals", AppIcons.Type.GOALS,
+                    planningPanel, planningPanel::showGoals);
+            shell.addPageAlias("loans", "Loans and Debts",
+                    AppIcons.Type.LOANS, "goals",
+                    planningPanel::showLoansAndDebts);
+        } else {
+            EmptyStatePanel planningUnavailable = new EmptyStatePanel(
+                    "Planning is unavailable",
+                    "Start SpendWise with the complete planning services to manage goals and debts.");
+            shell.addPage("goals", "Goals", AppIcons.Type.GOALS,
+                    planningUnavailable, null);
+            shell.addPageAlias("loans", "Loans and Debts",
+                    AppIcons.Type.LOANS, "goals", null);
         }
+
+        shell.addNavigationSection("Application");
+        SettingsPanel settingsPanel = new SettingsPanel(
+                categoryService,
+                category -> expenseService.getAllExpenses().stream()
+                        .anyMatch(expense -> expense.getCategory().equals(category))
+                        || budgetService.isCategoryReferenced(category),
+                currencyService,
+                shell::setDarkMode,
+                refreshFinancialViews);
+        shell.addPage("settings", "Settings", AppIcons.Type.SETTINGS,
+                settingsPanel, settingsPanel::refreshSettings);
+        shell.setThemeChangedListener(settingsPanel::refreshSettings);
+
+        shell.addNavigationSection("Specialist tools");
+        shell.addPage("expenses", "Expense workspace", AppIcons.Type.EXPENSES,
+                expensePanel, expensePanel::refreshExpenses);
         if (notificationService != null) {
             NotificationCenterPanel notificationPanel =
                     new NotificationCenterPanel(notificationService);
