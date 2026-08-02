@@ -96,6 +96,7 @@ public final class SettingsPanel extends JPanel {
                 : currencyService.getCurrency().getCurrencyCode());
         currencyField.setEnabled(currencyService != null);
         voiceEnabled.setSelected(voiceSettings.isEnabled());
+        voiceLanguage.setFont(AppFonts.multilingualBody());
         voiceLanguage.setSelectedItem(voiceSettings.getPreferredLanguage());
         doNotStoreAudio.setSelected(voiceSettings.isDoNotStoreAudio());
     }

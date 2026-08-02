@@ -84,7 +84,7 @@ The Expenses header opens a modal category manager with Name, Type, and Status c
 
 ### Recurring and Quick Entry
 
-`RecurringPanel` manages typed schedules and invokes generation only through the visible **Generate Due Entries** action. `QuickEntryDialog` provides a compact expense, income, and transfer form from the Entry menu or `Ctrl+Q`. `VoiceQuickEntryDialog` adds English/Banglish parsing, manual fallback, editable draft review, and explicit confirmation through the same services; no speech provider is bundled. Opening or cancelling either workflow does not write data.
+`RecurringPanel` manages typed schedules and invokes generation only through the visible **Generate Due Entries** action. `QuickEntryDialog` provides a compact expense, income, and transfer form from the Entry menu or `Ctrl+Q`. `VoiceQuickEntryDialog` adds English, Bangla, and Banglish parsing, canonical English structured fields, manual fallback, editable draft review, and explicit confirmation through the same services; no speech provider is bundled. Opening or cancelling either workflow does not write data.
 
 ### Data protection and export
 

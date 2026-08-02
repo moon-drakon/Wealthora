@@ -24,7 +24,9 @@ public final class VoiceCaptureService {
         if (!provider.isConfigured()) {
             throw new IllegalStateException(provider.getStatus());
         }
-        return provider.recognize(settings.getPreferredLanguage());
+        SpeechRecognitionRequest request = SpeechRecognitionRequest.forLanguage(
+                settings.getPreferredLanguage());
+        return provider.recognize(request);
     }
 
     public void stop() {

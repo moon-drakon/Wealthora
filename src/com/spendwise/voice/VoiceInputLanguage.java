@@ -2,8 +2,9 @@ package com.spendwise.voice;
 
 public enum VoiceInputLanguage {
     ENGLISH("English"),
-    BANGLA("Bangla"),
-    AUTOMATIC("Automatic");
+    BANGLA("বাংলা"),
+    BANGLISH_MIXED("Banglish / Mixed"),
+    AUTOMATIC("Auto");
 
     private final String displayName;
 

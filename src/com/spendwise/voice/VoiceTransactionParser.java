@@ -26,6 +26,8 @@ public final class VoiceTransactionParser {
     private static final Pattern AMOUNT = Pattern.compile(
             "(?<![\\w-])(\\d[\\d,]*(?:\\.\\d+)?)\\s*"
             + "(k|thousand|taka|bdt|usd|eur|gbp)\\b");
+    private static final Pattern BARE_AMOUNT = Pattern.compile(
+            "(?<![\\w-])(\\d[\\d,]*(?:\\.\\d+)?)(?![\\w-])");
     private static final Pattern ISO_DATE = Pattern.compile(
             "\\b(20\\d{2}-\\d{2}-\\d{2})\\b");
     private static final Pattern COMMON_DATE = Pattern.compile(
@@ -36,6 +38,9 @@ public final class VoiceTransactionParser {
             "\\b(?:with\\s+)?note\\s+(.+)$");
     private static final Pattern TAGS = Pattern.compile(
             "\\btags?\\s+([a-z0-9,_ -]+)$");
+    private static final Pattern MONTHLY_DAY = Pattern.compile(
+            "\\bevery month(?:\\s+(?:on|of))?\\s+(\\d{1,2})"
+            + "(?:\\s+date)?\\b");
 
     private final List<Account> accounts;
     private final List<Category> categories;
@@ -75,7 +80,7 @@ public final class VoiceTransactionParser {
         }
         parseAmount(command, draft, warnings);
         parseDateAndTime(command, draft, warnings);
-        parseRecurrence(command, draft);
+        parseRecurrence(command, draft, warnings);
         parseAccounts(command, draft, warnings);
         parseCategory(command, draft, warnings);
         parseNoteAndTags(command, draft);
@@ -91,11 +96,14 @@ public final class VoiceTransactionParser {
         if (containsWord(command, "transfer")) return TransactionType.TRANSFER;
         if (containsWord(command, "income")
                 || containsWord(command, "salary")
-                || containsWord(command, "deposit")) {
+                || containsWord(command, "deposit")
+                || containsWord(command, "received")) {
             return TransactionType.INCOME;
         }
         if (containsWord(command, "expense")
                 || containsWord(command, "spent")
+                || containsWord(command, "paid")
+                || containsWord(command, "pay")
                 || containsWord(command, "bill")) {
             return TransactionType.EXPENSE;
         }
@@ -108,7 +116,7 @@ public final class VoiceTransactionParser {
             List<String> warnings) {
         Matcher matcher = AMOUNT.matcher(command);
         if (!matcher.find()) {
-            warnings.add("Amount could not be recognized.");
+            parseBareAmount(command, draft, warnings);
             return;
         }
         try {
@@ -127,12 +135,52 @@ public final class VoiceTransactionParser {
         }
     }
 
+    private static void parseBareAmount(
+            String command,
+            VoiceTransactionDraft draft,
+            List<String> warnings) {
+        List<String> candidates = new ArrayList<>();
+        Matcher matcher = BARE_AMOUNT.matcher(command);
+        while (matcher.find()) {
+            if (!isDateOrTimeNumber(command, matcher.start(), matcher.end())) {
+                candidates.add(matcher.group(1));
+            }
+        }
+        if (candidates.isEmpty()) {
+            warnings.add("Amount could not be recognized.");
+            return;
+        }
+        if (candidates.size() > 1) {
+            warnings.add("Amount is ambiguous; select the intended value.");
+            return;
+        }
+        try {
+            draft.setAmount(new BigDecimal(candidates.get(0).replace(",", "")));
+            draft.setCurrencyCode(Account.DEFAULT_CURRENCY_CODE);
+        } catch (NumberFormatException exception) {
+            warnings.add("Amount format is invalid.");
+        }
+    }
+
+    private static boolean isDateOrTimeNumber(
+            String command, int start, int end) {
+        int left = Math.max(0, start - 18);
+        int right = Math.min(command.length(), end + 18);
+        String context = command.substring(left, right);
+        String following = command.substring(end, right).stripLeading();
+        return following.startsWith("date")
+                || context.matches(".*\\d{1,2}[:/-]\\d{1,2}.*")
+                || context.matches(".*20\\d{2}-\\d{1,2}-\\d{1,2}.*");
+    }
+
     private void parseDateAndTime(
             String command,
             VoiceTransactionDraft draft,
             List<String> warnings) {
         LocalDate today = LocalDate.now(clock);
-        if (containsWord(command, "yesterday")) {
+        if (containsWord(command, "ambiguous-day")) {
+            warnings.add("The Bangla date 'কাল' is ambiguous; select the actual date.");
+        } else if (containsWord(command, "yesterday")) {
             draft.setDate(today.minusDays(1));
         } else if (containsWord(command, "today")) {
             draft.setDate(today);
@@ -160,8 +208,10 @@ public final class VoiceTransactionParser {
                 : LocalTime.now(clock).withSecond(0).withNano(0));
     }
 
-    private static void parseRecurrence(
-            String command, VoiceTransactionDraft draft) {
+    private void parseRecurrence(
+            String command,
+            VoiceTransactionDraft draft,
+            List<String> warnings) {
         RecurrenceFrequency frequency = null;
         if (command.contains("every day") || containsWord(command, "daily")) {
             frequency = RecurrenceFrequency.DAILY;
@@ -177,6 +227,30 @@ public final class VoiceTransactionParser {
         }
         draft.setRecurring(frequency != null || containsWord(command, "recurring"));
         draft.setRecurringFrequency(frequency);
+        if (frequency == RecurrenceFrequency.MONTHLY) {
+            Matcher day = MONTHLY_DAY.matcher(command);
+            if (day.find()) {
+                int dayOfMonth = Integer.parseInt(day.group(1));
+                if (dayOfMonth < 1 || dayOfMonth > 31) {
+                    warnings.add("Recurring day must be between 1 and 31.");
+                } else {
+                    draft.setNextDueDate(nextMonthlyDate(
+                            LocalDate.now(clock), dayOfMonth));
+                }
+            }
+        }
+    }
+
+    private static LocalDate nextMonthlyDate(
+            LocalDate today, int requestedDay) {
+        LocalDate candidate = today.withDayOfMonth(
+                Math.min(requestedDay, today.lengthOfMonth()));
+        if (candidate.isBefore(today)) {
+            LocalDate nextMonth = today.plusMonths(1).withDayOfMonth(1);
+            candidate = nextMonth.withDayOfMonth(
+                    Math.min(requestedDay, nextMonth.lengthOfMonth()));
+        }
+        return candidate;
     }
 
     private void parseAccounts(
@@ -209,17 +283,40 @@ public final class VoiceTransactionParser {
 
     private List<Mention<Account>> accountMentions(String command) {
         List<Mention<Account>> mentions = new ArrayList<>();
+        LinkedHashSet<String> recognized = new LinkedHashSet<>();
+        long bankAccounts = accounts.stream()
+                .filter(account -> account.getType() == AccountType.BANK
+                || account.getType() == AccountType.SAVINGS)
+                .count();
         for (Account account : accounts) {
-            String name = normalizer.normalize(account.getDisplayName());
-            Matcher matcher = Pattern.compile(
-                    "(?<![a-z0-9])" + Pattern.quote(name)
-                    + "(?![a-z0-9])").matcher(command);
-            while (matcher.find()) {
-                mentions.add(new Mention<>(matcher.start(), account));
+            for (String alias : accountAliases(account, bankAccounts)) {
+                Matcher matcher = Pattern.compile(
+                        "(?<![a-z0-9])" + Pattern.quote(alias)
+                        + "(?![a-z0-9])").matcher(command);
+                while (matcher.find()) {
+                    String key = matcher.start() + "|" + account.getIdentifier();
+                    if (recognized.add(key)) {
+                        mentions.add(new Mention<>(matcher.start(), account));
+                    }
+                }
             }
         }
         mentions.sort(Comparator.comparingInt(Mention::position));
         return mentions;
+    }
+
+    private List<String> accountAliases(Account account, long bankAccounts) {
+        LinkedHashSet<String> aliases = new LinkedHashSet<>();
+        aliases.add(normalizer.normalize(account.getDisplayName()));
+        switch (account.getType()) {
+            case CASH -> aliases.add("cash");
+            case BANK, SAVINGS -> {
+                if (bankAccounts == 1) aliases.add("bank");
+            }
+            default -> {
+            }
+        }
+        return List.copyOf(aliases);
     }
 
     private void addGenericAccountWarning(

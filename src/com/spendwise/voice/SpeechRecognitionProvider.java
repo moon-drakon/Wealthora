@@ -8,9 +8,15 @@ public interface SpeechRecognitionProvider {
 
     String getMicrophoneStatus();
 
+    SpeechProviderStatus getProviderStatus();
+
     boolean isConfigured();
 
-    SpeechRecognitionResult recognize(VoiceInputLanguage language);
+    SpeechRecognitionResult recognize(SpeechRecognitionRequest request);
+
+    default SpeechRecognitionResult recognize(VoiceInputLanguage language) {
+        return recognize(SpeechRecognitionRequest.forLanguage(language));
+    }
 
     void stop();
 

@@ -43,6 +43,18 @@ public final class VoiceTransactionParserTest {
         test("English transfer command", VoiceTransactionParserTest::transfer);
         test("recurring command", VoiceTransactionParserTest::recurring);
         test("Banglish command", VoiceTransactionParserTest::banglish);
+        test("Bangla expense uses canonical English fields",
+                VoiceTransactionParserTest::banglaExpense);
+        test("Bangla income and scaled amount",
+                VoiceTransactionParserTest::banglaIncome);
+        test("Bangla transfer resolves account aliases",
+                VoiceTransactionParserTest::banglaTransfer);
+        test("Bangla recurring date is normalized",
+                VoiceTransactionParserTest::banglaRecurring);
+        test("Banglish amount without a currency word",
+                VoiceTransactionParserTest::banglishBareAmount);
+        test("ambiguous Bangla date remains unresolved",
+                VoiceTransactionParserTest::ambiguousBanglaDate);
         test("missing account remains unresolved",
                 VoiceTransactionParserTest::missingAccount);
         test("ambiguous account remains unresolved",
@@ -57,6 +69,10 @@ public final class VoiceTransactionParserTest {
                 VoiceTransactionParserTest::confirmedDraft);
         test("manual parser works without speech provider",
                 VoiceTransactionParserTest::manualFallback);
+        test("speech request uses Bangla locale without storing audio",
+                VoiceTransactionParserTest::banglaSpeechRequest);
+        test("missing speech provider reports honest status",
+                VoiceTransactionParserTest::missingProviderStatus);
         System.out.println("All " + passed
                 + " voice transaction tests passed.");
     }
@@ -113,6 +129,76 @@ public final class VoiceTransactionParserTest {
         assertEquals("bKash", draft.getSourceAccount().getDisplayName());
         assertEquals(Category.FOOD, draft.getEffectiveCategory());
         assertTrue(draft.isComplete());
+    }
+
+    private static void banglaExpense() {
+        VoiceParseResult result = parser(baseAccounts()).parse(
+                "আজ বিকাশ থেকে খাবারে ৫০০ টাকা খরচ");
+        VoiceTransactionDraft draft = result.draft();
+        assertEquals(TransactionType.EXPENSE, draft.getTransactionType());
+        assertMoney("500", draft.getAmount());
+        assertEquals("BDT", draft.getCurrencyCode());
+        assertEquals("bKash", draft.getSourceAccount().getDisplayName());
+        assertEquals(Category.FOOD, draft.getEffectiveCategory());
+        assertEquals("Food", draft.getDescription());
+        assertEquals(TODAY, draft.getDate());
+        assertTrue(draft.isComplete());
+        assertTrue(result.transcript().contains("৫০০"));
+    }
+
+    private static void banglaIncome() {
+        VoiceTransactionDraft draft = parser(baseAccounts()).parse(
+                "ব্যাংকে ৩০ হাজার টাকা বেতন পেয়েছি").draft();
+        assertEquals(TransactionType.INCOME, draft.getTransactionType());
+        assertMoney("30000", draft.getAmount());
+        assertEquals("BDT", draft.getCurrencyCode());
+        assertEquals("Bank Account",
+                draft.getSourceAccount().getDisplayName());
+        assertEquals("Salary", draft.getDescription());
+        assertTrue(draft.isComplete());
+    }
+
+    private static void banglaTransfer() {
+        VoiceTransactionDraft draft = parser(baseAccounts()).parse(
+                "বিকাশ থেকে ব্যাংকে ১০০০ টাকা ট্রান্সফার").draft();
+        assertEquals(TransactionType.TRANSFER, draft.getTransactionType());
+        assertMoney("1000", draft.getAmount());
+        assertEquals("bKash", draft.getSourceAccount().getDisplayName());
+        assertEquals("Bank Account",
+                draft.getDestinationAccount().getDisplayName());
+        assertEquals("Account transfer", draft.getDescription());
+        assertTrue(draft.isComplete());
+    }
+
+    private static void banglaRecurring() {
+        VoiceTransactionDraft draft = parser(baseAccounts()).parse(
+                "প্রতি মাসের ৫ তারিখ ইন্টারনেট বিল ১২০০ টাকা ব্যাংক থেকে").draft();
+        assertEquals(TransactionType.EXPENSE, draft.getTransactionType());
+        assertMoney("1200", draft.getAmount());
+        assertEquals(Category.BILLS, draft.getEffectiveCategory());
+        assertEquals(RecurrenceFrequency.MONTHLY,
+                draft.getRecurringFrequency());
+        assertEquals(LocalDate.of(2026, 8, 5), draft.getNextDueDate());
+        assertTrue(draft.isComplete());
+    }
+
+    private static void banglishBareAmount() {
+        VoiceTransactionDraft draft = parser(baseAccounts()).parse(
+                "bank e salary 30000 add koro").draft();
+        assertEquals(TransactionType.INCOME, draft.getTransactionType());
+        assertMoney("30000", draft.getAmount());
+        assertEquals("BDT", draft.getCurrencyCode());
+        assertEquals("Bank Account",
+                draft.getSourceAccount().getDisplayName());
+        assertTrue(draft.isComplete());
+    }
+
+    private static void ambiguousBanglaDate() {
+        VoiceParseResult result = parser(baseAccounts()).parse(
+                "কাল বিকাশ থেকে খাবারে ৫০০ টাকা খরচ");
+        assertEquals(null, result.draft().getDate());
+        assertContains(result.allReviewMessages(), "ambiguous");
+        assertFalse(result.draft().isComplete());
     }
 
     private static void missingAccount() {
@@ -178,6 +264,29 @@ public final class VoiceTransactionParserTest {
                 "Bank account e 5000 taka salary income add koro.").draft();
         assertTrue(manual.isComplete());
         assertEquals(TransactionType.INCOME, manual.getTransactionType());
+    }
+
+    private static void banglaSpeechRequest() {
+        SpeechRecognitionRequest request =
+                SpeechRecognitionRequest.forLanguage(VoiceInputLanguage.BANGLA);
+        assertEquals("bn-BD", request.localeTag());
+        assertFalse(request.allowLanguageDetection());
+        assertFalse(request.storeAudio());
+        expect(IllegalArgumentException.class,
+                () -> new SpeechRecognitionRequest(
+                        VoiceInputLanguage.BANGLA, "bn-BD",
+                        java.time.Duration.ofSeconds(30), false, true));
+    }
+
+    private static void missingProviderStatus() {
+        UnconfiguredSpeechRecognitionProvider provider =
+                new UnconfiguredSpeechRecognitionProvider();
+        assertEquals(SpeechProviderStatus.NOT_CONFIGURED,
+                provider.getProviderStatus());
+        assertFalse(provider.isConfigured());
+        expect(IllegalStateException.class, () -> provider.recognize(
+                SpeechRecognitionRequest.forLanguage(
+                        VoiceInputLanguage.AUTOMATIC)));
     }
 
     private static VoiceTransactionParser parser(List<Account> accounts) {

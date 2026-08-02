@@ -81,7 +81,7 @@ public final class VoiceDraftReviewPanel extends JPanel {
         JLabel title = new JLabel("Review transaction draft");
         title.setFont(AppFonts.pageTitle());
         AppTheme.mark(title, AppTheme.PRIMARY_TEXT_ROLE);
-        transcript.setFont(AppFonts.caption());
+        transcript.setFont(AppFonts.multilingualCaption());
         AppTheme.mark(transcript, AppTheme.SECONDARY_TEXT_ROLE);
         heading.add(title, BorderLayout.NORTH);
         heading.add(transcript, BorderLayout.CENTER);

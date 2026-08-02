@@ -70,7 +70,7 @@ public final class VoiceQuickEntryDialog extends JDialog {
         listeningPanel = new VoiceListeningPanel(
                 this::stopListening, this::startListening,
                 this::showManualEntry, this::cancel);
-        transcriptPanel = new VoiceTranscriptPanel(
+        transcriptPanel = new VoiceTranscriptPanel(settings,
                 this::startListening, this::parseCommand, this::cancel);
         reviewPanel = new VoiceDraftReviewPanel(
                 this::confirm, this::showManualEntry, this::cancel);
@@ -86,6 +86,8 @@ public final class VoiceQuickEntryDialog extends JDialog {
         transcriptPanel.setProviderStatus(
                 "Speech provider: " + provider.getDisplayName()
                 + " · " + provider.getStatus());
+        transcriptPanel.setListeningAvailable(
+                settings.isEnabled() && provider.isConfigured());
         if (settings.isEnabled() && provider.isConfigured()) {
             startListening();
         } else {
@@ -109,8 +111,8 @@ public final class VoiceQuickEntryDialog extends JDialog {
         privacy.setBorder(BorderFactory.createEmptyBorder(6, 20, 10, 20));
         root.add(privacy, BorderLayout.SOUTH);
         setContentPane(root);
-        setSize(820, 720);
-        setMinimumSize(new Dimension(700, 600));
+        setSize(820, 680);
+        setMinimumSize(new Dimension(700, 560));
     }
 
     private void startListening() {
