@@ -86,8 +86,21 @@ C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat clean jar
 Run the generated application JAR with:
 
 ```powershell
-java -jar dist\Wealthora.jar
+$env:APP_OWNER_EMAIL = "shibli.moon.253@northsouth.edu"
+& "C:\DevelopmentTools\jdk-25\jdk-25.0.2\bin\java.exe" -jar "dist\Wealthora.jar"
 ```
+
+On the first launch, Wealthora opens the secure OWNER setup screen. The
+OWNER email is locked to `APP_OWNER_EMAIL`; enter the owner's full name and a
+password of at least 12 characters containing uppercase, lowercase, number,
+and symbol characters. Existing finance CSV files are backed up and copied
+byte-for-byte into the first owner's private workspace; the legacy originals
+remain unchanged.
+
+After the OWNER exists, use the same command whenever you run the app. Sign
+Out and Switch Account are available from the account menu in the top-right
+corner. Google Sign-In and self-service registration remain disabled until a
+real authentication backend is configured.
 
 ## Run the core-model tests
 

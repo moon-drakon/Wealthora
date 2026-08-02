@@ -3,68 +3,61 @@
 ## Current state
 
 - Branch: `feature/wealthora-auth-profile-admin`
-- Baseline HEAD: `efd7c6f`
-- Current HEAD: the checkpoint commit containing this document; verify with `git rev-parse --short HEAD`
-- Completed checkpoints: 0 (baseline verification) and 1 (multilingual voice entry)
-- Latest successful verification: `ant test-voice` on Java 25.0.2; all 20 voice tests and the complete prerequisite chain passed
-- Database/schema migration version: unchanged; this checkpoint makes no persistence or ownership migration
+- Verified implementation HEAD: `b0be97f`
+- Current HEAD: the documentation commit immediately following `b0be97f`; confirm with `git rev-parse --short HEAD`
+- Completed checkpoint: first local desktop authentication and administration checkpoint
+- Java: Microsoft OpenJDK `25.0.2`
+- Build: `ant clean jar` passed after compiling 232 production sources
+- Tests: `ant test-auth` passed the complete prerequisite chain, 12 authentication policy tests, and 18 local authentication/authorization tests
 
 ## Completed work
 
-- English, Bangla, and Banglish typed-command parsing
-- Bangla digits and safe Bangla/English written-scale normalization to `BigDecimal`
-- Canonical English transaction type, currency, account, category, description, recurrence, and ISO date fields
-- Bangla and Banglish aliases for bKash, Nagad, Rocket, bank, cash, income, expense, transfer, food, salary, and recurring phrases
-- Explicit ambiguity for Bangla `কাল`
-- Auto, English, বাংলা, and Banglish / Mixed language choices
-- Secret-free speech request/status contracts with 30-second provider requests and audio storage prohibited
-- Compact manual-entry UI with examples and Clear Transcript
-- Honest unconfigured-provider behavior; no simulated speech recognition
+- Secure first-run OWNER setup reads and locks `APP_OWNER_EMAIL` to `shibli.moon.253@northsouth.edu`.
+- Missing configuration fails closed; no fallback account or password exists.
+- Local NSU login uses exact `northsouth.edu` validation, BCrypt cost 12, generic credential failures, status checks, failed-attempt tracking, and a 15-minute lockout after five failures.
+- `USER`, `ADMIN`, and `OWNER` capabilities are persisted and enforced in service methods. The single OWNER also has USER and ADMIN capabilities.
+- Successful login opens My Finance. Finance repositories are constructed only after a trusted session selects `data/users/<user-id>`.
+- Existing managed finance files are copied byte-for-byte to the first OWNER after a timestamped backup; legacy originals remain in place. A marker prevents duplicate assignment.
+- The top-right account menu provides My Finance, My Profile, Security and Sessions, Switch Account, role-gated Admin Console, and Sign Out.
+- Sign Out and Switch Account dispose user dialogs and the finance frame, clear the session and active data path, and return to Sign In.
+- Admin Console includes working Overview, Users, OWNER-only Administrators, and Audit Logs screens. ADMIN cannot grant/revoke ADMIN or modify OWNER; OWNER password re-authentication and a reason are required.
+- Google Sign-In, registration, verification, and password recovery fail honestly as unconfigured backend operations.
+- Authentication audit records cover owner bootstrap, login success/failure, logout, switch account, status changes, administrator changes, safety backup, and legacy ownership assignment.
+- jBCrypt 0.4 is vendored with its ISC license, notice, and SHA-256 provenance.
 
-Files changed in this checkpoint include:
+## Data and backup result
 
-- `src/com/spendwise/voice/VoiceCommandNormalizer.java`
-- `src/com/spendwise/voice/VoiceTransactionParser.java`
-- `src/com/spendwise/voice/VoiceInputLanguage.java`
-- `src/com/spendwise/voice/SpeechRecognitionProvider.java`
-- `src/com/spendwise/voice/SpeechRecognitionRequest.java`
-- `src/com/spendwise/voice/SpeechProviderStatus.java`
-- `src/com/spendwise/ui/voice/VoiceQuickEntryDialog.java`
-- `src/com/spendwise/ui/voice/VoiceTranscriptPanel.java`
-- `src/com/spendwise/ui/theme/AppFonts.java`
-- `src/com/spendwise/ui/SettingsPanel.java`
-- `test/com/spendwise/voice/VoiceTransactionParserTest.java`
-- `README.md`
-- `docs/PROJECT_PLAN.md`
+- Pre-change safety backup: `C:\Users\Drakon\AppData\Local\SpendWiseExpenseTracker\backups\pre-owner-auth-20260802-231513-221.zip`
+- Production `expenses.csv`: 69 bytes; SHA-256 `9B62869B92C570D77CCE133EC6B3659C65E143F644820EDEB58D76B52EB947D8`
+- Production `income.csv`: 54 bytes; SHA-256 `B4C013638932E0A0CDF01386338F1BDD631CC4CEA14580DA6E231A76E0775437`
+- Both hashes remained unchanged after implementation, tests, build, and launch.
+- The real JAR was launched with no owner store present. Production ownership migration remains intentionally pending until the user submits the first-run OWNER form.
+- Automated migration tests verified the backup count, byte-for-byte copies, retained legacy originals, restart persistence, and duplicate-migration protection.
 
-## Remaining checkpoints
+## Remaining work and known limitations
 
-1. Unified PASSWORD and GOOGLE identities without duplicate Wealthora users
-2. Professional profiles, sessions, logout, and account switching
-3. USER, ADMIN, and OWNER authorization
-4. Timestamped backup and deterministic per-user finance ownership migration
-5. Owner-controlled Administration workspace
-6. Security audit trail and cross-user isolation tests
+- Real Google OAuth is not configured and must not be simulated.
+- Self-service registration, email delivery/verification, password reset, durable session revocation, and remote multi-device sessions require a real authentication backend.
+- Security, Application Settings, Backup and Restore, and Database Health Admin Console tabs currently provide accurate routing/status empty states; their server-managed controls remain future work.
+- Only the configured OWNER can be created through the local UI in this checkpoint. Additional verified users require a future trusted provisioning/verification flow.
+- No source files are unfinished in this checkpoint.
 
-Known limitations:
+## Exact next task
 
-- No real speech provider is configured; manual multilingual input is fully functional.
-- Google and password authentication remain integration contracts until a trusted backend is configured.
-- No finance ownership migration has started, so no user data has been changed.
-- A recurrence end date is still edited through the existing Recurring screen rather than the voice draft.
+Design and implement the trusted authentication backend boundary for verified NSU users and account linking. Preserve the local OWNER bootstrap, make local and future Google identities resolve to one Wealthora user, add real verification/reset contracts, and keep Google disabled until genuine OAuth credentials and callback configuration exist.
 
-There are no unfinished source edits in the multilingual voice checkpoint. The smallest next task is to add provider-neutral authentication identity and role models, with duplicate-user prevention tests, without enabling fake login.
-
-## Resume commands
+## Validation and run commands
 
 ```powershell
 git status -sb
 git log -3 --oneline
-$env:JAVA_HOME='C:\DevelopmentTools\jdk-25\jdk-25.0.2'
-& 'C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat' clean jar
+$env:JAVA_HOME = 'C:\DevelopmentTools\jdk-25\jdk-25.0.2'
+$env:APP_OWNER_EMAIL = 'shibli.moon.253@northsouth.edu'
 & 'C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat' test-auth
+& 'C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat' clean jar
+& 'C:\DevelopmentTools\jdk-25\jdk-25.0.2\bin\java.exe' -jar '.\dist\Wealthora.jar'
 ```
 
 ## Ready-to-paste continuation prompt
 
-Continue Wealthora on `feature/wealthora-auth-profile-admin` from the verified multilingual voice checkpoint. Read `docs/NEXT_CODEX_STEPS.md`, confirm the clean HEAD, and implement the smallest safe part of unified PASSWORD/GOOGLE identity linking. Preserve exact `northsouth.edu` validation, never request a Google password, never fake provider success, keep the local finance application runnable, add focused duplicate-user and suspended-user tests, run `ant clean jar` and `ant test-auth`, commit verified work, and update this continuation file. Do not push or begin finance ownership migration until authentication identity tests pass.
+Continue Wealthora on `feature/wealthora-auth-profile-admin` from the verified first authentication checkpoint. Read `docs/NEXT_CODEX_STEPS.md`, inspect the clean HEAD once, and implement the smallest safe backend-authentication boundary for verified NSU user provisioning and unified local/Google identity linking. Preserve the local OWNER bootstrap, exact `northsouth.edu` validation, BCrypt hashes, USER/ADMIN/OWNER authorization, per-user finance workspaces, audit trail, and existing data. Do not fake Google success, store tokens or passwords in source, alter production finance data destructively, push, or merge. Add focused tests, run `ant test-auth` and `ant clean jar`, commit only verified work, and update this continuation file.
