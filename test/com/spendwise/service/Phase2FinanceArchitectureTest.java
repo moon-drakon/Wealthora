@@ -34,6 +34,8 @@ public final class Phase2FinanceArchitectureTest {
         test("balance lifecycle", this::balanceLifecycleIsConsistent);
         test("legacy expense migration", this::legacyExpenseMigratesOnWrite);
         test("legacy account migration", this::legacyAccountMigratesOnWrite);
+        test("metadata account migration",
+                this::metadataAccountMigratesOnWrite);
         test("subcategory migration", this::subcategoryMigratesSafely);
         test("card safety", this::cardProfilesRejectSensitiveNumbers);
         test("currency persistence", this::currencyIsConfigurable);
@@ -130,7 +132,31 @@ public final class Phase2FinanceArchitectureTest {
             service.updateAccountDetails(legacy.getIdentifier(), "Mobile Wallet",
                     legacy.getType(), legacy.getOpeningBalance(), "mobile", "#336699");
             assertTrue(Files.readString(path).startsWith(
-                    "id,name,type,openingBalance,status,icon,color\n"));
+                    CsvAccountRepository.HEADER + "\n"));
+            assertTrue(Files.exists(path.resolveSibling(
+                    "accounts.csv.pre-metadata-backup")));
+        });
+    }
+
+    private void metadataAccountMigratesOnWrite() throws Exception {
+        withDirectory(directory -> {
+            Path path = directory.resolve("accounts.csv");
+            Files.writeString(path, CsvAccountRepository.LEGACY_METADATA_HEADER
+                    + "\nACCOUNT_WALLET,bKash,MOBILE_BANKING,20.00,ACTIVE,"
+                    + "mobile,#B33A62\n");
+            AccountService service = new AccountService(
+                    new CsvAccountRepository(path));
+            Account wallet = service.resolveAccount("ACCOUNT_WALLET");
+            assertEquals("BDT", wallet.getCurrencyCode());
+            assertTrue(wallet.getCreatedDate().isEmpty());
+            service.updateAccountDetails(wallet.getIdentifier(), "bKash",
+                    wallet.getType(), wallet.getOpeningBalance(),
+                    wallet.getIconName(), wallet.getColorHex(), "BDT", "bKash");
+            assertTrue(Files.readString(path).startsWith(
+                    CsvAccountRepository.HEADER + "\n"));
+            assertTrue(Files.readString(path.resolveSibling(
+                    "accounts.csv.pre-metadata-backup"))
+                    .startsWith(CsvAccountRepository.LEGACY_METADATA_HEADER));
         });
     }
 

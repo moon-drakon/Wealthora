@@ -96,6 +96,8 @@ public final class FinanceRepositoryTest {
             assertEquals(BANK.getIdentifier(), loaded.getIdentifier());
             assertEquals(BANK.getDisplayName(), loaded.getDisplayName());
             assertMoney("100.00", loaded.getOpeningBalance());
+            assertEquals("BDT", loaded.getCurrencyCode());
+            assertTrue(loaded.getCreatedDate().isPresent());
             assertTrue(Files.readString(path).startsWith(
                     CsvAccountRepository.HEADER + "\n"));
         });

@@ -10,8 +10,8 @@ import javax.swing.table.AbstractTableModel;
 final class AccountTableModel extends AbstractTableModel {
 
     private static final String[] COLUMNS = {
-        "Account", "Type", "Icon", "Color", "Opening Balance", "Current Balance",
-        "Default", "Status"
+        "Account", "Type", "Institution", "Currency", "Opening Balance",
+        "Current Balance", "Icon", "Color", "Created", "Default", "Status"
     };
     private List<Account> accounts = List.of();
     private Map<Account, BigDecimal> balances = Map.of();
@@ -68,12 +68,18 @@ final class AccountTableModel extends AbstractTableModel {
         return switch (column) {
             case 0 -> account.getDisplayName();
             case 1 -> account.getType().getDisplayName();
-            case 2 -> account.getIconName();
-            case 3 -> account.getColorHex();
+            case 2 -> account.getInstitutionName().isBlank()
+                    ? "—" : account.getInstitutionName();
+            case 3 -> account.getCurrencyCode();
             case 4 -> account.getOpeningBalance();
             case 5 -> balances.get(account);
-            case 6 -> account.equals(defaultAccount) ? "Yes" : "";
-            case 7 -> account.isProtected()
+            case 6 -> account.getIconName();
+            case 7 -> account.getColorHex();
+            case 8 -> account.getCreatedDate()
+                    .map(java.time.LocalDate::toString)
+                    .orElse(account.isProtected() ? "Built-in" : "Legacy");
+            case 9 -> account.equals(defaultAccount) ? "Yes" : "";
+            case 10 -> account.isProtected()
                     ? "Protected"
                     : account.isActive() ? "Active" : "Archived";
             default -> throw new IndexOutOfBoundsException(

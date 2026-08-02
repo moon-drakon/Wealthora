@@ -1,6 +1,7 @@
 package com.spendwise.ui;
 
 import com.spendwise.model.Account;
+import com.spendwise.model.AccountPreset;
 import com.spendwise.model.AccountType;
 import com.spendwise.model.Income;
 import com.spendwise.model.Transfer;
@@ -236,6 +237,12 @@ public final class FinancePanel extends JPanel {
 
     private JPanel createAccountsTab() {
         JPanel panel = contentPanel();
+        accountTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+        int[] widths = {150, 115, 130, 75, 115, 115, 80, 85, 95, 70, 85};
+        for (int index = 0; index < widths.length; index++) {
+            accountTable.getColumnModel().getColumn(index)
+                    .setPreferredWidth(widths[index]);
+        }
         JPanel filters = actionPanel();
         filters.add(new JLabel("Show:"));
         filters.add(accountFilterBox);
@@ -293,16 +300,36 @@ public final class FinancePanel extends JPanel {
     }
 
     private void addAccount() {
+        JComboBox<Object> preset = new JComboBox<>();
+        preset.addItem("Custom");
+        for (AccountPreset value : AccountPreset.values()) {
+            preset.addItem(value);
+        }
         JTextField name = new JTextField();
         JComboBox<AccountType> type =
                 new JComboBox<>(AccountType.values());
         JTextField opening = new JTextField("0.00");
         JTextField icon = new JTextField(Account.DEFAULT_ICON);
         JTextField color = new JTextField(Account.DEFAULT_COLOR);
+        JTextField currency = new JTextField(Account.DEFAULT_CURRENCY_CODE);
+        JTextField institution = new JTextField();
+        preset.addActionListener(event -> {
+            if (preset.getSelectedItem() instanceof AccountPreset value) {
+                name.setText(value.getSuggestedName());
+                type.setSelectedItem(value.getAccountType());
+                institution.setText(value.getInstitutionName());
+                currency.setText(Account.DEFAULT_CURRENCY_CODE);
+                icon.setText(value.getIconName());
+                color.setText(value.getColorHex());
+            }
+        });
         JPanel form = form(
+                "Bangladesh preset", preset,
                 "Name", name,
                 "Type", type,
                 "Opening balance", opening,
+                "Currency", currency,
+                "Institution / bank", institution,
                 "Icon name", icon,
                 "Color (#RRGGBB)", color);
         while (JOptionPane.showConfirmDialog(
@@ -317,7 +344,9 @@ public final class FinancePanel extends JPanel {
                         (AccountType) type.getSelectedItem(),
                         new BigDecimal(opening.getText().strip()),
                         icon.getText(),
-                        color.getText());
+                        color.getText(),
+                        currency.getText(),
+                        institution.getText());
                 mutationSucceeded("Account added.");
                 return;
             } catch (NumberFormatException exception) {
@@ -341,10 +370,14 @@ public final class FinancePanel extends JPanel {
                 account.getOpeningBalance().toPlainString());
         JTextField icon = new JTextField(account.getIconName());
         JTextField color = new JTextField(account.getColorHex());
+        JTextField currency = new JTextField(account.getCurrencyCode());
+        JTextField institution = new JTextField(account.getInstitutionName());
         JPanel form = form(
                 "Name", name,
                 "Type", type,
                 "Opening balance", opening,
+                "Currency", currency,
+                "Institution / bank", institution,
                 "Icon name", icon,
                 "Color (#RRGGBB)", color);
         if (JOptionPane.showConfirmDialog(
@@ -362,7 +395,9 @@ public final class FinancePanel extends JPanel {
                     (AccountType) type.getSelectedItem(),
                     new BigDecimal(opening.getText().strip()),
                     icon.getText(),
-                    color.getText());
+                    color.getText(),
+                    currency.getText(),
+                    institution.getText());
             mutationSucceeded("Account updated.");
         } catch (NumberFormatException exception) {
             showError("Opening balance must be a decimal number.");

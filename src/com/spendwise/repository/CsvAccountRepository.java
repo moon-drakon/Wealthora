@@ -2,7 +2,11 @@ package com.spendwise.repository;
 
 import com.spendwise.model.Account;
 import com.spendwise.model.AccountType;
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -15,11 +19,16 @@ public final class CsvAccountRepository implements AccountRepository {
 
     public static final String LEGACY_HEADER =
             "id,name,type,openingBalance,status";
-    public static final String HEADER =
+    public static final String LEGACY_METADATA_HEADER =
             "id,name,type,openingBalance,status,icon,color";
+    public static final String HEADER =
+            "id,name,type,openingBalance,status,icon,color,currency,institution,createdDate";
     private static final List<String> LEGACY_HEADER_FIELDS = List.of(
             "id", "name", "type", "openingBalance", "status");
     private static final List<String> HEADER_FIELDS = List.of(
+            "id", "name", "type", "openingBalance", "status", "icon", "color",
+            "currency", "institution", "createdDate");
+    private static final List<String> LEGACY_METADATA_HEADER_FIELDS = List.of(
             "id", "name", "type", "openingBalance", "status", "icon", "color");
 
     private final java.nio.file.Path csvPath;
@@ -76,9 +85,13 @@ public final class CsvAccountRepository implements AccountRepository {
 
     private List<Account> decode(String content) {
         boolean legacy = startsWithHeader(content, LEGACY_HEADER);
+        boolean legacyMetadata = !legacy
+                && startsWithHeader(content, LEGACY_METADATA_HEADER);
         List<List<String>> records = CsvFileSupport.parse(
                 content,
-                legacy ? LEGACY_HEADER_FIELDS : HEADER_FIELDS,
+                legacy ? LEGACY_HEADER_FIELDS
+                        : legacyMetadata ? LEGACY_METADATA_HEADER_FIELDS
+                                : HEADER_FIELDS,
                 "Account");
         List<Account> accounts = new ArrayList<>();
         Set<String> identifiers = new HashSet<>();
@@ -87,17 +100,24 @@ public final class CsvAccountRepository implements AccountRepository {
         for (int index = 1; index < records.size(); index++) {
             int recordNumber = index + 1;
             List<String> fields = records.get(index);
-            if (fields.size() != (legacy ? 5 : 7)) {
+            int expectedColumns = legacy ? 5 : legacyMetadata ? 7 : 10;
+            if (fields.size() != expectedColumns) {
                 throw corrupt(recordNumber, "has an unexpected column count.");
             }
             try {
-                Account account = Account.createCustom(
+                Account account = Account.restoreCustom(
                         fields.get(0),
                         fields.get(1),
                         AccountType.fromStoredValue(fields.get(2)),
                         new BigDecimal(fields.get(3)),
                         legacy ? Account.DEFAULT_ICON : fields.get(5),
                         legacy ? Account.DEFAULT_COLOR : fields.get(6),
+                        legacy || legacyMetadata
+                                ? Account.DEFAULT_CURRENCY_CODE : fields.get(7),
+                        legacy || legacyMetadata ? "" : fields.get(8),
+                        legacy || legacyMetadata || fields.get(9).isBlank()
+                                ? Optional.empty()
+                                : Optional.of(LocalDate.parse(fields.get(9))),
                         parseArchived(fields.get(4), recordNumber));
                 String normalizedName =
                         account.getDisplayName().toLowerCase(Locale.ROOT);
@@ -128,6 +148,7 @@ public final class CsvAccountRepository implements AccountRepository {
     }
 
     private void write(List<Account> accounts) {
+        createMigrationBackupIfNeeded();
         StringBuilder csv = new StringBuilder(HEADER).append('\n');
         for (Account account : accounts) {
             CsvFileSupport.appendField(csv, account.getIdentifier());
@@ -145,10 +166,37 @@ public final class CsvAccountRepository implements AccountRepository {
             CsvFileSupport.appendField(csv, account.getIconName());
             csv.append(',');
             CsvFileSupport.appendField(csv, account.getColorHex());
+            csv.append(',');
+            CsvFileSupport.appendField(csv, account.getCurrencyCode());
+            csv.append(',');
+            CsvFileSupport.appendField(csv, account.getInstitutionName());
+            csv.append(',');
+            CsvFileSupport.appendField(csv, account.getCreatedDate()
+                    .map(LocalDate::toString).orElse(""));
             csv.append('\n');
         }
         CsvFileSupport.write(
                 csvPath, ".spendwise-accounts-", csv.toString(), "account");
+    }
+
+    private void createMigrationBackupIfNeeded() {
+        Optional<String> existing = CsvFileSupport.read(csvPath, "account");
+        if (existing.isEmpty() || existing.orElseThrow().isEmpty()
+                || startsWithHeader(existing.orElseThrow(), HEADER)) {
+            return;
+        }
+        java.nio.file.Path backupPath = csvPath.resolveSibling(
+                csvPath.getFileName() + ".pre-metadata-backup");
+        if (Files.exists(backupPath)) {
+            return;
+        }
+        try {
+            Files.copy(csvPath, backupPath, StandardCopyOption.COPY_ATTRIBUTES);
+        } catch (IOException | SecurityException exception) {
+            throw new RepositoryException(
+                    "Could not create the account migration safety backup.",
+                    exception);
+        }
     }
 
     private static boolean parseArchived(String value, int recordNumber) {

@@ -88,6 +88,18 @@ public final class AccountService {
             BigDecimal openingBalance,
             String iconName,
             String colorHex) {
+        return addAccount(displayName, type, openingBalance, iconName,
+                colorHex, Account.DEFAULT_CURRENCY_CODE, "");
+    }
+
+    public Account addAccount(
+            String displayName,
+            AccountType type,
+            BigDecimal openingBalance,
+            String iconName,
+            String colorHex,
+            String currencyCode,
+            String institutionName) {
         String normalizedName = FinanceValidator.validateRequiredText(
                 displayName, "Account name", FinanceValidator.MAX_NAME_LENGTH);
         rejectDuplicateName(normalizedName, null);
@@ -99,6 +111,9 @@ public final class AccountService {
                 openingBalance,
                 iconName,
                 colorHex,
+                currencyCode,
+                institutionName,
+                java.time.LocalDate.now(),
                 false);
         repository.add(account);
         return account;
@@ -136,11 +151,27 @@ public final class AccountService {
             String iconName,
             String colorHex) {
         Account existing = requireCustomAccount(identifier);
+        return updateAccountDetails(identifier, displayName, type,
+                openingBalance, iconName, colorHex,
+                existing.getCurrencyCode(), existing.getInstitutionName());
+    }
+
+    public Account updateAccountDetails(
+            String identifier,
+            String displayName,
+            AccountType type,
+            BigDecimal openingBalance,
+            String iconName,
+            String colorHex,
+            String currencyCode,
+            String institutionName) {
+        Account existing = requireCustomAccount(identifier);
         String normalizedName = FinanceValidator.validateRequiredText(
                 displayName, "Account name", FinanceValidator.MAX_NAME_LENGTH);
         rejectDuplicateName(normalizedName, existing.getIdentifier());
         Account replacement = existing.withDetails(
-                normalizedName, type, openingBalance, iconName, colorHex);
+                normalizedName, type, openingBalance, iconName, colorHex,
+                currencyCode, institutionName);
         repository.update(replacement);
         return replacement;
     }

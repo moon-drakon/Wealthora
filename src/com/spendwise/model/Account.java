@@ -3,12 +3,16 @@ package com.spendwise.model;
 import com.spendwise.validation.FinanceValidator;
 import com.spendwise.validation.ValidationException;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.Currency;
 import java.util.Objects;
+import java.util.Optional;
 
 public final class Account implements Comparable<Account> {
 
     public static final String DEFAULT_ICON = "wallet";
     public static final String DEFAULT_COLOR = "#1F7E60";
+    public static final String DEFAULT_CURRENCY_CODE = "BDT";
 
     public static final String DEFAULT_IDENTIFIER = "ACCOUNT_DEFAULT_CASH";
     public static final Account DEFAULT = new Account(
@@ -18,6 +22,9 @@ public final class Account implements Comparable<Account> {
             new BigDecimal("0.00"),
             DEFAULT_ICON,
             DEFAULT_COLOR,
+            DEFAULT_CURRENCY_CODE,
+            "",
+            Optional.empty(),
             true,
             false);
 
@@ -29,6 +36,9 @@ public final class Account implements Comparable<Account> {
     private final BigDecimal openingBalance;
     private final String iconName;
     private final String colorHex;
+    private final String currencyCode;
+    private final String institutionName;
+    private final Optional<LocalDate> createdDate;
     private final boolean protectedAccount;
     private final boolean archived;
 
@@ -39,6 +49,9 @@ public final class Account implements Comparable<Account> {
             BigDecimal openingBalance,
             String iconName,
             String colorHex,
+            String currencyCode,
+            String institutionName,
+            Optional<LocalDate> createdDate,
             boolean protectedAccount,
             boolean archived) {
         this.identifier = FinanceValidator.validateIdentifier(
@@ -51,6 +64,19 @@ public final class Account implements Comparable<Account> {
         this.iconName = FinanceValidator.validateRequiredText(
                 iconName, "Account icon", 30);
         this.colorHex = validateColor(colorHex);
+        this.currencyCode = validateCurrencyCode(currencyCode);
+        this.institutionName = FinanceValidator.validateOptionalText(
+                institutionName,
+                "Institution name",
+                FinanceValidator.MAX_NAME_LENGTH);
+        this.createdDate = Objects.requireNonNull(
+                createdDate, "Account creation date is required.");
+        this.createdDate.ifPresent(date -> {
+            if (date.isAfter(LocalDate.now())) {
+                throw new ValidationException(
+                        "Account creation date cannot be in the future.");
+            }
+        });
         this.protectedAccount = protectedAccount;
         this.archived = protectedAccount ? false : archived;
     }
@@ -72,6 +98,9 @@ public final class Account implements Comparable<Account> {
                 openingBalance,
                 defaultIcon(type),
                 DEFAULT_COLOR,
+                DEFAULT_CURRENCY_CODE,
+                "",
+                Optional.of(LocalDate.now()),
                 false,
                 archived);
     }
@@ -89,7 +118,50 @@ public final class Account implements Comparable<Account> {
                     "The protected default account identifier is reserved.");
         }
         return new Account(identifier, displayName, type, openingBalance,
-                iconName, colorHex, false, archived);
+                iconName, colorHex, DEFAULT_CURRENCY_CODE, "",
+                Optional.of(LocalDate.now()), false, archived);
+    }
+
+    public static Account createCustom(
+            String identifier,
+            String displayName,
+            AccountType type,
+            BigDecimal openingBalance,
+            String iconName,
+            String colorHex,
+            String currencyCode,
+            String institutionName,
+            LocalDate createdDate,
+            boolean archived) {
+        if (DEFAULT_IDENTIFIER.equals(identifier)) {
+            throw new ValidationException(
+                    "The protected default account identifier is reserved.");
+        }
+        return new Account(identifier, displayName, type, openingBalance,
+                iconName, colorHex, currencyCode, institutionName,
+                Optional.of(Objects.requireNonNull(
+                        createdDate, "Account creation date is required.")),
+                false, archived);
+    }
+
+    public static Account restoreCustom(
+            String identifier,
+            String displayName,
+            AccountType type,
+            BigDecimal openingBalance,
+            String iconName,
+            String colorHex,
+            String currencyCode,
+            String institutionName,
+            Optional<LocalDate> createdDate,
+            boolean archived) {
+        if (DEFAULT_IDENTIFIER.equals(identifier)) {
+            throw new ValidationException(
+                    "The protected default account identifier is reserved.");
+        }
+        return new Account(identifier, displayName, type, openingBalance,
+                iconName, colorHex, currencyCode, institutionName,
+                createdDate, false, archived);
     }
 
     public String getIdentifier() {
@@ -116,6 +188,18 @@ public final class Account implements Comparable<Account> {
         return colorHex;
     }
 
+    public String getCurrencyCode() {
+        return currencyCode;
+    }
+
+    public String getInstitutionName() {
+        return institutionName;
+    }
+
+    public Optional<LocalDate> getCreatedDate() {
+        return createdDate;
+    }
+
     public boolean isProtected() {
         return protectedAccount;
     }
@@ -138,13 +222,17 @@ public final class Account implements Comparable<Account> {
             throw new ValidationException(
                     "The protected default account metadata cannot be changed.");
         }
-        return createCustom(
+        return new Account(
                 identifier,
                 newDisplayName,
                 Objects.requireNonNull(newType, "Account type is required."),
                 openingBalance,
                 iconName,
                 colorHex,
+                currencyCode,
+                institutionName,
+                createdDate,
+                false,
                 archived);
     }
 
@@ -158,8 +246,27 @@ public final class Account implements Comparable<Account> {
             throw new ValidationException(
                     "The protected default account cannot be changed.");
         }
-        return createCustom(identifier, newDisplayName, newType,
-                newOpeningBalance, newIconName, newColorHex, archived);
+        return new Account(identifier, newDisplayName, newType,
+                newOpeningBalance, newIconName, newColorHex, currencyCode,
+                institutionName, createdDate, false, archived);
+    }
+
+    public Account withDetails(
+            String newDisplayName,
+            AccountType newType,
+            BigDecimal newOpeningBalance,
+            String newIconName,
+            String newColorHex,
+            String newCurrencyCode,
+            String newInstitutionName) {
+        if (protectedAccount) {
+            throw new ValidationException(
+                    "The protected default account cannot be changed.");
+        }
+        return new Account(identifier, newDisplayName, newType,
+                newOpeningBalance, newIconName, newColorHex,
+                newCurrencyCode, newInstitutionName, createdDate,
+                false, archived);
     }
 
     public Account withArchived(boolean newArchived) {
@@ -167,9 +274,10 @@ public final class Account implements Comparable<Account> {
             throw new ValidationException(
                     "The protected default account cannot be archived.");
         }
-        return createCustom(
+        return new Account(
                 identifier, displayName, type, openingBalance,
-                iconName, colorHex, newArchived);
+                iconName, colorHex, currencyCode, institutionName,
+                createdDate, false, newArchived);
     }
 
     @Override
@@ -212,6 +320,18 @@ public final class Account implements Comparable<Account> {
                     "Account color must use #RRGGBB format.");
         }
         return value;
+    }
+
+    private static String validateCurrencyCode(String currencyCode) {
+        String value = FinanceValidator.validateRequiredText(
+                currencyCode, "Account currency", 3)
+                .toUpperCase(java.util.Locale.ROOT);
+        try {
+            return Currency.getInstance(value).getCurrencyCode();
+        } catch (IllegalArgumentException exception) {
+            throw new ValidationException(
+                    "Account currency must be a valid ISO 4217 code.");
+        }
     }
 
     private static String defaultIcon(AccountType type) {

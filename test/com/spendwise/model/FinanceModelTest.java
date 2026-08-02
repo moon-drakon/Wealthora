@@ -15,6 +15,8 @@ public final class FinanceModelTest {
         test("account type labels", FinanceModelTest::accountTypeLabels);
         test("protected default account", FinanceModelTest::protectedDefault);
         test("custom account normalization", FinanceModelTest::customNormalization);
+        test("account metadata", FinanceModelTest::accountMetadata);
+        test("Bangladesh account presets", FinanceModelTest::accountPresets);
         test("account rename keeps ID", FinanceModelTest::renameKeepsId);
         test("account archive is immutable", FinanceModelTest::archiveIsImmutable);
         test("protected account operations", FinanceModelTest::protectedOperations);
@@ -33,6 +35,7 @@ public final class FinanceModelTest {
         assertEquals("Mobile Banking", AccountType.MOBILE_BANKING.toString());
         assertEquals("Credit Card", AccountType.CREDIT_CARD.getDisplayName());
         assertEquals("Debit Card", AccountType.DEBIT_CARD.getDisplayName());
+        assertEquals("Other", AccountType.OTHER.getDisplayName());
     }
 
     private static void protectedDefault() {
@@ -47,6 +50,30 @@ public final class FinanceModelTest {
         assertEquals("Savings", account.getDisplayName());
         assertEquals(AccountType.BANK, account.getType());
         assertMoney("125.50", account.getOpeningBalance());
+    }
+
+    private static void accountMetadata() {
+        Account account = Account.createCustom(
+                "ACCOUNT_METADATA", "Student Account", AccountType.BANK,
+                new BigDecimal("100"), "bank", "#336699", "bdt",
+                "Example Bank", LocalDate.of(2026, 1, 10), false);
+        assertEquals("BDT", account.getCurrencyCode());
+        assertEquals("Example Bank", account.getInstitutionName());
+        assertEquals(LocalDate.of(2026, 1, 10),
+                account.getCreatedDate().orElseThrow());
+        expect(ValidationException.class, () -> Account.createCustom(
+                "ACCOUNT_BAD_CURRENCY", "Bad", AccountType.OTHER,
+                BigDecimal.ZERO, "wallet", "#336699", "INVALID",
+                "", LocalDate.now(), false));
+    }
+
+    private static void accountPresets() {
+        assertEquals(AccountType.MOBILE_BANKING,
+                AccountPreset.BKASH.getAccountType());
+        assertEquals("Nagad", AccountPreset.NAGAD.getSuggestedName());
+        assertEquals("Rocket", AccountPreset.ROCKET.getInstitutionName());
+        assertEquals(AccountType.CREDIT_CARD,
+                AccountPreset.CREDIT_CARD.getAccountType());
     }
 
     private static void renameKeepsId() {

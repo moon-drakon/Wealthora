@@ -261,6 +261,8 @@ public final class AdvancedAccountServiceTest {
             service.renameAccount("ACCOUNT_LEGACY", "Legacy Savings");
             assertTrue(Files.readString(accountsPath, StandardCharsets.UTF_8)
                     .startsWith(CsvAccountRepository.HEADER + "\n"));
+            assertTrue(Files.exists(accountsPath.resolveSibling(
+                    "accounts.csv.pre-metadata-backup")));
         } finally {
             deleteRecursively(directory);
         }

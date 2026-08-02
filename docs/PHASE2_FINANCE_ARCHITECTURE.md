@@ -26,7 +26,7 @@ two decimal places and rejects zero or negative transaction amounts.
 
 ## Versioned CSV schemas
 
-- `accounts.csv`: `id,name,type,openingBalance,status,icon,color`
+- `accounts.csv`: `id,name,type,openingBalance,status,icon,color,currency,institution,createdDate`
 - `expenses.csv`:
   `id,description,amount,date,category,account,paymentMethod,tags,notes`
 - `income.csv`:
@@ -45,6 +45,8 @@ values of thirty characters each.
 ## Migration behavior
 
 Legacy account, expense, income, transfer, and category headers remain readable.
+Before an older account file is first upgraded, SpendWise keeps a sibling
+`.pre-metadata-backup` copy and never overwrites that safety copy.
 Reading alone never rewrites a user's file. The next successful mutation of that
 specific file writes the complete in-memory snapshot using the current schema,
 so existing records migrate without being dropped. Legacy expenses are assigned
