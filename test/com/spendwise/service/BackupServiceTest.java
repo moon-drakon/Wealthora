@@ -281,6 +281,8 @@ public final class BackupServiceTest {
                 + "category,amount,rollover,status\n";
             case "savings-goals.csv" -> "recordType,id,goalId,name,"
                 + "targetAmount,targetDate,account,date,amount,note,status\n";
+            case "debts.csv" -> "recordType,id,debtId,direction,counterparty,"
+                + "originalAmount,dueDate,date,amount,note\n";
             case "categories.csv" -> "id,name,status\n";
             case "accounts.csv" -> "id,name,type,openingBalance,status\n";
             case "account-settings.csv" -> "key,value\n"

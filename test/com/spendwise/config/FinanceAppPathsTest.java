@@ -67,12 +67,14 @@ public final class FinanceAppPathsTest {
         Path accountSettings = AppPaths.getAccountSettingsCsvPath();
         Path budgetPlans = AppPaths.getBudgetPlanCsvPath();
         Path savingsGoals = AppPaths.getSavingsGoalCsvPath();
+        Path debts = AppPaths.getDebtCsvPath();
         assertEquals(account.getParent(), income.getParent());
         assertEquals(account.getParent(), transfers.getParent());
         assertEquals(account.getParent(), recurring.getParent());
         assertEquals(account.getParent(), accountSettings.getParent());
         assertEquals(account.getParent(), budgetPlans.getParent());
         assertEquals(account.getParent(), savingsGoals.getParent());
+        assertEquals(account.getParent(), debts.getParent());
         assertFalse(Files.exists(account) && Files.isDirectory(account));
         assertFalse(Files.exists(income) && Files.isDirectory(income));
         assertFalse(Files.exists(transfers) && Files.isDirectory(transfers));
@@ -81,6 +83,7 @@ public final class FinanceAppPathsTest {
                 && Files.isDirectory(accountSettings));
         assertFalse(Files.exists(budgetPlans) && Files.isDirectory(budgetPlans));
         assertFalse(Files.exists(savingsGoals) && Files.isDirectory(savingsGoals));
+        assertFalse(Files.exists(debts) && Files.isDirectory(debts));
     }
 
     private static void test(String name, Runnable test) {

@@ -73,6 +73,10 @@ public final class AppPaths {
         return currentDataPath("savings-goals.csv");
     }
 
+    public static Path getDebtCsvPath() {
+        return currentDataPath("debts.csv");
+    }
+
     static Path resolveExpenseCsvPath(
             String operatingSystemName,
             String localAppData,
