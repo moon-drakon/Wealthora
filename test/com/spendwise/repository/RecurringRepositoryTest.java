@@ -176,7 +176,7 @@ public final class RecurringRepositoryTest {
     private static void badStatus() throws Exception {
         withRepository((repository, path) -> {
             Files.writeString(path,
-                    CsvRecurringEntryRepository.HEADER + "\n"
+                    CsvRecurringEntryRepository.LEGACY_HEADER + "\n"
                     + row("RECURRING_BAD_STATUS", "UNKNOWN"),
                     StandardCharsets.UTF_8);
             expect(RepositoryException.class, repository::findAll);
@@ -186,7 +186,7 @@ public final class RecurringRepositoryTest {
     private static void unknownAccount() throws Exception {
         withRepository((repository, path) -> {
             Files.writeString(path,
-                    CsvRecurringEntryRepository.HEADER + "\n"
+                    CsvRecurringEntryRepository.LEGACY_HEADER + "\n"
                     + "RECURRING_UNKNOWN_ACCOUNT,INCOME,1.00,Pay,,"
                     + "ACCOUNT_MISSING,,MONTHLY,1,2024-01-01,,2024-01-01,ACTIVE\n",
                     StandardCharsets.UTF_8);
@@ -198,7 +198,7 @@ public final class RecurringRepositoryTest {
         withRepository((repository, path) -> {
             String storedRow = row("RECURRING_STORED_DUP", "ACTIVE");
             Files.writeString(path,
-                    CsvRecurringEntryRepository.HEADER + "\n"
+                    CsvRecurringEntryRepository.LEGACY_HEADER + "\n"
                     + storedRow + storedRow,
                     StandardCharsets.UTF_8);
             expect(RepositoryException.class, repository::findAll);

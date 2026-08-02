@@ -495,6 +495,18 @@
             </classpath>
         </java>
     </target>
+    <target name="test-phase3-recurring" depends="test-phase3-budget"
+            description="Runs recurring bill, subscription, reminder, migration, and idempotency tests.">
+        <java classname="com.spendwise.service.AdvancedRecurringServiceTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+    </target>
     <target name="test-quality-gui-smoke" depends="test-quality"
             description="Runs the final chained suite and isolated complete-frame GUI smoke test.">
         <java classname="com.spendwise.ui.FinanceFrameSmokeTest"

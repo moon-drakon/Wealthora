@@ -10,8 +10,8 @@ import javax.swing.table.AbstractTableModel;
 final class RecurringEntryTableModel extends AbstractTableModel {
 
     private static final String[] COLUMNS = {
-        "Type", "Description", "Amount", "Account", "Category / To",
-        "Frequency", "Next Due", "Status"
+        "Type", "Kind", "Description", "Amount", "Account", "Category / To",
+        "Frequency", "Reminder", "Next Due", "Status"
     };
     private List<RecurringEntry> entries = List.of();
 
@@ -43,8 +43,8 @@ final class RecurringEntryTableModel extends AbstractTableModel {
     @Override
     public Class<?> getColumnClass(int column) {
         return switch (column) {
-            case 2 -> BigDecimal.class;
-            case 6 -> LocalDate.class;
+            case 3 -> BigDecimal.class;
+            case 8 -> LocalDate.class;
             default -> String.class;
         };
     }
@@ -54,18 +54,20 @@ final class RecurringEntryTableModel extends AbstractTableModel {
         RecurringEntry entry = getEntryAt(row);
         return switch (column) {
             case 0 -> entry.getType().getDisplayName();
-            case 1 -> entry.getDescription();
-            case 2 -> entry.getAmount();
-            case 3 -> entry.getSourceAccount().getDisplayName();
-            case 4 -> entry.getDestinationAccount()
+            case 1 -> entry.getKind().toString();
+            case 2 -> entry.getDescription();
+            case 3 -> entry.getAmount();
+            case 4 -> entry.getSourceAccount().getDisplayName();
+            case 5 -> entry.getDestinationAccount()
                     .map(account -> "To " + account.getDisplayName())
                     .orElseGet(() -> entry.getCategory()
                         .map(category -> category.getDisplayName())
                         .orElse(""));
-            case 5 -> entry.getInterval() + " "
+            case 6 -> entry.getInterval() + " "
                     + entry.getFrequency().toString().toLowerCase();
-            case 6 -> entry.getNextDueDate();
-            case 7 -> entry.isActive() ? "Active" : "Inactive";
+            case 7 -> entry.getReminderDays() + " day(s)";
+            case 8 -> entry.getNextDueDate();
+            case 9 -> entry.isActive() ? "Active" : "Inactive";
             default -> throw new IndexOutOfBoundsException(
                     "Recurring entry column is out of range: " + column);
         };

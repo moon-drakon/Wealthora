@@ -5,6 +5,7 @@ import com.spendwise.model.Category;
 import com.spendwise.model.RecurrenceFrequency;
 import com.spendwise.model.RecurringEntry;
 import com.spendwise.model.RecurringEntryType;
+import com.spendwise.model.RecurringKind;
 import com.spendwise.repository.RecurringEntryRepository;
 import com.spendwise.validation.FinanceValidator;
 import com.spendwise.validation.ValidationException;
@@ -63,6 +64,25 @@ public final class RecurringService {
             LocalDate startDate,
             LocalDate endDate,
             boolean active) {
+        return addDefinition(type, amount, description, category, sourceAccount,
+                destinationAccount, frequency, interval, startDate, endDate,
+                RecurringKind.SCHEDULED_TRANSACTION, 3, active);
+    }
+
+    public RecurringEntry addDefinition(
+            RecurringEntryType type,
+            BigDecimal amount,
+            String description,
+            Category category,
+            Account sourceAccount,
+            Account destinationAccount,
+            RecurrenceFrequency frequency,
+            int interval,
+            LocalDate startDate,
+            LocalDate endDate,
+            RecurringKind kind,
+            int reminderDays,
+            boolean active) {
         ValidatedReferences references = validateNewReferences(
                 type, category, sourceAccount, destinationAccount);
         RecurringEntry entry = RecurringEntry.create(
@@ -76,6 +96,8 @@ public final class RecurringService {
                 interval,
                 startDate,
                 endDate,
+                kind,
+                reminderDays,
                 active);
         repository.add(entry);
         return entry;
@@ -94,6 +116,29 @@ public final class RecurringService {
             LocalDate startDate,
             LocalDate endDate,
             LocalDate nextDueDate,
+            boolean active) {
+        RecurringEntry existing = requireDefinition(identifier);
+        return updateDefinition(identifier, type, amount, description, category,
+                sourceAccount, destinationAccount, frequency, interval,
+                startDate, endDate, nextDueDate, existing.getKind(),
+                existing.getReminderDays(), active);
+    }
+
+    public RecurringEntry updateDefinition(
+            String identifier,
+            RecurringEntryType type,
+            BigDecimal amount,
+            String description,
+            Category category,
+            Account sourceAccount,
+            Account destinationAccount,
+            RecurrenceFrequency frequency,
+            int interval,
+            LocalDate startDate,
+            LocalDate endDate,
+            LocalDate nextDueDate,
+            RecurringKind kind,
+            int reminderDays,
             boolean active) {
         RecurringEntry existing = requireDefinition(identifier);
         ValidatedReferences references = validateUpdatedReferences(
@@ -115,6 +160,8 @@ public final class RecurringService {
                 startDate,
                 endDate,
                 nextDueDate,
+                kind,
+                reminderDays,
                 active);
         if (active) {
             validateForPosting(replacement);
@@ -137,6 +184,28 @@ public final class RecurringService {
         LocalDate date = validateThroughDate(throughDate);
         return repository.findAll().stream()
                 .filter(entry -> entry.isDueOnOrBefore(date))
+                .toList();
+    }
+
+    public List<UpcomingRecurringItem> findUpcoming(
+            LocalDate referenceDate, int daysAhead) {
+        LocalDate reference = Objects.requireNonNull(
+                referenceDate, "Reminder reference date is required.");
+        if (daysAhead < 0 || daysAhead > 3650) {
+            throw new ValidationException(
+                    "Reminder range must be from 0 through 3650 days.");
+        }
+        LocalDate through = reference.plusDays(daysAhead);
+        return repository.findAll().stream()
+                .filter(RecurringEntry::isActive)
+                .filter(entry -> !entry.getNextDueDate().isBefore(reference))
+                .filter(entry -> !entry.getNextDueDate().isAfter(through))
+                .filter(entry -> !entry.getNextDueDate().isAfter(
+                        reference.plusDays(entry.getReminderDays())))
+                .sorted(java.util.Comparator
+                        .comparing(RecurringEntry::getNextDueDate)
+                        .thenComparing(RecurringEntry::getIdentifier))
+                .map(entry -> UpcomingRecurringItem.from(entry, reference))
                 .toList();
     }
 

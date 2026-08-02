@@ -25,6 +25,8 @@ public final class RecurringEntry {
     private final LocalDate startDate;
     private final LocalDate endDate;
     private final LocalDate nextDueDate;
+    private final RecurringKind kind;
+    private final int reminderDays;
     private final boolean active;
 
     public RecurringEntry(
@@ -40,6 +42,27 @@ public final class RecurringEntry {
             LocalDate startDate,
             LocalDate endDate,
             LocalDate nextDueDate,
+            boolean active) {
+        this(identifier, type, amount, description, category, sourceAccount,
+                destinationAccount, frequency, interval, startDate, endDate,
+                nextDueDate, RecurringKind.SCHEDULED_TRANSACTION, 3, active);
+    }
+
+    public RecurringEntry(
+            String identifier,
+            RecurringEntryType type,
+            BigDecimal amount,
+            String description,
+            Category category,
+            Account sourceAccount,
+            Account destinationAccount,
+            RecurrenceFrequency frequency,
+            int interval,
+            LocalDate startDate,
+            LocalDate endDate,
+            LocalDate nextDueDate,
+            RecurringKind kind,
+            int reminderDays,
             boolean active) {
         this.identifier = FinanceValidator.validateIdentifier(
                 identifier, "Recurring entry", ID_PREFIX);
@@ -65,6 +88,13 @@ public final class RecurringEntry {
         this.endDate = endDate;
         this.nextDueDate = Objects.requireNonNull(
                 nextDueDate, "Next due date is required.");
+        this.kind = Objects.requireNonNull(
+                kind, "Recurring kind is required.");
+        if (reminderDays < 0 || reminderDays > 365) {
+            throw new ValidationException(
+                    "Reminder days must be from 0 through 365.");
+        }
+        this.reminderDays = reminderDays;
         this.active = active;
         if (endDate != null && endDate.isBefore(startDate)) {
             throw new ValidationException(
@@ -88,6 +118,7 @@ public final class RecurringEntry {
             }
             this.destinationAccount = null;
         } else if (type == RecurringEntryType.TRANSFER) {
+            requireScheduledTransactionKind(kind);
             if (category != null) {
                 throw new ValidationException(
                         "A recurring transfer cannot have an expense category.");
@@ -101,12 +132,20 @@ public final class RecurringEntry {
                         "Recurring transfer accounts must be different.");
             }
         } else {
+            requireScheduledTransactionKind(kind);
             if (category != null || destinationAccount != null) {
                 throw new ValidationException(
                         "Recurring income cannot have a category or destination account.");
             }
             this.category = null;
             this.destinationAccount = null;
+        }
+    }
+
+    private static void requireScheduledTransactionKind(RecurringKind kind) {
+        if (kind != RecurringKind.SCHEDULED_TRANSACTION) {
+            throw new ValidationException(
+                    "Bills and subscriptions must be recurring expenses.");
         }
     }
 
@@ -121,6 +160,25 @@ public final class RecurringEntry {
             int interval,
             LocalDate startDate,
             LocalDate endDate,
+            boolean active) {
+        return create(type, amount, description, category, sourceAccount,
+                destinationAccount, frequency, interval, startDate, endDate,
+                RecurringKind.SCHEDULED_TRANSACTION, 3, active);
+    }
+
+    public static RecurringEntry create(
+            RecurringEntryType type,
+            BigDecimal amount,
+            String description,
+            Category category,
+            Account sourceAccount,
+            Account destinationAccount,
+            RecurrenceFrequency frequency,
+            int interval,
+            LocalDate startDate,
+            LocalDate endDate,
+            RecurringKind kind,
+            int reminderDays,
             boolean active) {
         String identifier = ID_PREFIX + UUID.randomUUID().toString()
                 .replace("-", "")
@@ -138,6 +196,8 @@ public final class RecurringEntry {
                 startDate,
                 endDate,
                 startDate,
+                kind,
+                reminderDays,
                 active);
     }
 
@@ -146,7 +206,8 @@ public final class RecurringEntry {
         return new RecurringEntry(
                 identifier, type, amount, description, category,
                 sourceAccount, destinationAccount, frequency, interval,
-                startDate, endDate, newNextDueDate, newActive);
+                startDate, endDate, newNextDueDate, kind, reminderDays,
+                newActive);
     }
 
     public RecurringEntry withActive(boolean newActive) {
@@ -199,6 +260,14 @@ public final class RecurringEntry {
 
     public LocalDate getNextDueDate() {
         return nextDueDate;
+    }
+
+    public RecurringKind getKind() {
+        return kind;
+    }
+
+    public int getReminderDays() {
+        return reminderDays;
     }
 
     public boolean isActive() {

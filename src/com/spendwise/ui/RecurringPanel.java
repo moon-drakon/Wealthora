@@ -5,6 +5,7 @@ import com.spendwise.model.Category;
 import com.spendwise.model.RecurrenceFrequency;
 import com.spendwise.model.RecurringEntry;
 import com.spendwise.model.RecurringEntryType;
+import com.spendwise.model.RecurringKind;
 import com.spendwise.repository.RepositoryException;
 import com.spendwise.service.AccountService;
 import com.spendwise.service.CategoryService;
@@ -73,11 +74,14 @@ public final class RecurringPanel extends JPanel {
         try {
             List<RecurringEntry> entries = recurringService.listAll();
             tableModel.replace(entries);
+            int upcoming = recurringService.findUpcoming(LocalDate.now(), 30).size();
             statusLabel.setText(entries.isEmpty()
                     ? "No recurring definitions. Add one when needed."
                     : entries.size() + (entries.size() == 1
                         ? " recurring definition."
-                        : " recurring definitions."));
+                        : " recurring definitions.")
+                        + (upcoming == 0 ? ""
+                            : " " + upcoming + " reminder(s) upcoming."));
         } catch (RepositoryException exception) {
             statusLabel.setText(
                     "Unable to load recurring entries: " + safeMessage(exception));
@@ -279,6 +283,8 @@ public final class RecurringPanel extends JPanel {
 
         private final JComboBox<RecurringEntryType> type =
                 new JComboBox<>(RecurringEntryType.values());
+        private final JComboBox<RecurringKind> kind =
+                new JComboBox<>(RecurringKind.values());
         private final JTextField amount = new JTextField();
         private final JTextField description = new JTextField();
         private final JComboBox<Category> category;
@@ -292,8 +298,9 @@ public final class RecurringPanel extends JPanel {
         private final JTextField endDate = new JTextField();
         private final JTextField nextDueDate =
                 new JTextField(LocalDate.now().toString());
+        private final JTextField reminderDays = new JTextField("3");
         private final JCheckBox active = new JCheckBox("Active", true);
-        private final JPanel panel = new JPanel(new GridLayout(12, 2, 8, 8));
+        private final JPanel panel = new JPanel(new GridLayout(14, 2, 8, 8));
 
         private DefinitionFields(RecurringEntry existing) {
             Category historicalCategory = existing == null
@@ -311,6 +318,7 @@ public final class RecurringPanel extends JPanel {
 
             if (existing != null) {
                 type.setSelectedItem(existing.getType());
+                kind.setSelectedItem(existing.getKind());
                 amount.setText(existing.getAmount().toPlainString());
                 description.setText(existing.getDescription());
                 category.setSelectedItem(historicalCategory);
@@ -322,6 +330,8 @@ public final class RecurringPanel extends JPanel {
                 endDate.setText(existing.getEndDate()
                         .map(LocalDate::toString).orElse(""));
                 nextDueDate.setText(existing.getNextDueDate().toString());
+                reminderDays.setText(Integer.toString(
+                        existing.getReminderDays()));
                 active.setSelected(existing.isActive());
             } else {
                 source.setSelectedItem(accountService.getDefaultAccount());
@@ -329,6 +339,7 @@ public final class RecurringPanel extends JPanel {
             }
             nextDueDate.setEnabled(existing != null);
             add("Type", type);
+            add("Kind", kind);
             add("Amount", amount);
             add("Description / Source", description);
             add("Expense category", category);
@@ -339,6 +350,7 @@ public final class RecurringPanel extends JPanel {
             add("Start date (yyyy-MM-dd)", startDate);
             add("Optional end date", endDate);
             add("Next due date", nextDueDate);
+            add("Reminder days", reminderDays);
             panel.add(new JLabel("Status:"));
             panel.add(active);
             type.addActionListener(event -> updateRelevantFields());
@@ -366,6 +378,10 @@ public final class RecurringPanel extends JPanel {
                     (RecurringEntryType) type.getSelectedItem();
             category.setEnabled(selected == RecurringEntryType.EXPENSE);
             destination.setEnabled(selected == RecurringEntryType.TRANSFER);
+            kind.setEnabled(selected == RecurringEntryType.EXPENSE);
+            if (selected != RecurringEntryType.EXPENSE) {
+                kind.setSelectedItem(RecurringKind.SCHEDULED_TRANSACTION);
+            }
         }
 
         private void save(RecurringEntry existing) {
@@ -387,6 +403,8 @@ public final class RecurringPanel extends JPanel {
                         Integer.parseInt(interval.getText().strip()),
                         LocalDate.parse(startDate.getText().strip()),
                         parsedEnd,
+                        (RecurringKind) kind.getSelectedItem(),
+                        Integer.parseInt(reminderDays.getText().strip()),
                         active.isSelected());
             } else {
                 recurringService.updateDefinition(
@@ -404,6 +422,8 @@ public final class RecurringPanel extends JPanel {
                         LocalDate.parse(startDate.getText().strip()),
                         parsedEnd,
                         LocalDate.parse(nextDueDate.getText().strip()),
+                        (RecurringKind) kind.getSelectedItem(),
+                        Integer.parseInt(reminderDays.getText().strip()),
                         active.isSelected());
             }
         }

@@ -5,6 +5,7 @@ import com.spendwise.model.Category;
 import com.spendwise.model.RecurrenceFrequency;
 import com.spendwise.model.RecurringEntry;
 import com.spendwise.model.RecurringEntryType;
+import com.spendwise.model.RecurringKind;
 import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.time.LocalDate;
@@ -19,14 +20,21 @@ import java.util.function.Function;
 public final class CsvRecurringEntryRepository
         implements RecurringEntryRepository {
 
-    public static final String HEADER = "id,type,amount,description,category,"
+    public static final String LEGACY_HEADER = "id,type,amount,description,category,"
             + "sourceAccount,destinationAccount,frequency,interval,"
             + "startDate,endDate,nextDueDate,status";
-    private static final List<String> HEADER_FIELDS = List.of(
+    public static final String HEADER = "id,type,amount,description,category,"
+            + "sourceAccount,destinationAccount,frequency,interval,"
+            + "startDate,endDate,nextDueDate,kind,reminderDays,status";
+    private static final List<String> LEGACY_HEADER_FIELDS = List.of(
             "id", "type", "amount", "description", "category",
             "sourceAccount", "destinationAccount", "frequency", "interval",
             "startDate", "endDate", "nextDueDate", "status");
-    private static final int COLUMN_COUNT = 13;
+    private static final List<String> HEADER_FIELDS = List.of(
+            "id", "type", "amount", "description", "category",
+            "sourceAccount", "destinationAccount", "frequency", "interval",
+            "startDate", "endDate", "nextDueDate", "kind", "reminderDays",
+            "status");
 
     private final Path csvPath;
     private final Function<String, Category> categoryResolver;
@@ -95,17 +103,20 @@ public final class CsvRecurringEntryRepository
     }
 
     private List<RecurringEntry> decode(String content) {
+        boolean legacy = beginsWithHeader(content, LEGACY_HEADER);
         List<List<String>> records = CsvFileSupport.parse(
-                content, HEADER_FIELDS, "Recurring entry");
+                content, legacy ? LEGACY_HEADER_FIELDS : HEADER_FIELDS,
+                "Recurring entry");
         List<RecurringEntry> entries = new ArrayList<>();
         Set<String> identifiers = new HashSet<>();
         for (int index = 1; index < records.size(); index++) {
             int recordNumber = index + 1;
             List<String> fields = records.get(index);
-            if (fields.size() != COLUMN_COUNT) {
+            int columnCount = legacy ? 13 : 15;
+            if (fields.size() != columnCount) {
                 throw corrupt(
                         recordNumber,
-                        "must contain exactly " + COLUMN_COUNT + " columns.",
+                        "must contain exactly " + columnCount + " columns.",
                         null);
             }
             try {
@@ -132,7 +143,10 @@ public final class CsvRecurringEntryRepository
                         LocalDate.parse(fields.get(9)),
                         endDate,
                         LocalDate.parse(fields.get(11)),
-                        parseStatus(fields.get(12)));
+                        legacy ? RecurringKind.SCHEDULED_TRANSACTION
+                                : RecurringKind.valueOf(fields.get(12)),
+                        legacy ? 3 : Integer.parseInt(fields.get(13)),
+                        parseStatus(fields.get(legacy ? 12 : 14)));
                 if (!identifiers.add(entry.getIdentifier())) {
                     throw corrupt(
                             recordNumber,
@@ -170,6 +184,8 @@ public final class CsvRecurringEntryRepository
             append(csv, entry.getStartDate().toString());
             append(csv, entry.getEndDate().map(LocalDate::toString).orElse(""));
             append(csv, entry.getNextDueDate().toString());
+            append(csv, entry.getKind().name());
+            append(csv, Integer.toString(entry.getReminderDays()));
             CsvFileSupport.appendField(
                     csv, entry.isActive() ? "ACTIVE" : "INACTIVE");
             csv.append('\n');
@@ -219,5 +235,13 @@ public final class CsvRecurringEntryRepository
         return message == null || message.isBlank()
                 ? "invalid value"
                 : message;
+    }
+
+    private static boolean beginsWithHeader(String content, String header) {
+        String normalized = content.startsWith("\uFEFF")
+                ? content.substring(1) : content;
+        return normalized.equals(header)
+                || normalized.startsWith(header + "\n")
+                || normalized.startsWith(header + "\r\n");
     }
 }
