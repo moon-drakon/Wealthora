@@ -1,5 +1,6 @@
 package com.spendwise.ui;
 
+import com.spendwise.config.AppBrand;
 import com.spendwise.model.Account;
 import com.spendwise.model.AccountPreset;
 import com.spendwise.model.AccountType;
@@ -830,7 +831,7 @@ public final class FinancePanel extends JPanel {
         JOptionPane.showMessageDialog(
                 this,
                 message,
-                "SpendWise",
+                AppBrand.APP_NAME,
                 JOptionPane.INFORMATION_MESSAGE);
     }
 

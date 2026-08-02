@@ -1,5 +1,6 @@
 package com.spendwise.auth.ui;
 
+import com.spendwise.config.AppBrand;
 import com.spendwise.auth.AuthService;
 import com.spendwise.auth.BackendAuthService;
 import com.spendwise.auth.SessionManager;
@@ -24,7 +25,7 @@ public final class AuthFrame extends JFrame implements AuthNavigator {
     private final VerificationPanel verificationPanel;
 
     public AuthFrame(AuthService authService, SessionManager sessionManager) {
-        super("SpendWise Authentication");
+        super(AppBrand.APP_NAME + " Authentication");
         if (!SwingUtilities.isEventDispatchThread()) {
             throw new IllegalStateException(
                     "AuthFrame must be created on the Event Dispatch Thread.");

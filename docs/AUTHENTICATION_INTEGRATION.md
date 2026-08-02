@@ -1,6 +1,6 @@
 # Future Authentication Integration
 
-SpendWise remains a local-first desktop application. The Settings page opens a
+Wealthora remains a local-first desktop application. The Settings page opens a
 desktop authentication preview, but local development does not require a login
 and the preview never simulates an authenticated user. Its unconfigured API
 client rejects every operation with a clear backend-configuration message.

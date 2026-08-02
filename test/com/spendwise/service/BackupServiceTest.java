@@ -27,6 +27,8 @@ public final class BackupServiceTest {
         test("backup includes all managed files", BackupServiceTest::allFiles);
         test("backup permits missing optional files", BackupServiceTest::partialFiles);
         test("backup manifest is correct", BackupServiceTest::manifest);
+        test("pre-rebrand backup remains compatible",
+                BackupServiceTest::legacyManifest);
         test("existing backup requires overwrite", BackupServiceTest::existingDestination);
         test("confirmed backup replacement", BackupServiceTest::confirmedReplacement);
         test("corrupted backup is rejected", BackupServiceTest::corrupted);
@@ -79,10 +81,24 @@ public final class BackupServiceTest {
                                 .readAllBytes(),
                         StandardCharsets.UTF_8);
                 assertContains(text, "formatVersion=1\n");
-                assertContains(text, "application=SpendWise Expense Tracker\n");
+                assertContains(text, "application=Wealthora\n");
                 assertContains(text, "createdAt=" + NOW + "\n");
                 assertContains(text, "files=expenses.csv\n");
             }
+        });
+    }
+
+    private static void legacyManifest() throws Exception {
+        withFixture(fixture -> {
+            writeArchive(fixture.backup,
+                    "formatVersion=1\n"
+                    + "application=SpendWise Expense Tracker\n"
+                    + "createdAt=" + NOW + "\nfiles=\n",
+                    null,
+                    null);
+            assertEquals(List.of(),
+                    fixture.service.inspectBackup(fixture.backup)
+                            .includedFiles());
         });
     }
 
@@ -215,7 +231,7 @@ public final class BackupServiceTest {
             Path safety = result.safetyBackup().orElseThrow();
             assertTrue(Files.isRegularFile(safety));
             assertTrue(safety.getFileName().toString()
-                    .startsWith("SpendWise-safety-"));
+                    .startsWith("Wealthora-safety-"));
         });
     }
 

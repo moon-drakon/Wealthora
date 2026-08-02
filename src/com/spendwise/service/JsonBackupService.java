@@ -1,5 +1,6 @@
 package com.spendwise.service;
 
+import com.spendwise.config.AppBrand;
 import com.spendwise.repository.RepositoryException;
 import com.spendwise.validation.ValidationException;
 import java.io.ByteArrayOutputStream;
@@ -25,7 +26,7 @@ import java.util.zip.ZipOutputStream;
 public final class JsonBackupService {
     public static final int FORMAT_VERSION = 1;
     private static final Pattern HEADER = Pattern.compile(
-            "\\A\\{\\s*\"application\":\"SpendWise Expense Tracker\",\\s*"
+            "\\A\\{\\s*\"application\":\"(?:Wealthora|SpendWise Expense Tracker)\",\\s*"
             + "\"formatVersion\":1,\\s*\"createdAt\":\"([^\"]+)\",\\s*"
             + "\"files\":\\[(.*)]\\s*}\\s*\\z", Pattern.DOTALL);
     private static final Pattern FILE = Pattern.compile(
@@ -126,7 +127,8 @@ public final class JsonBackupService {
     private static byte[] encode(
             LinkedHashMap<String, byte[]> files, Instant createdAt) {
         StringBuilder json = new StringBuilder();
-        json.append("{\n  \"application\":\"SpendWise Expense Tracker\",\n")
+        json.append("{\n  \"application\":\"")
+                .append(AppBrand.APP_NAME).append("\",\n")
                 .append("  \"formatVersion\":1,\n")
                 .append("  \"createdAt\":\"").append(createdAt)
                 .append("\",\n  \"files\":[\n");

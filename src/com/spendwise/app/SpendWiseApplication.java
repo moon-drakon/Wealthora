@@ -1,6 +1,7 @@
 package com.spendwise.app;
 
 import com.spendwise.config.AppPaths;
+import com.spendwise.config.AppBrand;
 import com.spendwise.repository.CsvAccountRepository;
 import com.spendwise.repository.CsvAccountPreferenceRepository;
 import com.spendwise.repository.CsvBudgetRepository;
@@ -187,7 +188,7 @@ public final class SpendWiseApplication {
             JOptionPane.showMessageDialog(
                     null,
                     startupErrorMessage(exception),
-                    "SpendWise Could Not Start",
+                    AppBrand.APP_NAME + " Could Not Start",
                     JOptionPane.ERROR_MESSAGE);
         }
     }
@@ -195,8 +196,8 @@ public final class SpendWiseApplication {
     private static String startupErrorMessage(RuntimeException exception) {
         String message = exception.getMessage();
         if (message == null || message.isBlank()) {
-            return "SpendWise could not start safely.";
+            return AppBrand.APP_NAME + " could not start safely.";
         }
-        return "SpendWise could not start: " + message;
+        return AppBrand.APP_NAME + " could not start: " + message;
     }
 }

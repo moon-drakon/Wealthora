@@ -1,5 +1,6 @@
 package com.spendwise.ui;
 
+import com.spendwise.config.AppBrand;
 import com.spendwise.model.Account;
 import com.spendwise.model.Category;
 import com.spendwise.model.Expense;
@@ -236,7 +237,7 @@ public final class ExpensePanel extends JPanel {
         JPanel headerPanel = new JPanel(new BorderLayout(16, 0));
         headerPanel.setOpaque(false);
 
-        JLabel titleLabel = new JLabel("SpendWise Expense Tracker");
+        JLabel titleLabel = new JLabel(AppBrand.APP_NAME);
         titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 25f));
         titleLabel.setForeground(PRIMARY_COLOR);
 

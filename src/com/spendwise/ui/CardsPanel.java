@@ -1,5 +1,6 @@
 package com.spendwise.ui;
 
+import com.spendwise.config.AppBrand;
 import com.spendwise.model.Account;
 import com.spendwise.model.CardType;
 import com.spendwise.model.PaymentCard;
@@ -215,7 +216,7 @@ public final class CardsPanel extends JPanel {
 
     private void showMessage(String message) {
         JOptionPane.showMessageDialog(this, message,
-                "SpendWise Cards", JOptionPane.INFORMATION_MESSAGE);
+                AppBrand.APP_NAME + " Cards", JOptionPane.INFORMATION_MESSAGE);
     }
 
     private static JPanel form(Object... fields) {

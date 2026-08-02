@@ -47,6 +47,8 @@ public final class Phase3DataPortabilityTest {
             BackupResult result = fixture.json.createBackup(backup, false);
             assertTrue(result.includedFiles().contains("expenses.csv"));
             assertTrue(Files.readString(backup).contains("\"formatVersion\":1"));
+            assertTrue(Files.readString(backup).contains(
+                    "\"application\":\"Wealthora\""));
             fixture.expenses.createExpense("Later", money("3"),
                     LocalDate.of(2025, 1, 3), Category.FOOD,
                     Account.DEFAULT, "");
@@ -107,7 +109,7 @@ public final class Phase3DataPortabilityTest {
             assertTrue(fixture.expenses.getAllExpenses().isEmpty());
             try (var paths = Files.list(fixture.root)) {
                 assertTrue(paths.noneMatch(path -> path.getFileName().toString()
-                        .startsWith("SpendWise-import-safety-")));
+                        .startsWith("Wealthora-import-safety-")));
             }
         });
     }

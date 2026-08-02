@@ -1,4 +1,4 @@
-# SpendWise Phase 3 Finance Architecture
+# Wealthora Phase 3 Finance Architecture
 
 ## Scope and compatibility
 
@@ -92,7 +92,7 @@ system background notifications.
   directory before changing application data.
 - Restore makes a safety ZIP when current data exists and uses transactional
   rollback if replacement fails.
-- CSV import accepts exact SpendWise expense, income, or transfer export
+- CSV import accepts exact Wealthora expense, income, or transfer export
   headers. It validates all rows and duplicate IDs before mutation, then creates
   a safety ZIP. An application data file cannot be selected as an import source.
 - PDF export uses a small standards-compatible, dependency-free PDF writer for a
@@ -117,4 +117,4 @@ The notification page calls `FinanceNotificationService`. Advanced Reports uses
 - The PDF summary uses the built-in Helvetica font and replaces characters
   outside printable ASCII; CSV/JSON retain UTF-8 data.
 - Notifications are refreshed in the application and are not delivered while
-  SpendWise is closed.
+  Wealthora is closed.

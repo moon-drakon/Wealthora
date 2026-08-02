@@ -1,6 +1,7 @@
 package com.spendwise.auth.ui;
 
 import com.formdev.flatlaf.FlatClientProperties;
+import com.spendwise.config.AppBrand;
 import com.spendwise.ui.component.PrimaryButton;
 import com.spendwise.ui.component.SecondaryButton;
 import com.spendwise.ui.component.StyledTextField;
@@ -38,7 +39,7 @@ abstract class AuthFormPanel extends JPanel {
 
         JPanel heading = new JPanel(new BorderLayout(0, 6));
         heading.setOpaque(false);
-        JLabel brand = new JLabel("SpendWise");
+        JLabel brand = new JLabel(AppBrand.APP_NAME);
         brand.setFont(AppFonts.caption().deriveFont(java.awt.Font.BOLD));
         brand.setForeground(AppColors.accent());
         JLabel title = new JLabel(titleText);

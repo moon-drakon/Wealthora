@@ -1,5 +1,6 @@
 package com.spendwise.ui;
 
+import com.spendwise.config.AppBrand;
 import com.spendwise.service.AccountService;
 import com.spendwise.service.AccountStatementService;
 import com.spendwise.service.BackupService;
@@ -55,7 +56,7 @@ public final class SpendWiseFrame extends JFrame {
             ExpenseAnalyticsService analyticsService,
             BudgetService budgetService,
             CategoryService categoryService) {
-        super("SpendWise Expense Tracker");
+        super(AppBrand.WINDOW_TITLE);
         if (!SwingUtilities.isEventDispatchThread()) {
             throw new IllegalStateException(
                     "SpendWiseFrame must be created on the Event Dispatch Thread.");
@@ -165,7 +166,7 @@ public final class SpendWiseFrame extends JFrame {
             JsonBackupService jsonBackupService,
             CsvImportService csvImportService,
             PdfReportService pdfReportService) {
-        super("SpendWise Expense Tracker");
+        super(AppBrand.WINDOW_TITLE);
         requireEventDispatchThread();
         Objects.requireNonNull(expenseService, "Expense service is required.");
         Objects.requireNonNull(
@@ -338,7 +339,8 @@ public final class SpendWiseFrame extends JFrame {
         } else {
             shell.addPage("cards", "Cards", AppIcons.Type.CARDS,
                     new EmptyStatePanel("Cards are unavailable",
-                            "Start SpendWise with the complete finance services to manage cards."),
+                            "Start " + AppBrand.APP_NAME
+                                    + " with the complete finance services to manage cards."),
                     null);
         }
         shell.addPage("calendar", "Calendar", AppIcons.Type.CALENDAR,
@@ -360,7 +362,8 @@ public final class SpendWiseFrame extends JFrame {
         } else {
             EmptyStatePanel planningUnavailable = new EmptyStatePanel(
                     "Planning is unavailable",
-                    "Start SpendWise with the complete planning services to manage goals and debts.");
+                    "Start " + AppBrand.APP_NAME
+                            + " with the complete planning services to manage goals and debts.");
             shell.addPage("goals", "Goals", AppIcons.Type.GOALS,
                     planningUnavailable, null);
             shell.addPageAlias("loans", "Loans and Debts",

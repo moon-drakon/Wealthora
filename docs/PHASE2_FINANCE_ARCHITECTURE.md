@@ -1,6 +1,6 @@
 # Phase 2 Finance Architecture
 
-SpendWise remains a local-first Java 25 Swing application backed by CSV files.
+Wealthora remains a local-first Java 25 Swing application backed by CSV files.
 Phase 2 does not introduce or pretend to use a relational database. Each CSV
 repository writes a complete validated snapshot to a temporary file, flushes it,
 and atomically replaces the destination when the operating system supports it.
@@ -45,7 +45,7 @@ values of thirty characters each.
 ## Migration behavior
 
 Legacy account, expense, income, transfer, and category headers remain readable.
-Before an older account file is first upgraded, SpendWise keeps a sibling
+Before an older account file is first upgraded, Wealthora keeps a sibling
 `.pre-metadata-backup` copy and never overwrites that safety copy.
 Reading alone never rewrites a user's file. The next successful mutation of that
 specific file writes the complete in-memory snapshot using the current schema,

@@ -1,5 +1,6 @@
 package com.spendwise.auth.ui;
 
+import com.spendwise.config.AppBrand;
 import com.spendwise.auth.AuthService;
 import com.spendwise.auth.SessionManager;
 import com.spendwise.auth.UserSession;
@@ -19,7 +20,7 @@ public final class SignInPanel extends AuthFormPanel {
             AuthService authService,
             SessionManager sessionManager,
             AuthNavigator navigator) {
-        super("Sign in", "Access your SpendWise profile when a real "
+        super("Sign in", "Access your " + AppBrand.APP_NAME + " profile when a real "
                 + "authentication backend is configured.");
         this.authService = Objects.requireNonNull(authService);
         this.sessionManager = Objects.requireNonNull(sessionManager);

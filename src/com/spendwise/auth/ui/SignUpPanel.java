@@ -1,5 +1,6 @@
 package com.spendwise.auth.ui;
 
+import com.spendwise.config.AppBrand;
 import com.spendwise.auth.AuthException;
 import com.spendwise.auth.AuthService;
 import com.spendwise.auth.UserSession;
@@ -19,7 +20,7 @@ public final class SignUpPanel extends AuthFormPanel {
             passwordField("Confirm password");
 
     public SignUpPanel(AuthService authService, AuthNavigator navigator) {
-        super("Create account", "Prepare an NSU-only SpendWise account. "
+        super("Create account", "Prepare an NSU-only " + AppBrand.APP_NAME + " account. "
                 + "Email verification requires the configured backend.");
         this.authService = Objects.requireNonNull(authService);
         this.navigator = Objects.requireNonNull(navigator);

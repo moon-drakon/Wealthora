@@ -1,5 +1,6 @@
 package com.spendwise.ui;
 
+import com.spendwise.config.AppBrand;
 import com.spendwise.auth.ui.AuthFrame;
 import com.spendwise.model.Category;
 import com.spendwise.service.CategoryService;
@@ -90,6 +91,7 @@ public final class SettingsPanel extends JPanel {
         cards.add(dataCard());
         cards.add(profileCard());
         cards.add(privacyCard());
+        cards.add(aboutCard());
         content.add(cards, BorderLayout.CENTER);
 
         statusLabel.setFont(AppFonts.caption());
@@ -168,8 +170,19 @@ public final class SettingsPanel extends JPanel {
         AppTheme.mark(value, AppTheme.PRIMARY_TEXT_ROLE);
         actions.add(value);
         return card("Privacy",
-                "SpendWise keeps its finance records in the existing local data directory.",
+                AppBrand.APP_NAME
+                        + " keeps its finance records in the existing local data directory.",
                 actions);
+    }
+
+    private static JPanel aboutCard() {
+        JPanel actions = actions();
+        JLabel value = new JLabel(AppBrand.TAGLINE);
+        value.setFont(AppFonts.button());
+        value.setForeground(AppColors.accent());
+        actions.add(value);
+        return card("About " + AppBrand.APP_NAME,
+                AppBrand.DESCRIPTION + ".", actions);
     }
 
     private static JPanel card(

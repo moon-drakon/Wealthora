@@ -1,4 +1,4 @@
-# SpendWise Expense Tracker Project Plan
+# Wealthora Project Plan
 
 ## Current implementation status
 
@@ -8,7 +8,7 @@ The project is complete through Step 19. It includes validated financial and rec
 
 People often record small daily expenses inconsistently and then struggle to understand where their money went. Spreadsheet-based tracking can work, but it may be inconvenient for users who want a focused desktop workflow with validation, summaries, and budget feedback.
 
-SpendWise addresses this problem with a local Java Swing application that organizes personal transactions and produces useful summaries without requiring an online account or external service.
+Wealthora addresses this problem with a local Java Swing application that organizes personal transactions and produces useful summaries without requiring an online account or external service.
 
 ## Project objectives
 
@@ -512,7 +512,7 @@ Maintained documentation describes the project, architecture, completed features
 - CSV storage rather than a relational database
 - No cloud synchronization or multi-device support
 - No multi-process CSV file locking
-- No general-purpose data import beyond validated SpendWise backup restore
+- No general-purpose data import beyond validated Wealthora backup restore
 - No PDF or printable report layout; advanced reports are on-screen and exportable only as CSV data
 - No bank, payment-provider, or financial-account integration
 - No authentication, shared accounts, or role management

@@ -1,6 +1,7 @@
 package com.spendwise.ui.shell;
 
 import com.formdev.flatlaf.FlatClientProperties;
+import com.spendwise.config.AppBrand;
 import com.spendwise.ui.theme.AppColors;
 import com.spendwise.ui.theme.AppFonts;
 import com.spendwise.ui.theme.AppTheme;
@@ -121,11 +122,12 @@ public final class Sidebar extends JPanel {
     }
 
     private static void addBranding(JPanel panel) {
-        JLabel brand = new JLabel("SpendWise");
+        JLabel brand = new JLabel(AppBrand.APP_NAME);
         brand.setFont(AppFonts.pageTitle());
         brand.setForeground(Color.WHITE);
         brand.setAlignmentX(Component.LEFT_ALIGNMENT);
-        JLabel subtitle = new JLabel("PERSONAL FINANCE");
+        JLabel subtitle = new JLabel(AppBrand.TAGLINE.toUpperCase(
+                java.util.Locale.ROOT));
         subtitle.setFont(AppFonts.caption().deriveFont(11f));
         subtitle.setForeground(SIDEBAR_MUTED);
         subtitle.setAlignmentX(Component.LEFT_ALIGNMENT);

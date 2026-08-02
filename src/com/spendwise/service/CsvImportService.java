@@ -1,5 +1,6 @@
 package com.spendwise.service;
 
+import com.spendwise.config.AppBrand;
 import com.spendwise.model.Account;
 import com.spendwise.model.Category;
 import com.spendwise.model.Expense;
@@ -86,7 +87,8 @@ public final class CsvImportService {
         if (header.equals(INCOME_HEADER)) return prepareIncome(records);
         if (header.equals(TRANSFER_HEADER)) return prepareTransfers(records);
         throw new ValidationException(
-                "CSV header is not a supported SpendWise export format.");
+                "CSV header is not a supported " + AppBrand.APP_NAME
+                        + " export format.");
     }
 
     private ImportBatch prepareExpenses(List<List<String>> records) {
@@ -145,7 +147,7 @@ public final class CsvImportService {
     private Path nextSafetyPath(Path parent) {
         if (parent == null) throw new ValidationException(
                 "Import file must have a parent directory.");
-        String base = "SpendWise-import-safety-"
+        String base = AppBrand.APP_NAME + "-import-safety-"
                 + SAFETY.format(java.time.LocalDateTime.now());
         for (int suffix = 0; suffix < 1000; suffix++) {
             Path candidate = parent.resolve(base

@@ -1,5 +1,6 @@
 package com.spendwise.ui;
 
+import com.spendwise.config.AppBrand;
 import com.spendwise.repository.CsvAccountRepository;
 import com.spendwise.repository.CsvAccountPreferenceRepository;
 import com.spendwise.repository.CsvBudgetRepository;
@@ -173,6 +174,7 @@ public final class FinanceFrameSmokeTest {
                 frame.setLocation(-10000, -10000);
                 frame.setSize(1000, 650);
                 frame.setVisible(true);
+                assertEquals(AppBrand.WINDOW_TITLE, frame.getTitle());
                 if (!(frame.getContentPane() instanceof AppShellPanel shell)) {
                     throw new AssertionError(
                             "Main content must use the professional app shell.");

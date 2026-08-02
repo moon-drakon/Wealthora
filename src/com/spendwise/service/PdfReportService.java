@@ -1,5 +1,6 @@
 package com.spendwise.service;
 
+import com.spendwise.config.AppBrand;
 import com.spendwise.model.Account;
 import com.spendwise.model.Category;
 import java.io.ByteArrayOutputStream;
@@ -35,7 +36,7 @@ public final class PdfReportService {
             PortfolioAnalyticsSnapshot snapshot, String currency) {
         AdvancedReportSnapshot report = snapshot.transactionReport();
         List<String> lines = new ArrayList<>();
-        lines.add("SpendWise Personal Finance Report");
+        lines.add(AppBrand.APP_NAME + " Personal Finance Report");
         lines.add("Period: " + report.getStartDate() + " through "
                 + report.getEndDate());
         lines.add("");
@@ -97,7 +98,7 @@ public final class PdfReportService {
                         stream, ascii("endstream")),
                 ascii("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"));
         ByteArrayOutputStream output = new ByteArrayOutputStream();
-        output.writeBytes(ascii("%PDF-1.4\n%SpendWise\n"));
+        output.writeBytes(ascii("%PDF-1.4\n%Wealthora\n"));
         List<Integer> offsets = new ArrayList<>();
         for (int index = 0; index < objects.size(); index++) {
             offsets.add(output.size());

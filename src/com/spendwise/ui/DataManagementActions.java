@@ -1,5 +1,6 @@
 package com.spendwise.ui;
 
+import com.spendwise.config.AppBrand;
 import com.spendwise.repository.RepositoryException;
 import com.spendwise.service.AdvancedReportSnapshot;
 import com.spendwise.service.BackupInspection;
@@ -86,7 +87,8 @@ final class DataManagementActions {
             dataMenu.add(item("Restore JSON Backup...", this::restoreJsonBackup));
         }
         if (csvImportService != null) {
-            dataMenu.add(item("Import SpendWise CSV...", this::importCsv));
+            dataMenu.add(item("Import " + AppBrand.APP_NAME + " CSV...",
+                    this::importCsv));
         }
         dataMenu.addSeparator();
         JMenu exportMenu = new JMenu("Export");
@@ -112,7 +114,7 @@ final class DataManagementActions {
 
     private void createJsonBackup() {
         JFileChooser chooser = chooser("Create Versioned JSON Backup",
-                "SpendWise-backup.json", "JSON backup", "json");
+                AppBrand.JSON_BACKUP_FILE_NAME, "JSON backup", "json");
         if (chooser.showSaveDialog(owner) != JFileChooser.APPROVE_OPTION) return;
         Path destination = chooser.getSelectedFile().toPath();
         Boolean overwrite = confirmOverwrite(destination);
@@ -154,7 +156,8 @@ final class DataManagementActions {
     }
 
     private void importCsv() {
-        JFileChooser chooser = chooser("Import SpendWise CSV Export", null,
+        JFileChooser chooser = chooser(
+                "Import " + AppBrand.APP_NAME + " CSV Export", null,
                 "CSV file", "csv");
         if (chooser.showOpenDialog(owner) != JFileChooser.APPROVE_OPTION) return;
         Path source = chooser.getSelectedFile().toPath();
@@ -199,7 +202,8 @@ final class DataManagementActions {
 
     private void createBackup() {
         JFileChooser chooser = chooser(
-                "Create SpendWise Backup", "SpendWise-backup.zip", "ZIP backup", "zip");
+                "Create " + AppBrand.APP_NAME + " Backup",
+                AppBrand.BACKUP_FILE_NAME, "ZIP backup", "zip");
         if (chooser.showSaveDialog(owner) != JFileChooser.APPROVE_OPTION) {
             return;
         }
@@ -221,7 +225,8 @@ final class DataManagementActions {
 
     private void restoreBackup() {
         JFileChooser chooser = chooser(
-                "Select SpendWise Backup", null, "ZIP backup", "zip");
+                "Select " + AppBrand.APP_NAME + " Backup",
+                null, "ZIP backup", "zip");
         if (chooser.showOpenDialog(owner) != JFileChooser.APPROVE_OPTION) {
             return;
         }
@@ -328,7 +333,7 @@ final class DataManagementActions {
 
     private void showInformation(String message) {
         JOptionPane.showMessageDialog(
-                owner, message, "SpendWise", JOptionPane.INFORMATION_MESSAGE);
+                owner, message, AppBrand.APP_NAME, JOptionPane.INFORMATION_MESSAGE);
     }
 
     private void showError(String message) {

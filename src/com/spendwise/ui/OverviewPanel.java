@@ -1,5 +1,6 @@
 package com.spendwise.ui;
 
+import com.spendwise.config.AppBrand;
 import com.spendwise.model.RecurringEntry;
 import com.spendwise.service.BudgetService;
 import com.spendwise.service.BudgetUsage;
@@ -31,6 +32,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.DefaultListModel;
 import javax.swing.JLabel;
@@ -154,7 +157,13 @@ public final class OverviewPanel extends JPanel {
         JPanel content = new JPanel(new BorderLayout(0, 14));
         AppTheme.mark(content, AppTheme.PAGE_ROLE);
         content.setBorder(BorderFactory.createEmptyBorder(18, 20, 20, 20));
-        content.add(buildSummaryCards(), BorderLayout.NORTH);
+        JPanel introduction = new JPanel();
+        introduction.setLayout(new BoxLayout(introduction, BoxLayout.Y_AXIS));
+        introduction.setOpaque(false);
+        introduction.add(buildBrandHeading());
+        introduction.add(Box.createVerticalStrut(14));
+        introduction.add(buildSummaryCards());
+        content.add(introduction, BorderLayout.NORTH);
 
         JPanel details = new JPanel(new GridLayout(0, 1, 0, 14));
         details.setOpaque(false);
@@ -171,6 +180,30 @@ public final class OverviewPanel extends JPanel {
         scrollPane.getVerticalScrollBar().setUnitIncrement(18);
         scrollPane.getViewport().setBackground(AppColors.pageBackground());
         add(scrollPane, BorderLayout.CENTER);
+    }
+
+    private static JPanel buildBrandHeading() {
+        JPanel heading = new JPanel(new BorderLayout(16, 0));
+        heading.setOpaque(false);
+        JPanel text = new JPanel();
+        text.setLayout(new BoxLayout(text, BoxLayout.Y_AXIS));
+        text.setOpaque(false);
+        JLabel title = new JLabel(AppBrand.APP_NAME);
+        title.setFont(AppFonts.pageTitle());
+        AppTheme.mark(title, AppTheme.PRIMARY_TEXT_ROLE);
+        JLabel tagline = new JLabel(AppBrand.TAGLINE);
+        tagline.setFont(AppFonts.sectionTitle());
+        tagline.setForeground(AppColors.accent());
+        JLabel description = new JLabel(AppBrand.DESCRIPTION);
+        description.setFont(AppFonts.body());
+        AppTheme.mark(description, AppTheme.SECONDARY_TEXT_ROLE);
+        text.add(title);
+        text.add(Box.createVerticalStrut(2));
+        text.add(tagline);
+        text.add(Box.createVerticalStrut(2));
+        text.add(description);
+        heading.add(text, BorderLayout.CENTER);
+        return heading;
     }
 
     private JPanel buildSummaryCards() {

@@ -1,5 +1,6 @@
 package com.spendwise.service;
 
+import com.spendwise.config.AppBrand;
 import com.spendwise.model.Category;
 import com.spendwise.repository.CsvAccountRepository;
 import com.spendwise.repository.CsvAccountPreferenceRepository;
@@ -40,7 +41,7 @@ public final class BackupService {
 
     public static final String MANIFEST_NAME = "manifest.txt";
     public static final String FORMAT_VERSION = "1";
-    public static final String APPLICATION_NAME = "SpendWise Expense Tracker";
+    public static final String APPLICATION_NAME = AppBrand.APP_NAME;
     private static final long MAX_ENTRY_BYTES = 50L * 1024L * 1024L;
     private static final long MAX_TOTAL_BYTES = 100L * 1024L * 1024L;
     private static final DateTimeFormatter SAFETY_NAME = DateTimeFormatter
@@ -169,7 +170,7 @@ public final class BackupService {
                 .toAbsolutePath().normalize();
         if (!Files.isRegularFile(archive)) {
             throw new ValidationException(
-                    "Select an existing SpendWise backup file.");
+                    "Select an existing " + AppBrand.APP_NAME + " backup file.");
         }
         LinkedHashMap<String, byte[]> entries = readArchive(archive);
         byte[] manifestBytes = entries.remove(MANIFEST_NAME);
@@ -367,7 +368,9 @@ public final class BackupService {
             throw new ValidationException(
                     "Backup format version is not supported.");
         }
-        if (!APPLICATION_NAME.equals(values.get("application"))) {
+        String applicationName = values.get("application");
+        if (!APPLICATION_NAME.equals(applicationName)
+                && !AppBrand.LEGACY_BACKUP_APPLICATION.equals(applicationName)) {
             throw new ValidationException(
                     "Backup belongs to a different application.");
         }
@@ -409,7 +412,7 @@ public final class BackupService {
             throw new ValidationException(
                     "A safety-backup directory is unavailable.");
         }
-        String base = "SpendWise-safety-"
+        String base = AppBrand.APP_NAME + "-safety-"
                 + SAFETY_NAME.format(clock.instant());
         for (int suffix = 0; suffix < 1000; suffix++) {
             String name = base + (suffix == 0 ? "" : "-" + suffix) + ".zip";

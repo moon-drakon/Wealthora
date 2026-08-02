@@ -1,5 +1,6 @@
 package com.spendwise.ui;
 
+import com.spendwise.config.AppBrand;
 import com.spendwise.model.Account;
 import com.spendwise.model.Category;
 import com.spendwise.model.RecurrenceFrequency;
@@ -256,7 +257,7 @@ public final class RecurringPanel extends JPanel {
 
     private void showInformation(String message) {
         JOptionPane.showMessageDialog(
-                this, message, "SpendWise", JOptionPane.INFORMATION_MESSAGE);
+                this, message, AppBrand.APP_NAME, JOptionPane.INFORMATION_MESSAGE);
     }
 
     private static JButton button(String text, Runnable action) {

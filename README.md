@@ -1,6 +1,10 @@
-# SpendWise Expense Tracker
+# Wealthora
 
-SpendWise Expense Tracker is a Java Swing desktop application for a CSE215 Object-Oriented Programming semester project.
+**Take Control of Every Taka.**
+
+**A Smart Personal Finance Management System**
+
+Wealthora is built as a Java Swing desktop application for a CSE215 Object-Oriented Programming semester project.
 
 ## Team
 
@@ -16,7 +20,7 @@ Feature status in this document will be updated only after the corresponding beh
 
 ## Purpose
 
-SpendWise is intended to help an individual record income and expenses, organize transactions, monitor a budget, and understand personal spending patterns through a straightforward desktop interface.
+Wealthora helps an individual record income and expenses, organize transactions, monitor a budget, and understand personal spending patterns through a straightforward desktop interface.
 
 ## Core features
 
@@ -63,7 +67,7 @@ No external libraries are currently required.
 3. Select **Run > Clean and Build Project**.
 4. Select **Run > Run Project**, or press **F6**, to start the application.
 
-The generated JAR is `dist/SpendWiseExpenseTracker.jar`.
+The generated JAR is `dist/Wealthora.jar`.
 
 ## Build from the command line
 
@@ -82,7 +86,7 @@ C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat clean jar
 Run the generated application JAR with:
 
 ```powershell
-java -jar dist\SpendWiseExpenseTracker.jar
+java -jar dist\Wealthora.jar
 ```
 
 ## Run the core-model tests
@@ -257,7 +261,7 @@ Account, income, and transfer records use these sibling files:
 %LOCALAPPDATA%\SpendWiseExpenseTracker\data\recurring.csv
 ```
 
-If `LOCALAPPDATA` is unavailable, SpendWise uses the equivalent location below `user.home\AppData\Local`. macOS uses `~/Library/Application Support`, while Linux and other Unix-like systems use `XDG_DATA_HOME` or the `~/.local/share` fallback.
+For compatibility with existing installations, Wealthora continues to use the `SpendWiseExpenseTracker` application-data directory. If `LOCALAPPDATA` is unavailable, it uses the equivalent location below `user.home\AppData\Local`. macOS uses `~/Library/Application Support`, while Linux and other Unix-like systems use `XDG_DATA_HOME` or the `~/.local/share` fallback.
 
 Resolving these paths and starting the application are read-only operations. Each CSV file is created only by the first successful mutation for its own data area. Repository writes use complete UTF-8 snapshots and safe same-directory temporary-file replacement.
 
@@ -315,7 +319,7 @@ Quick Entry is available from **Entry > Quick Entry**, the Recurring tab, or `Ct
 
 Use **Data > Create Backup** to choose a ZIP destination outside the application data directory. A backup contains a versioned manifest and every managed CSV file that currently exists; source, Git, build, credential, and unrelated files are never included. Existing destinations require explicit replacement confirmation.
 
-Use **Data > Restore Backup** to inspect the archive timestamp and included filenames before confirming. SpendWise rejects unsupported versions, malformed manifests or CSV data, duplicate or unknown entries, corrupt ZIPs, and path traversal before modifying application data. If managed data currently exists, a timestamped safety backup is written beside the selected archive. Restore applies the validated snapshot as one managed data set, removes managed files that were absent from that snapshot, never deletes unrelated files, and refreshes the application only after success.
+Use **Data > Restore Backup** to inspect the archive timestamp and included filenames before confirming. Wealthora rejects unsupported versions, malformed manifests or CSV data, duplicate or unknown entries, corrupt ZIPs, and path traversal before modifying application data. Backups created before the rebrand remain supported. If managed data currently exists, a timestamped safety backup is written beside the selected archive. Restore applies the validated snapshot as one managed data set, removes managed files that were absent from that snapshot, never deletes unrelated files, and refreshes the application only after success.
 
 The **Data > Export** submenu writes expenses, income, transfers, account summaries, or the currently selected filtered report to user-selected CSV files. Exports use clear headers, standard CSV escaping, and exact decimal text. They never mutate repositories and require confirmation before replacing a file.
 
@@ -482,4 +486,4 @@ Automated tests and smoke workflows use temporary directories and fingerprint th
 
 ## Known limitations
 
-SpendWise is a single-user offline desktop application. Authentication, dark mode, general-purpose import, printing/PDF output, cloud synchronization, multi-process file locking, encryption beyond operating-system protections, mobile clients, and website functionality are not implemented. CSV exports are supported, but they are data snapshots rather than formatted printable reports.
+Wealthora is currently a local-first, single-user desktop application. Its authentication screens and client contracts are integration-ready, but a real authentication backend, Google OAuth, cloud synchronization, and production session gating are not configured. Dark mode, validated CSV import, ZIP/JSON backup, CSV export, and dependency-free PDF summaries are available. Multi-process file locking, mobile clients, and website functionality are not implemented.
