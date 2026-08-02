@@ -4,7 +4,7 @@
 
 - Branch: `feature/wealthora-auth-profile-admin`
 - Verified implementation HEAD: `b0be97f`
-- Current HEAD: the documentation commit immediately following `b0be97f`; confirm with `git rev-parse --short HEAD`
+- Current HEAD: the documentation/migration record commits following `b0be97f`; confirm with `git rev-parse --short HEAD`
 - Completed checkpoint: first local desktop authentication and administration checkpoint
 - Java: Microsoft OpenJDK `25.0.2`
 - Build: `ant clean jar` passed after compiling 232 production sources
@@ -31,7 +31,10 @@
 - Production `expenses.csv`: 69 bytes; SHA-256 `9B62869B92C570D77CCE133EC6B3659C65E143F644820EDEB58D76B52EB947D8`
 - Production `income.csv`: 54 bytes; SHA-256 `B4C013638932E0A0CDF01386338F1BDD631CC4CEA14580DA6E231A76E0775437`
 - Both hashes remained unchanged after implementation, tests, build, and launch.
-- The real JAR was launched with no owner store present. Production ownership migration remains intentionally pending until the user submits the first-run OWNER form.
+- The real JAR was launched with no owner store present; the user completed first-run setup successfully and the app opened My Finance.
+- Production now contains exactly one active account with `USER|ADMIN|OWNER`. The owner workspace and migration marker exist.
+- Production ownership backup: `pre-owner-assignment-20260802-234221-896.zip` (633 bytes).
+- The owner-workspace copies of `expenses.csv` and `income.csv` exactly match the retained legacy hashes above.
 - Automated migration tests verified the backup count, byte-for-byte copies, retained legacy originals, restart persistence, and duplicate-migration protection.
 
 ## Remaining work and known limitations
