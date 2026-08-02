@@ -1,9 +1,11 @@
 package com.spendwise.ui;
 
+import com.spendwise.auth.ui.AuthFrame;
 import com.spendwise.model.Category;
 import com.spendwise.service.CategoryService;
 import com.spendwise.service.CurrencyService;
 import com.spendwise.ui.component.PrimaryButton;
+import com.spendwise.ui.component.SecondaryButton;
 import com.spendwise.ui.component.StyledComboBox;
 import com.spendwise.ui.component.StyledTextField;
 import com.spendwise.ui.theme.AppColors;
@@ -151,12 +153,11 @@ public final class SettingsPanel extends JPanel {
 
     private static JPanel profileCard() {
         JPanel actions = actions();
-        JLabel value = new JLabel("Local development profile");
-        value.setFont(AppFonts.button());
-        AppTheme.mark(value, AppTheme.PRIMARY_TEXT_ROLE);
-        actions.add(value);
+        SecondaryButton preview = new SecondaryButton("Open sign-in preview");
+        preview.addActionListener(event -> AuthFrame.openUnconfiguredPreview());
+        actions.add(preview);
         return card("Profile",
-                "Online authentication is intentionally inactive until a real backend is configured.",
+                "Preview the NSU sign-in flow. Authentication remains inactive until a real backend is configured.",
                 actions);
     }
 

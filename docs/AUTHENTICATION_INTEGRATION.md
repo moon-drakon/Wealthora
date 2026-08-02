@@ -1,31 +1,31 @@
 # Future Authentication Integration
 
-SpendWise currently remains a local-first desktop application. The Phase 1
-interface does not require a login, accept credentials, or simulate an
-authenticated user. The `Local workspace` label in the top bar describes this
-state and is intentionally not an account control.
+SpendWise remains a local-first desktop application. The Settings page opens a
+desktop authentication preview, but local development does not require a login
+and the preview never simulates an authenticated user. Its unconfigured API
+client rejects every operation with a clear backend-configuration message.
+Passwords exist only in temporary character arrays that are cleared after each
+synchronous call.
 
 When the real Spring Boot backend is introduced, keep authentication behind
 small Swing-facing boundaries:
 
-- `com.spendwise.auth.ui.AuthFrame` owns registration, verification, login,
-  password-reset, and system-browser Google sign-in screens.
-- `com.spendwise.auth.AuthService` exposes asynchronous authentication
-  operations and delegates network calls to the API client. It must never
-  contain hardcoded users or secrets.
-- `com.spendwise.auth.SessionManager` keeps short-lived access tokens in memory
-  and stores refresh credentials only through an approved operating-system
-  credential store. It publishes session-state changes to the application
-  shell.
-- `com.spendwise.api.SpendWiseApiClient` is the only HTTP boundary. It applies
-  timeouts, maps backend errors to user-safe messages, refreshes expired
-  sessions through `SessionManager`, and never logs tokens or passwords.
+- `com.spendwise.auth.ui.AuthFrame` owns sign-in, registration, verification,
+  forgot-password, reset-password, and Google sign-in preview screens.
+- `com.spendwise.auth.AuthService` is the Swing-facing authentication boundary;
+  `BackendAuthService` applies NSU email, password, and verification rules.
+- `com.spendwise.auth.AuthApiClient` is the future transport boundary.
+  `UnconfiguredAuthApiClient` performs no network activity and never reports
+  success.
+- `com.spendwise.auth.SessionManager` currently keeps only a verified
+  `UserSession` in memory. A future token implementation must use an approved
+  operating-system credential store and must never log tokens or passwords.
 
 The production startup sequence should become:
 
 ```text
 SpendWiseApplication
-  -> load local preferences and encrypted session metadata
+  -> load local preferences and protected session metadata
   -> SessionManager attempts a backend refresh
      -> valid session: construct SpendWiseFrame and synchronize data
      -> no session: show AuthFrame

@@ -471,7 +471,20 @@
             </classpath>
         </java>
     </target>
-    <target name="test-quality" depends="test-phase3-data"
+    <target name="test-auth" depends="test-phase3-data"
+            description="Runs desktop authentication contracts and headless screen tests.">
+        <java classname="com.spendwise.auth.AuthClientFoundationTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+                <pathelement path="${javac.classpath}"/>
+            </classpath>
+        </java>
+    </target>
+    <target name="test-quality" depends="test-auth"
             description="Runs the final chained suite including isolated restart and persistence checks.">
         <java classname="com.spendwise.service.ApplicationPersistenceSmokeTest"
               fork="true"
