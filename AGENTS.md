@@ -3,7 +3,7 @@
 ## Project context
 
 - This is a CSE215 Java OOP semester project.
-- Use Java 21 and standard Java libraries.
+- Use Java 25 and standard Java libraries.
 - Use Apache Ant and maintain Apache NetBeans compatibility.
 - Use a programmatic Swing GUI unless explicitly changed later.
 

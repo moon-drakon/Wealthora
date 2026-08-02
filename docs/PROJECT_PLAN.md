@@ -338,7 +338,7 @@ C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-accounts-gui-smoke
 
 ## Milestones
 
-1. **Foundation (complete):** establish the Java 21 NetBeans project, repository baseline, documentation, and repeatable build.
+1. **Foundation (complete):** establish the Java 25 NetBeans project, repository baseline, documentation, and repeatable build.
 2. **Domain model (complete for implemented scope):** implement model classes, enums, validation rules, and calculation tests for expenses, categories, budgets, accounts, income, and transfers.
 3. **CSV storage (complete for implemented scope):** implement encoding, loading, safe replacement, corruption handling, and round-trip tests for every current data area.
 4. **Expense service layer (complete):** implement validated expense CRUD operations, combined text/category/date queries, stable sorting, and overall or filtered summaries.

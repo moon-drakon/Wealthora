@@ -2,7 +2,7 @@
 
 ## Scope and compatibility
 
-Phase 3 extends the existing Java 21, Ant, CSV-repository, service, and Swing
+Phase 3 extends the existing Java 25, Ant, CSV-repository, service, and Swing
 architecture. It does not replace Phase 1 or Phase 2 screens, transaction rules,
 or data files. Existing ledgers remain the source of truth for account balances.
 

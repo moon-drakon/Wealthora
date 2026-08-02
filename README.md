@@ -42,7 +42,7 @@ SpendWise is intended to help an individual record income and expenses, organize
 
 ## Technology stack
 
-- Java 21
+- Java 25
 - Java Swing and Java2D for the graphical interface and charts
 - Java standard libraries, including `java.time`, `java.math`, and `java.nio`
 - Apache Ant
@@ -53,13 +53,13 @@ No external libraries are currently required.
 
 ## Prerequisites
 
-- JDK 21 with both `java` and `javac` available
+- JDK 25 with both `java` and `javac` available
 - Apache NetBeans with Java support, or Apache Ant for command-line builds
 
 ## Build with Apache NetBeans
 
 1. Open the project root as an existing Apache NetBeans project.
-2. Confirm that the project uses JDK 21.
+2. Confirm that the project uses JDK 25.
 3. Select **Run > Clean and Build Project**.
 4. Select **Run > Run Project**, or press **F6**, to start the application.
 

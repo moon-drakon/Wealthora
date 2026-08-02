@@ -1,6 +1,6 @@
 # Phase 2 Finance Architecture
 
-SpendWise remains a local-first Java 21 Swing application backed by CSV files.
+SpendWise remains a local-first Java 25 Swing application backed by CSV files.
 Phase 2 does not introduce or pretend to use a relational database. Each CSV
 repository writes a complete validated snapshot to a temporary file, flushes it,
 and atomically replaces the destination when the operating system supports it.

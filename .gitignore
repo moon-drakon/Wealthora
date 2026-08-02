@@ -7,6 +7,13 @@
 # NetBeans user-specific state
 /nbproject/private/
 
+# Maven server build output and reports
+/server/target/
+/server/.mvn/wrapper/maven-wrapper.jar
+/server/.mvn/wrapper/maven-wrapper.properties
+/server/.idea/
+/server/.settings/
+
 # VS Code workspace state
 /.vscode/
 
