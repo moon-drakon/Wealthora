@@ -7,9 +7,10 @@ Verified on 2026-08-04.
 - Branch: `feature/wealthora-online-auth-voice`
 - Recorded verification HEAD: `967d640`
 - Active stage: Stage 4, desktop CLOUD-mode finance smoke testing
-- Exact resume point: use the verified CLOUD account and production-profile
-  backend to exercise finance CRUD, restart persistence, isolation, mode
-  boundaries, session clearing, and server-state handling
+- Exact resume point: after the user performs the private CLOUD sign-in in the
+  open rebuilt desktop, use non-sensitive dedicated records to exercise
+  finance CRUD, restart persistence, isolation, mode boundaries, session
+  clearing, and server-state handling
 
 ## Completed stages
 
@@ -67,8 +68,11 @@ pressure. No destructive Docker recovery was attempted.
 
 ## Manual gates
 
-- No active manual gate. Later gates include Google authorization/billing if
-  requested, Render/Vercel account connections and secret entry, and explicit
+- Active gate: access and refresh tokens are intentionally memory-only, so the
+  user must privately sign in to CLOUD once in the reopened Stage 4 desktop.
+  Codex will not automate or inspect the password.
+- Later gates include Google authorization/billing if requested,
+  Render/Vercel account connections and secret entry, and explicit
   push/merge/deploy authorization.
 
 ## Remaining stages

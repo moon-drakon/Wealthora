@@ -62,9 +62,11 @@
 
 ## Exact next task
 
-Continue Stage 4 with the verified CLOUD account and production-profile
-backend. Exercise account, category, income, expense, transfer, transaction
-edit/delete, budget, recurring, goal, debt, and dashboard/report behavior.
+The production-profile backend and rebuilt desktop are open. The user must
+privately select **Sign In to CLOUD** once because tokens are intentionally
+memory-only. After the user replies `ready`, exercise account, category,
+income, expense, transfer, transaction edit/delete, budget, recurring, goal,
+debt, and dashboard/report behavior with non-sensitive dedicated test records.
 Restart the desktop and backend to confirm persistence, then verify a second
 user cannot access the first user's finance records. Confirm logout and Switch
 Account clear cloud state, server stop/restart produces the documented
