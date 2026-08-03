@@ -25,11 +25,26 @@ Windows now reports a pending Component Based Servicing restart. No restart
 was initiated automatically. Docker Desktop was not started in this boot, so
 the Docker Server and `hello-world` are not yet verified.
 
-Restart Windows manually. After signing in, open a new PowerShell terminal and
-run:
+### Resume check
+
+A resume check later on 2026-08-03 found that Windows still reported its last
+boot at 7:05 PM, before the Docker installation began after 7:19 PM. The
+Component Based Servicing restart flag also remained present. This means the
+installation restart was not completed as a full Windows restart; a shutdown
+followed by power-on can preserve the kernel session when Fast Startup is
+enabled.
+
+WSL 2 itself responded, and the `docker-desktop` WSL 2 distribution was
+running. Docker Client 29.6.2 and Docker Server 29.6.2 responded successfully.
+The `hello-world` check was not started because the restart gate had not
+cleared.
+
+Use **Start > Power > Restart**. Do not use Shut down for this checkpoint.
+After signing in, open a new PowerShell terminal and run:
 
 ```powershell
 cd G:\Projects\SpendWiseExpenseTracker
+(Get-CimInstance Win32_OperatingSystem).LastBootUpTime
 wsl.exe --status
 wsl.exe --version
 wsl.exe --list --verbose
