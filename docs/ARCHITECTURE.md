@@ -37,6 +37,12 @@ UI classes call services rather than editing CSV files directly. Repository
 writes use same-directory temporary files and replacement after validation.
 Each authenticated local user resolves to an isolated finance workspace.
 
+CLOUD repositories are stateless HTTP adapters. During Swing workspace
+construction, a narrowly scoped read snapshot coalesces identical GETs issued
+by panels that need the same startup data. The snapshot ends as soon as frame
+construction completes; ordinary refreshes then return to live server reads,
+so this optimization cannot hide another device's later changes.
+
 ## Server layers
 
 - `api`: request/response records and HTTP controllers.
@@ -76,6 +82,10 @@ keys reject cross-user references.
 - Development mail output contains live one-time values and must stay outside
   source control and production.
 - Google OAuth client secrets and Google Cloud credentials remain server-side.
+- Live CLOUD verification uses generated disposable users and a development
+  mail sink outside the repository. Cleanup is scoped to those generated user
+  identifiers and temporary fixture paths, so established users and LOCAL
+  OWNER finance storage are not altered.
 
 ## Current boundary
 

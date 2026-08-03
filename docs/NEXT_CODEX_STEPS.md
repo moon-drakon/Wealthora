@@ -11,6 +11,7 @@
 - Explicit CLOUD/LOCAL sign-in commit: `614986a`
 - Verified desktop launcher commit: `8cf4891`
 - Real SMTP password-recovery audit commit: `967d640`
+- Verified desktop CLOUD workflow commit: `9252ee1`
 - The status-document commit follows that implementation commit; confirm the
   exact current hash with `git rev-parse --short HEAD`.
 - Desktop and server tests/builds pass under Java 25.
@@ -47,6 +48,13 @@
   sign-in. The anonymized live audit confirmed a clear cloud lock state and an
   active server session. Real SMTP registration and password recovery are
   complete.
+- Two generated disposable users completed the real Neon-backed desktop CLOUD
+  finance workflow, including full finance/planning coverage, USER
+  restrictions, second-user isolation, relogin persistence, logout clearing,
+  real Swing construction, server-unavailable handling, backend-restart
+  persistence, and scoped cleanup.
+- The five established OWNER finance files match the pre-online-auth backup
+  byte-for-byte. No automatic migration or synchronization ran.
 - The external configuration reports the core, SMTP, and Google OAuth groups
   as set. Google Cloud Application Default Credentials are unavailable.
 - The Next.js frontend has not been started.
@@ -62,35 +70,18 @@
 
 ## Exact next task
 
-The production-profile backend and rebuilt desktop are open. The user must
-privately select **Sign In to CLOUD** once because tokens are intentionally
-memory-only. After the user replies `ready`, exercise account, category,
-income, expense, transfer, transaction edit/delete, budget, recurring, goal,
-debt, and dashboard/report behavior with non-sensitive dedicated test records.
-Restart the desktop and backend to confirm persistence, then verify a second
-user cannot access the first user's finance records. Confirm logout and Switch
-Account clear cloud state, server stop/restart produces the documented
-transport states, and the established LOCAL OWNER finance files remain
-byte-for-byte unchanged.
+Inspect the existing Google Cloud Speech provider, desktop voice boundary,
+configuration status, and tests. Complete and verify every non-manual Stage 5
+item without exposing configuration values. If live Google authorization,
+billing, or API enablement is genuinely required after local and provider
+tests pass, record the exact external gate instead of fabricating success.
 
-If processes must be restarted, start the server with
-`scripts/Start-WealthoraServer.ps1`, then launch the desktop with:
+Continue next through Google OAuth, live administration, Docker/container
+recovery, and the Next.js web application in dependency order. The completed
+desktop CLOUD fixture may be rerun only with freshly generated users and its
+scoped cleanup; no private account credential is required for Stage 4.
 
-```powershell
-.\scripts\Start-WealthoraDesktop.ps1 `
-  -ServerUrl 'http://127.0.0.1:18080'
-```
-
-The password-recovery audit already reports the request, reset completion,
-consumed token, password-identity update, pre-reset session revocation,
-successful post-reset login, clear account lock, and an active cloud session.
-
-After password-recovery SMTP passes, continue automatically with the desktop
-CLOUD-mode finance smoke test, Google Cloud Speech ADC authorization, Google
-OAuth browser flow, administration verification, Docker recovery, the
-production container, and then the Next.js web application.
-
-## Live database sequence
+## Completed live database sequence
 
 1. Confirm the target database is empty and disposable.
 2. Run `server\mvnw.cmd test` and `server\mvnw.cmd package` before the live
@@ -192,5 +183,6 @@ Render until live PostgreSQL, SMTP where required, Docker, and CI checks pass.
 - If any secret is logged or found in history, stop, identify only the affected
   file and commit, rotate the credential, and plan history cleanup without
   exposing the value.
-- Do not push, merge, deploy, start the web frontend, or migrate desktop finance
-  data without explicit authorization.
+- Do not push, merge, deploy, or migrate desktop finance data without explicit
+  authorization. Local web implementation and testing are authorized by the
+  user's request; external deployment remains a separate gate.

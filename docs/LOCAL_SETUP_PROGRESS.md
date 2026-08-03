@@ -1,7 +1,7 @@
 # Wealthora local setup progress
 
 Verified on 2026-08-04 on branch
-`feature/wealthora-online-auth-voice` at `967d640`.
+`feature/wealthora-online-auth-voice` with implementation baseline `9252ee1`.
 
 ## Completed in this boot
 
@@ -60,12 +60,24 @@ Verified on 2026-08-04 on branch
 - The rebuilt two-button client completed a successful post-reset CLOUD
   sign-in. An anonymized audit verified the successful attempt, clear cloud
   lock state, and active session.
+- A pair of generated disposable users completed the full desktop CLOUD
+  finance workflow against the production-profile Neon backend. The run
+  covered finance CRUD/planning, dashboard/report totals, USER restrictions,
+  second-user isolation, relogin persistence, logout clearing, real Swing
+  construction, server-unavailable state, backend-restart persistence, and
+  scoped cleanup.
+- The desktop's CLOUD copy now identifies a private authenticated workspace.
+  Its construction-scoped read snapshot removes duplicate startup GETs
+  without creating a steady-state cache.
+- All five current OWNER finance files match the pre-online-auth backup
+  byte-for-byte. Authentication/audit files changed only through documented
+  authentication activity.
 
 ## Still pending
 
-- Live desktop CLOUD-mode GUI smoke testing
 - Docker `hello-world`, image build, and container run
 - Google Cloud ADC and browser OAuth authorization
+- Administration console live verification
 - Next.js web application and deployments
 
 No local OWNER finance data was migrated or modified, and nothing was pushed

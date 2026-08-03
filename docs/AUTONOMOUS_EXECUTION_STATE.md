@@ -5,12 +5,12 @@ Verified on 2026-08-04.
 ## Current stage
 
 - Branch: `feature/wealthora-online-auth-voice`
-- Recorded verification HEAD: `967d640`
-- Active stage: Stage 4, desktop CLOUD-mode finance smoke testing
-- Exact resume point: after the user performs the private CLOUD sign-in in the
-  open rebuilt desktop, use non-sensitive dedicated records to exercise
-  finance CRUD, restart persistence, isolation, mode boundaries, session
-  clearing, and server-state handling
+- Recorded implementation HEAD: `9252ee1`
+- Active stage: Stage 5, Google Cloud Speech readiness and verification
+- Exact resume point: inspect the existing speech provider, tests, and
+  Application Default Credentials status; complete every non-manual speech
+  implementation and test before continuing through OAuth, administration,
+  container, web, CI, and final acceptance in dependency order
 
 ## Completed stages
 
@@ -19,6 +19,8 @@ Verified on 2026-08-04.
 - Stage 3 disposable development-mail authentication lifecycle
 - Stage 3 real SMTP registration, OTP consumption, activation, and sign-in
 - Stage 3 real SMTP password recovery and post-reset CLOUD sign-in
+- Stage 4 desktop CLOUD finance, isolation, persistence, session, transport,
+  Swing construction, cleanup, and LOCAL-data-preservation verification
 
 Stage 1 is partially complete: the Windows restart, WSL checks, and Docker
 Client/Server checks passed. `hello-world` and Docker stability did not pass
@@ -38,47 +40,43 @@ pressure. No destructive Docker recovery was attempted.
 - Real SMTP registration plus anonymized activation/session/audit verification
 - Real SMTP password-reset request, completion, one-time-value consumption,
   password-identity update, and pre-reset session revocation
-- Desktop launcher health, authentication-provider, JAR, Java, and process
-  checks against the production-profile server on port 18080
-- An anonymized recovery diagnostic confirms the recovered account is
-  verified, ACTIVE, unlocked, and also has a same-email local account
 - Explicit CLOUD/LOCAL sign-in routing, including the same-email regression
-  test; `ant test-auth` and `ant clean jar` pass
-- Separate **Sign In to CLOUD** and **Sign In to LOCAL** actions replace the
-  ambiguous checkbox/generic-button interaction
-- Successful post-reset login, clear cloud lock state, and active CLOUD
-  session verified by the anonymized live audit
-- `server\mvnw.cmd package` passes after the recovery audit addition
+  test, separate buttons, and post-reset CLOUD session verification
+- Synthetic live CLOUD account/category/income/expense/transfer operations,
+  expense update/delete, monthly budget, recurring entry, goal, debt,
+  dashboard, and report totals against the real Neon-backed server
+- Normal USER administration restriction, second-user finance isolation,
+  fresh-gateway login persistence, and logout token clearing
+- Real Swing CLOUD workspace construction with correct connected-mode copy and
+  startup-scoped duplicate-read coalescing
+- Server-stop `SERVER_UNAVAILABLE` handling and session/data recovery after a
+  production-profile backend restart
+- Scoped cleanup removed both generated users and temporary mail/fixture
+  state without changing an existing user row
 - Five local OWNER finance files match the pre-online-auth backup byte-for-byte
-- Identical database data-count fingerprint before and after live testing
-- PowerShell syntax checks and `git diff --check`
+- Desktop and server low-memory launchers, PowerShell syntax checks, and
+  `git diff --check`
 
 ## Tests failed or pending
 
 - Docker `hello-world`: failed with Docker Desktop engine HTTP 500
 - Docker clean relaunch: failed with WSL VHDX attach error `0x800705aa`
-- The same-email LOCAL OWNER reached the intended temporary lockout after
-  repeated attempts with the cloud replacement password; its original local
-  password was not changed. The lock expires automatically before LOCAL-mode
-  verification.
-- Desktop CLOUD-mode GUI finance smoke test: pending
-- Google Cloud Speech: pending Application Default Credentials
-- Google OAuth: pending browser authorization
-- Docker image/container, Render, web, Vercel, and GitHub-hosted CI: pending
+- Google Cloud Speech: pending provider/ADC completion and live verification
+- Google OAuth: pending browser authorization and live linking verification
+- Administration console live verification: pending
+- Docker image/container, Render, Next.js web, Vercel, and GitHub-hosted CI:
+  pending
 
 ## Manual gates
 
-- Active gate: access and refresh tokens are intentionally memory-only, so the
-  user must privately sign in to CLOUD once in the reopened Stage 4 desktop.
-  Codex will not automate or inspect the password.
-- Later gates include Google authorization/billing if requested,
-  Render/Vercel account connections and secret entry, and explicit
-  push/merge/deploy authorization.
+There is no active manual gate. Future external gates may include Google
+authorization or billing, Render/Vercel account connections and secret entry,
+and explicit push, merge, or deployment authorization. Stop at the exact gate
+only after all safe non-manual work leading to it is complete.
 
 ## Remaining stages
 
-- Finish Stage 1 Docker stability
-- Stage 4 desktop CLOUD mode
+- Finish Stage 1 Docker stability when host resources permit
 - Stage 5 Google Cloud Speech
 - Stage 6 Google Sign-In
 - Stage 7 administration console live verification

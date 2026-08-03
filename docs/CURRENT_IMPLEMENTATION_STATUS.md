@@ -23,6 +23,7 @@ Verified on 2026-08-04 on branch
 - Explicit same-email CLOUD/LOCAL sign-in routing: `614986a`.
 - Verified desktop cloud launcher: `8cf4891`.
 - Anonymized real SMTP password-recovery verification: `967d640`.
+- Verified desktop CLOUD workflows and low-memory launchers: `9252ee1`.
 - The commit containing this report follows those implementation commits; use
   `git rev-parse --short HEAD` for its exact hash.
 - The cloud-finance milestone commits were not pushed or merged. The remote
@@ -134,8 +135,8 @@ Flyway V1-V5 remain forward-only, and Hibernate remains configured with
 ## Verification results
 
 - **Desktop tests:** `ant test-auth` passed the full dependency chain,
-  including 14 authentication-policy, 22 local authentication/authorization,
-  9 online-gateway, and 4 cloud-finance repository/migration-preview tests.
+  including authentication-policy, local authentication/authorization,
+  online-gateway, and five cloud-finance repository/migration-preview tests.
 - **Desktop build:** `ant clean jar` passed under Microsoft OpenJDK 25.0.2 and
   produced `dist/Wealthora.jar`.
 - **Desktop runtime:** the JAR opened `Wealthora Authentication` using a new
@@ -161,9 +162,10 @@ Flyway V1-V5 remain forward-only, and Hibernate remains configured with
   Docker Desktop HTTP 500. A clean Docker shutdown, `wsl --shutdown`, and
   relaunch then exposed WSL VHDX attach error `0x800705aa` (insufficient
   system resources). No image, volume, VHDX, or Docker setting was reset.
-- **Existing data:** the established application-data fingerprint was
-  identical before and after verification: ten files, including six CSV
-  files. No existing OWNER, authentication, or finance file changed.
+- **Existing finance data:** all five finance entries in the pre-online-auth
+  backup match the current OWNER finance files byte-for-byte. Authentication
+  and audit files changed only through the documented authentication actions;
+  no OWNER finance file was migrated or rewritten.
 
 ## Live Neon and authentication verification
 
@@ -217,10 +219,34 @@ Flyway V1-V5 remain forward-only, and Hibernate remains configured with
   a successful login attempt, clear cloud lock state, and active server
   session. Stage 3 real SMTP authentication is complete.
 
+## Live desktop CLOUD verification
+
+- A fully generated pair of disposable NSU-format users exercised the real
+  production-profile server, Neon PostgreSQL, development mail sink, desktop
+  authentication gateway, cloud repositories, services, and Swing workspace.
+  Passwords, one-time values, and tokens remained memory-only.
+- The first user created and read accounts, categories, income, expenses,
+  transfers, a monthly budget, recurring entry, savings goal, and debt. It
+  also updated and deleted an expense and verified dashboard/report totals.
+- A normal USER was denied administrative access. A second authenticated user
+  could not read the first user's records, including through referenced
+  finance resources.
+- A fresh authentication gateway could sign in again and read the persisted
+  records. Logout cleared access and refresh state.
+- The real CLOUD Swing frame constructed successfully and displayed
+  **Private CLOUD workspace**, authenticated sync copy, and Connected state.
+  A construction-scoped read snapshot coalesces identical startup GETs; it is
+  discarded immediately so later refreshes observe other-device changes.
+- Stopping the backend produced the documented `SERVER_UNAVAILABLE` state.
+  Restarting the same production-profile backend preserved the session and
+  finance data and returned the desktop transport state to Connected.
+- Scoped cleanup deleted both generated users and their dependent rows plus
+  the temporary mail/fixture state. No existing user row was changed.
+- All five established LOCAL OWNER finance files still match the
+  pre-online-auth backup byte-for-byte.
+
 ## Remaining configuration and limitations
 
-- Complete the Stage 4 live desktop CLOUD-mode finance and isolation smoke
-  test.
 - Google OAuth is configured server-side, but browser authorization and live
   account linking remain unverified.
 - Google Cloud Speech has a project ID but no available Application Default
@@ -230,7 +256,6 @@ Flyway V1-V5 remain forward-only, and Hibernate remains configured with
 - Flyway emitted a non-failing warning that test-only H2 2.4.240 is newer than
   the H2 release it has verified. All H2 tests passed, but they do not replace
   the required real PostgreSQL run.
-- A live desktop-to-server CLOUD-mode GUI smoke test remains pending.
 - Cloud card storage, currency preferences, import, backup/restore,
   synchronization, and automatic local-data migration are intentionally not
   implemented. The existing local tools remain available only in LOCAL mode.
