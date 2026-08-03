@@ -75,6 +75,8 @@ public final class VoiceTransactionParserTest {
                 VoiceTransactionParserTest::missingProviderStatus);
         test("authenticated speech clears captured audio",
                 VoiceTransactionParserTest::authenticatedSpeechClearsAudio);
+        test("failed speech also clears captured audio",
+                VoiceTransactionParserTest::failedSpeechClearsAudio);
         test("speech provider exposes stop and cancel separately",
                 VoiceTransactionParserTest::speechStopAndCancel);
         test("automatic speech uses V1-compatible language options",
@@ -308,6 +310,18 @@ public final class VoiceTransactionParserTest {
         assertEquals("Paid 500 taka for lunch", result.transcript());
         assertEquals(VoiceInputLanguage.ENGLISH, result.detectedLanguage());
         assertTrue(client.receivedNonZeroAudio);
+        for (byte value : microphone.audio) assertEquals((byte) 0, value);
+    }
+
+    private static void failedSpeechClearsAudio() {
+        FakeMicrophone microphone = new FakeMicrophone();
+        AuthenticatedSpeechRecognitionProvider provider =
+                new AuthenticatedSpeechRecognitionProvider(
+                        new FailingSpeechClient(), microphone);
+        provider.refreshStatus();
+        expect(IllegalStateException.class, () -> provider.recognize(
+                SpeechRecognitionRequest.forLanguage(
+                        VoiceInputLanguage.ENGLISH)));
         for (byte value : microphone.audio) assertEquals((byte) 0, value);
     }
 
@@ -563,6 +577,19 @@ public final class VoiceTransactionParserTest {
             return java.time.Duration.ZERO;
         }
         @Override public boolean testMicrophone() { return true; }
+    }
+
+    private static final class FailingSpeechClient implements SpeechApiClient {
+        @Override public SpeechBackendStatus getSpeechStatus() {
+            return new SpeechBackendStatus(SpeechProviderStatus.READY,
+                    "Test provider ready.");
+        }
+        @Override public SpeechRecognitionResult recognizeSpeech(
+                byte[] linearPcmAudio, int sampleRateHertz,
+                VoiceInputLanguage language) {
+            throw new IllegalStateException("Synthetic recognition failure.");
+        }
+        @Override public boolean hasActiveSession() { return true; }
     }
 
     @FunctionalInterface

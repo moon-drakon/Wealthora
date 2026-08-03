@@ -87,6 +87,7 @@ public final class JavaSoundMicrophoneCapture implements MicrophoneCapture {
             try {
                 line.start();
                 while (!stopRequested && !cancelRequested
+                        && !Thread.currentThread().isInterrupted()
                         && recordedBytes < maximumBytes) {
                     int available = Math.min(line.available(), Math.min(
                             buffer.length, maximumBytes - recordedBytes));
@@ -111,6 +112,10 @@ public final class JavaSoundMicrophoneCapture implements MicrophoneCapture {
             if (cancelRequested) {
                 throw new CancellationException(
                         "Voice recording was cancelled.");
+            }
+            if (Thread.currentThread().isInterrupted()) {
+                throw new CancellationException(
+                        "Voice recording was interrupted.");
             }
             byte[] bytes = java.util.Arrays.copyOf(recording, recordedBytes);
             Duration duration = Duration.ofMillis(

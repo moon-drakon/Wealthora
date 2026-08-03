@@ -23,6 +23,7 @@ public final class VoiceTranscriptPanel extends JPanel {
 
     private final JTextArea transcript = new JTextArea(5, 54);
     private final JLabel providerStatus = new JLabel(" ");
+    private final JLabel microphoneStatus = new JLabel(" ");
     private final JLabel recognitionStatus = new JLabel(" ");
     private final SecondaryButton listen = new SecondaryButton("Start Listening");
     private final StyledComboBox<MicrophoneDevice> microphone =
@@ -54,6 +55,8 @@ public final class VoiceTranscriptPanel extends JPanel {
         AppTheme.mark(detail, AppTheme.SECONDARY_TEXT_ROLE);
         providerStatus.setFont(AppFonts.caption());
         AppTheme.mark(providerStatus, AppTheme.SECONDARY_TEXT_ROLE);
+        microphoneStatus.setFont(AppFonts.caption());
+        AppTheme.mark(microphoneStatus, AppTheme.SECONDARY_TEXT_ROLE);
         heading.add(title, BorderLayout.NORTH);
         heading.add(detail, BorderLayout.CENTER);
         JPanel statuses = new JPanel(new GridLayout(0, 1, 0, 3));
@@ -61,6 +64,7 @@ public final class VoiceTranscriptPanel extends JPanel {
         recognitionStatus.setFont(AppFonts.caption());
         AppTheme.mark(recognitionStatus, AppTheme.SECONDARY_TEXT_ROLE);
         statuses.add(providerStatus);
+        statuses.add(microphoneStatus);
         statuses.add(recognitionStatus);
         heading.add(statuses, BorderLayout.SOUTH);
         add(heading, BorderLayout.NORTH);
@@ -135,6 +139,10 @@ public final class VoiceTranscriptPanel extends JPanel {
 
     public void setProviderStatus(String status) {
         providerStatus.setText(status == null ? " " : status);
+    }
+
+    public void setMicrophoneStatus(String status) {
+        microphoneStatus.setText(status == null ? " " : status);
     }
 
     public void setListeningAvailable(boolean available) {

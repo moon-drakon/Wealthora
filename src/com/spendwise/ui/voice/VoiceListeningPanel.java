@@ -15,7 +15,7 @@ public final class VoiceListeningPanel extends JPanel {
 
     private final JLabel state = new JLabel("Listening…", JLabel.CENTER);
     private final JLabel detail = new JLabel(
-            "Speak naturally. No transaction will be saved automatically.",
+            "Speak naturally for up to 30 seconds. Nothing is saved automatically.",
             JLabel.CENTER);
     private final JLabel duration = new JLabel("00:00", JLabel.CENTER);
 
@@ -67,7 +67,7 @@ public final class VoiceListeningPanel extends JPanel {
     public void showListening() {
         state.setText("Listening…");
         detail.setText(
-                "Speak naturally. No transaction will be saved automatically.");
+                "Speak naturally for up to 30 seconds. Nothing is saved automatically.");
         duration.setText("00:00");
     }
 

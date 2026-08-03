@@ -93,6 +93,7 @@ public final class VoiceQuickEntryDialog extends JDialog {
         transcriptPanel.setRecognitionStatus(" ");
         transcriptPanel.setProviderStatus(
                 "Speech provider: checking " + provider.getDisplayName() + "...");
+        transcriptPanel.setMicrophoneStatus("Microphone: checking...");
         transcriptPanel.setListeningAvailable(false);
         showManualEntry();
         refreshProviderStatus();
@@ -247,6 +248,8 @@ public final class VoiceQuickEntryDialog extends JDialog {
                 }
                 transcriptPanel.setProviderStatus("Speech provider: "
                         + provider.getDisplayName() + " · " + provider.getStatus());
+                transcriptPanel.setMicrophoneStatus(
+                        "Microphone: " + provider.getMicrophoneStatus());
                 transcriptPanel.setListeningAvailable(
                         settings.isEnabled() && provider.isConfigured());
             }
