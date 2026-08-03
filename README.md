@@ -92,8 +92,8 @@ $env:APP_OWNER_EMAIL = "shibli.moon.253@northsouth.edu"
 
 On the first launch, Wealthora opens the secure OWNER setup screen. The
 OWNER email is locked to `APP_OWNER_EMAIL`; enter the owner's full name and a
-password of at least 12 characters containing uppercase, lowercase, number,
-and symbol characters. Existing finance CSV files are backed up and copied
+password of 8-128 characters containing at least one English letter and one
+number, with no leading or trailing spaces. Existing finance CSV files are backed up and copied
 byte-for-byte into the first owner's private workspace; the legacy originals
 remain unchanged.
 
@@ -101,6 +101,9 @@ After the OWNER exists, use the same command whenever you run the app. Sign
 Out and Switch Account are available from the account menu in the top-right
 corner. Online registration, password sign-in, and Google Sign-In require
 `WEALTHORA_SERVER_URL` and the Spring Boot authentication server.
+The sign-in screen reports `Connected`, `Server unavailable`, or
+`Server URL missing` separately from `Email provider unavailable` and
+`Google OAuth unavailable`; it does not simulate an online capability.
 
 Google Sign-In uses the system browser and keeps its OAuth client secret on the
 server. Configure `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, and

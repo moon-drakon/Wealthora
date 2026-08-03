@@ -15,6 +15,7 @@ import com.spendwise.auth.UserSession;
 import com.spendwise.auth.admin.AdminService;
 import com.spendwise.auth.audit.CsvAuditRepository;
 import com.spendwise.auth.registration.RegistrationGateway;
+import com.spendwise.config.AppPaths;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -90,11 +91,25 @@ public final class LocalAuthenticationTest {
                     OWNER_PASSWORD, OWNER_PASSWORD));
             assertTrue(service.isOwnerSetupRequired());
         });
-        test("strong password policy", () -> expect(AuthException.class,
-                () -> service.createFirstOwner(
-                        "Primary Owner", OWNER_EMAIL,
-                        "weak-password".toCharArray(),
-                        "weak-password".toCharArray())));
+        test("eight-character letter-and-number password policy", () -> {
+            passwords.requireStrong("moon1234".toCharArray());
+            passwords.requireStrong("wealthora25".toCharArray());
+            passwords.requireStrong("student2026".toCharArray());
+            passwords.requireStrong(
+                    ("a1" + "x".repeat(126)).toCharArray());
+            expect(AuthException.class, () -> passwords.requireStrong(
+                    "12345678".toCharArray()));
+            expect(AuthException.class, () -> passwords.requireStrong(
+                    "abcdefgh".toCharArray()));
+            expect(AuthException.class, () -> passwords.requireStrong(
+                    "moon12".toCharArray()));
+            expect(AuthException.class, () -> passwords.requireStrong(
+                    " moon1234".toCharArray()));
+            expect(AuthException.class, () -> passwords.requireStrong(
+                    "moon1234 ".toCharArray()));
+            expect(AuthException.class, () -> passwords.requireStrong(
+                    ("a1" + "x".repeat(127)).toCharArray()));
+        });
 
         UserSession ownerSession = service.createFirstOwner(
                 "Primary Owner", OWNER_EMAIL,
@@ -162,9 +177,13 @@ public final class LocalAuthenticationTest {
             assertTrue(users.findOwner().isPresent());
         });
 
+        AppPaths.activateUserDataDirectory(ownerId);
         service.logout();
-        test("logout clears the current session", () ->
-                assertTrue(sessions.getCurrentSession().isEmpty()));
+        test("logout clears the current session and private workspace state", () -> {
+            assertTrue(sessions.getCurrentSession().isEmpty());
+            assertEquals(AppPaths.getLegacyDataDirectory(),
+                    AppPaths.getDataDirectory());
+        });
         UserSession signedIn = service.signInWithNsuEmail(
                 OWNER_EMAIL, OWNER_PASSWORD);
         sessions.startSession(signedIn);
@@ -194,6 +213,18 @@ public final class LocalAuthenticationTest {
                     signedIn, normalUser.getUserIdentifier(), OWNER_PASSWORD,
                     "Approved support duty");
             assertTrue(promoted.hasRole(UserRole.ADMIN));
+        });
+        test("ADMIN cannot access another user's finance workspace", () -> {
+            AuthenticatedUser administrator = users.findById(
+                    normalUser.getUserIdentifier()).orElseThrow().user();
+            assertTrue(administrator.hasRole(UserRole.ADMIN));
+            AuthorizationService authorization = new AuthorizationService();
+            authorization.requireOwnWorkspace(
+                    new UserSession(administrator, NOW),
+                    administrator.getUserIdentifier());
+            expect(AuthException.class, () -> authorization
+                    .requireOwnWorkspace(new UserSession(administrator, NOW),
+                            ownerId));
         });
         test("OWNER cannot be demoted", () ->
                 expect(AuthException.class, () ->
@@ -258,8 +289,11 @@ public final class LocalAuthenticationTest {
         });
         test("switch account clears the previous session", () -> {
             sessions.startSession(signedIn);
+            AppPaths.activateUserDataDirectory(ownerId);
             service.switchAccount();
             assertTrue(sessions.getCurrentSession().isEmpty());
+            assertEquals(AppPaths.getLegacyDataDirectory(),
+                    AppPaths.getDataDirectory());
         });
         test("failed sign-ins trigger temporary lockout", () -> {
             for (int count = 0;

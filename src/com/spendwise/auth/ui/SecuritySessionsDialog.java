@@ -123,6 +123,12 @@ public final class SecuritySessionsDialog extends JDialog {
         addPasswordField(panel, row, "Confirm New Password", confirmation);
         row += 2;
 
+        JLabel passwordPolicy = new JLabel(
+                "8-128 characters; English letter and number; no outer spaces");
+        passwordPolicy.setFont(AppFonts.caption());
+        AppTheme.mark(passwordPolicy, AppTheme.SECONDARY_TEXT_ROLE);
+        panel.add(passwordPolicy, constraints(row++));
+
         GridBagConstraints buttonConstraints = constraints(row++);
         buttonConstraints.insets = new Insets(8, 0, 6, 0);
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));

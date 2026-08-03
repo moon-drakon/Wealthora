@@ -20,7 +20,7 @@ public final class VerificationPanel extends AuthFormPanel {
             AuthService authService,
             AuthNavigator navigator) {
         super("Verify Email", "Activate your NSU password account using the "
-                + "verification code delivered by the configured backend.");
+                + "six-digit verification code delivered by the configured backend.");
         this.authService = Objects.requireNonNull(authService);
         AuthNavigator requiredNavigator = Objects.requireNonNull(navigator);
         addWide(policyLabel());

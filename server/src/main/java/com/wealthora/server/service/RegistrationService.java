@@ -123,7 +123,7 @@ public class RegistrationService {
         return UserResponse.from(user, Set.of(UserRole.USER.name()));
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = ApiException.class)
     public UserResponse verify(String rawEmail, String code) {
         String email = NsuEmailPolicy.require(rawEmail);
         UserAccount user = users.findByEmail(email).orElseThrow(() ->
@@ -178,8 +178,8 @@ public class RegistrationService {
 
     private void issueVerification(
             UserAccount user, Instant now, boolean resend) {
-        String code = String.format("%08d",
-                secureRandom.nextInt(100_000_000));
+        String code = String.format("%06d",
+                secureRandom.nextInt(1_000_000));
         verifications.save(new EmailVerification(UUID.randomUUID(),
                 user.getId(), tokenHasher.hash(code), now,
                 now.plus(properties.verificationExpiry())));

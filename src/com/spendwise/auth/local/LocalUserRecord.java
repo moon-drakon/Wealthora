@@ -13,7 +13,8 @@ public record LocalUserRecord(
 
     public LocalUserRecord {
         Objects.requireNonNull(user, "User is required.");
-        if (passwordHash == null || !passwordHash.startsWith("$2")) {
+        if (passwordHash == null || (!passwordHash.startsWith("$2")
+                && !passwordHash.startsWith("{bcrypt-sha256}$2"))) {
             throw new AuthException("A valid BCrypt password hash is required.");
         }
         if (failedLoginAttempts < 0) {

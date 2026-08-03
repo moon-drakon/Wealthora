@@ -13,6 +13,7 @@ import com.wealthora.server.repository.AuthenticationIdentityRepository;
 import com.wealthora.server.repository.EmailVerificationRepository;
 import com.wealthora.server.repository.UserAccountRepository;
 import com.wealthora.server.repository.UserRoleRepository;
+import com.wealthora.server.security.PasswordPolicy;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -35,6 +36,7 @@ class RegistrationServiceTest {
     @Autowired private AuthenticationIdentityRepository identities;
     @Autowired private UserRoleRepository roles;
     @Autowired private UserAccountRepository users;
+    @Autowired private PasswordPolicy passwordPolicy;
 
     @BeforeEach
     void reset() throws IOException {
@@ -70,10 +72,14 @@ class RegistrationServiceTest {
         String code = Files.readAllLines(delivered).stream()
                 .filter(line -> line.startsWith("code="))
                 .findFirst().orElseThrow().substring(5);
-        assertEquals(8, code.length());
+        assertEquals(6, code.length());
 
         assertThrows(ApiException.class, () -> registrationService.verify(
-                pending.email(), "00000000"));
+                pending.email(), "000000"));
+        assertEquals(1, verifications
+                .findFirstByUserIdOrderBySentAtDesc(
+                        users.findByEmail(pending.email()).orElseThrow().getId())
+                .orElseThrow().getFailedAttempts());
         UserResponse verified = registrationService.verify(
                 pending.email(), code);
         assertTrue(verified.emailVerified());
@@ -98,6 +104,27 @@ class RegistrationServiceTest {
                 () -> registrationService.register(request(
                         "Student Again", "student@northsouth.edu")));
         assertEquals("EMAIL_ALREADY_REGISTERED", duplicate.getCode());
+    }
+
+    @Test
+    void requestedPasswordPolicyExamplesAreEnforced() {
+        passwordPolicy.requireStrong("moon1234".toCharArray());
+        passwordPolicy.requireStrong("wealthora25".toCharArray());
+        passwordPolicy.requireStrong("student2026".toCharArray());
+        passwordPolicy.requireStrong(
+                ("a1" + "x".repeat(126)).toCharArray());
+        assertThrows(ApiException.class,
+                () -> passwordPolicy.requireStrong("12345678".toCharArray()));
+        assertThrows(ApiException.class,
+                () -> passwordPolicy.requireStrong("abcdefgh".toCharArray()));
+        assertThrows(ApiException.class,
+                () -> passwordPolicy.requireStrong("moon12".toCharArray()));
+        assertThrows(ApiException.class,
+                () -> passwordPolicy.requireStrong(" moon1234".toCharArray()));
+        assertThrows(ApiException.class,
+                () -> passwordPolicy.requireStrong("moon1234 ".toCharArray()));
+        assertThrows(ApiException.class, () -> passwordPolicy.requireStrong(
+                ("a1" + "x".repeat(127)).toCharArray()));
     }
 
     @Test

@@ -32,6 +32,7 @@ wealthora:
   password-recovery:
     reset-expiry: PT15M
     request-cooldown: PT1M
+    maximum-reset-attempts: 5
   mail:
     development-directory: ${java.io.tmpdir}/wealthora-test-mail
   speech:

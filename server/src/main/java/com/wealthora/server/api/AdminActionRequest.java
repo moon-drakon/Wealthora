@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Size;
 
 public record AdminActionRequest(
         @NotBlank @Size(max = 500) String reason,
-        @Size(max = 72) char[] currentPassword) {
+        @Size(max = 128) char[] currentPassword) {
 
     @Override
     public String toString() {

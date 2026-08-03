@@ -40,8 +40,7 @@ public final class OwnerSetupPanel extends AuthFormPanel {
         addField("Password", password);
         addField("Confirm password", confirmation);
         addWide(helperLabel(
-                "Use at least 12 characters with uppercase, lowercase, "
-                        + "a number, and a symbol. Passwords are stored only as BCrypt hashes."));
+                "Use 8-128 characters with at least one English letter and one number, with no outer spaces. Passwords are stored only as protected BCrypt hashes."));
         createButton = primary("Create OWNER and open My Finance",
                 this::createOwner);
         addWide(createButton);

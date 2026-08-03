@@ -1,6 +1,7 @@
 package com.spendwise.auth.ui;
 
 import com.spendwise.auth.AuthService;
+import com.spendwise.auth.AuthenticationAvailability;
 import com.spendwise.auth.SessionManager;
 import com.spendwise.auth.UserSession;
 import com.spendwise.config.AppBrand;
@@ -9,6 +10,7 @@ import java.util.Objects;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JPasswordField;
+import javax.swing.JLabel;
 import javax.swing.SwingWorker;
 
 public final class SignInPanel extends AuthFormPanel {
@@ -21,6 +23,9 @@ public final class SignInPanel extends AuthFormPanel {
     private final JCheckBox rememberMe = new JCheckBox("Remember Me");
     private final JButton signInButton;
     private final JButton googleButton;
+    private final JLabel serverStatus = new JLabel("Server: checking...");
+    private final JLabel emailStatus = new JLabel("Email: checking...");
+    private final JLabel googleStatus = new JLabel("Google: checking...");
 
     public SignInPanel(
             AuthService authService,
@@ -41,6 +46,9 @@ public final class SignInPanel extends AuthFormPanel {
         addWide(orDivider());
         addWide(sectionHeading(
                 "NSU Email Access", AppBrand.NSU_EMAIL_SUBTITLE));
+        addWide(serverStatus);
+        addWide(emailStatus);
+        addWide(googleStatus);
         addField("NSU Email", email);
         addField("Password", password);
         rememberMe.setOpaque(false);
@@ -56,6 +64,33 @@ public final class SignInPanel extends AuthFormPanel {
         addWide(buttonRow(secondary(
                 "Forgot Password?", navigator::showForgotPassword)));
         addWide(policyLabel());
+        refreshServerStatus();
+    }
+
+    private void refreshServerStatus() {
+        new SwingWorker<AuthenticationAvailability, Void>() {
+            @Override
+            protected AuthenticationAvailability doInBackground() {
+                return authService.getAuthenticationAvailability();
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    AuthenticationAvailability availability = get();
+                    serverStatus.setText(
+                            "Server: " + availability.serverStatus());
+                    emailStatus.setText(
+                            "Email: " + availability.emailStatus());
+                    googleStatus.setText(
+                            "Google: " + availability.googleStatus());
+                } catch (Exception exception) {
+                    serverStatus.setText("Server: Server unavailable");
+                    emailStatus.setText("Email: Email provider unavailable");
+                    googleStatus.setText("Google: Google OAuth unavailable");
+                }
+            }
+        }.execute();
     }
 
     private void signIn() {

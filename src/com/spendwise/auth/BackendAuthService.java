@@ -23,7 +23,7 @@ public final class BackendAuthService implements AuthService {
     @Override
     public UserSession signInWithNsuEmail(String email, char[] password) {
         String normalizedEmail = NsuEmailPolicy.requireInstitutionalEmail(email);
-        char[] protectedPassword = requirePassword(password).clone();
+        char[] protectedPassword = requireLoginPassword(password).clone();
         try {
             UserSession session = requireNsuPasswordSession(
                     apiClient.signInWithNsuEmail(
@@ -56,7 +56,7 @@ public final class BackendAuthService implements AuthService {
             String fullName, String email, char[] password) {
         String name = required(fullName, "Full name");
         String normalizedEmail = NsuEmailPolicy.requireInstitutionalEmail(email);
-        char[] protectedPassword = requirePassword(password).clone();
+        char[] protectedPassword = requireNewPassword(password).clone();
         try {
             AuthenticatedUser user = requireLocalUser(
                     apiClient.registerWithNsuEmail(
@@ -106,7 +106,7 @@ public final class BackendAuthService implements AuthService {
             String email, String resetToken, char[] newPassword) {
         String normalizedEmail = NsuEmailPolicy.requireInstitutionalEmail(email);
         String token = required(resetToken, "Reset token");
-        char[] protectedPassword = requirePassword(newPassword).clone();
+        char[] protectedPassword = requireNewPassword(newPassword).clone();
         try {
             apiClient.resetPassword(
                     normalizedEmail, token, protectedPassword);
@@ -173,12 +173,17 @@ public final class BackendAuthService implements AuthService {
                 user, "Authentication API returned no user.");
     }
 
-    private static char[] requirePassword(char[] password) {
-        if (password == null || password.length < 8) {
+    private static char[] requireLoginPassword(char[] password) {
+        if (password == null || password.length < PasswordService.MINIMUM_LENGTH
+                || password.length > PasswordService.MAXIMUM_LENGTH) {
             throw new AuthException(
-                    "Password must contain at least 8 characters.");
+                    "Password must contain 8-128 characters.");
         }
         return password;
+    }
+
+    private static char[] requireNewPassword(char[] password) {
+        return new PasswordService().requireStrong(password);
     }
 
     private static String required(String value, String fieldName) {

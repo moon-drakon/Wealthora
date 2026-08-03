@@ -147,7 +147,7 @@ public final class AdminService {
         authorizationService.requireAdmin(actor);
         if (online()) return administrationGateway.getAdminSecurityStatus();
         return new AdminSecurityStatus(
-                "At least 12 characters with uppercase, lowercase, number, and symbol",
+                "8-128 characters with an English letter and number; no outer spaces",
                 "Local session", "Local session", "15 minutes", 5,
                 "Server-managed", 5, "Server-managed");
     }

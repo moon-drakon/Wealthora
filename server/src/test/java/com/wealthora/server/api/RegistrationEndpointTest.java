@@ -9,6 +9,7 @@ import com.wealthora.server.repository.AuthenticationIdentityRepository;
 import com.wealthora.server.repository.EmailVerificationRepository;
 import com.wealthora.server.repository.UserAccountRepository;
 import com.wealthora.server.repository.UserRoleRepository;
+import com.wealthora.server.domain.AccountStatus;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -22,7 +23,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.ActiveProfiles;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = "wealthora.registration.requires-admin-approval=false")
 @ActiveProfiles({"test", "dev-mail-sink"})
 class RegistrationEndpointTest {
 
@@ -63,6 +65,7 @@ class RegistrationEndpointTest {
         assertTrue(created.body().contains("PENDING_EMAIL_VERIFICATION"));
         assertFalse(created.body().contains("EndpointStudent1!"));
         assertFalse(created.body().contains("passwordHash"));
+        assertEquals(401, post("/api/auth/login", login()).statusCode());
 
         String code = Files.readAllLines(MAIL_DIRECTORY.resolve(
                 "endpoint.student_northsouth.edu.txt")).stream()
@@ -72,8 +75,38 @@ class RegistrationEndpointTest {
                 "{\"email\":\"endpoint.student@northsouth.edu\","
                         + "\"code\":\"" + code + "\"}");
         assertEquals(200, verified.statusCode());
-        assertTrue(verified.body().contains("PENDING_APPROVAL"));
+        assertTrue(verified.body().contains("ACTIVE"));
         assertFalse(verified.body().contains(code));
+        assertEquals(200, post("/api/auth/login", login()).statusCode());
+
+        var user = users.findByEmail(
+                "endpoint.student@northsouth.edu").orElseThrow();
+        user.changeStatus(AccountStatus.SUSPENDED, java.time.Instant.now());
+        users.save(user);
+        assertEquals(401, post("/api/auth/login", login()).statusCode());
+    }
+
+    @Test
+    void publicStatusReportsConfiguredDevelopmentProviders() throws Exception {
+        HttpResponse<String> status = get("/api/auth/status");
+        assertEquals(200, status.statusCode());
+        assertTrue(status.body().contains(
+                "\"emailProviderAvailable\":true"));
+        assertTrue(status.body().contains(
+                "\"googleOAuthAvailable\":true"));
+    }
+
+    private HttpResponse<String> get(String path) throws Exception {
+        HttpRequest request = HttpRequest.newBuilder(URI.create(
+                "http://127.0.0.1:" + port + path)).GET().build();
+        return HttpClient.newHttpClient().send(
+                request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    private static String login() {
+        return "{\"email\":\"endpoint.student@northsouth.edu\","
+                + "\"password\":\"EndpointStudent1!\","
+                + "\"deviceLabel\":\"Registration test\"}";
     }
 
     private HttpResponse<String> post(String path, String json)

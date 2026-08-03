@@ -1,6 +1,7 @@
 package com.spendwise.auth.registration;
 
 import com.spendwise.auth.AccountSession;
+import com.spendwise.auth.AuthenticationAvailability;
 import com.spendwise.auth.UserSession;
 import com.spendwise.auth.admin.AdminApplicationSettings;
 import com.spendwise.auth.admin.AdminOverview;
@@ -42,10 +43,13 @@ public final class HttpRegistrationGatewayTest {
         server.createContext("/api/auth", handler::handle);
         server.createContext("/api/speech", handler::handle);
         server.createContext("/api/admin", handler::handle);
+        server.createContext("/actuator", handler::handle);
         server.start();
         try {
             String baseUrl = "http://127.0.0.1:"
                     + server.getAddress().getPort();
+            test("server connection states are honest", () ->
+                    connectionStates(baseUrl));
             test("generic recovery requests reach server", () ->
                     recoveryRequests(baseUrl, handler));
             test("online sessions are parsed and revoked", () ->
@@ -65,6 +69,26 @@ public final class HttpRegistrationGatewayTest {
         } finally {
             server.stop(0);
         }
+    }
+
+    private static void connectionStates(String baseUrl) {
+        AuthenticationAvailability missing = gateway("")
+                .getAuthenticationAvailability();
+        assertEquals("Server URL missing", missing.serverStatus());
+        assertEquals("Email provider unavailable", missing.emailStatus());
+        assertEquals("Google OAuth unavailable", missing.googleStatus());
+
+        AuthenticationAvailability connected = gateway(baseUrl)
+                .getAuthenticationAvailability();
+        assertEquals("Connected", connected.serverStatus());
+        assertEquals("Email provider configured", connected.emailStatus());
+        assertEquals("Google OAuth configured", connected.googleStatus());
+
+        AuthenticationAvailability unavailable = gateway(
+                "http://127.0.0.1:1").getAuthenticationAvailability();
+        assertEquals("Server unavailable", unavailable.serverStatus());
+        assertEquals("Email provider unavailable", unavailable.emailStatus());
+        assertEquals("Google OAuth unavailable", unavailable.googleStatus());
     }
 
     private static void recoveryRequests(
@@ -217,7 +241,13 @@ public final class HttpRegistrationGatewayTest {
             String requestBody = new String(
                     exchange.getRequestBody().readAllBytes(),
                     StandardCharsets.UTF_8);
-            if (path.equals("/api/auth/login")) {
+            if (path.equals("/actuator/health")) {
+                respond(exchange, 200, "{\"status\":\"UP\"}");
+            } else if (path.equals("/api/auth/status")) {
+                respond(exchange, 200,
+                        "{\"emailProviderAvailable\":true,"
+                        + "\"googleOAuthAvailable\":true}");
+            } else if (path.equals("/api/auth/login")) {
                 respond(exchange, 200, loginResponse());
             } else if (path.equals("/api/auth/google/status")) {
                 respond(exchange, 200,

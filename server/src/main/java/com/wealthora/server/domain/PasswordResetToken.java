@@ -23,6 +23,8 @@ public class PasswordResetToken {
     private Instant consumedAt;
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
+    @Column(name = "failed_attempts", nullable = false)
+    private int failedAttempts;
 
     protected PasswordResetToken() {
     }
@@ -43,9 +45,15 @@ public class PasswordResetToken {
     public Instant getExpiresAt() { return expiresAt; }
     public Instant getConsumedAt() { return consumedAt; }
     public Instant getCreatedAt() { return createdAt; }
+    public int getFailedAttempts() { return failedAttempts; }
 
-    public boolean isUsableAt(Instant now) {
-        return consumedAt == null && expiresAt.isAfter(now);
+    public boolean isUsableAt(Instant now, int maximumAttempts) {
+        return consumedAt == null && expiresAt.isAfter(now)
+                && failedAttempts < maximumAttempts;
+    }
+
+    public void recordFailure() {
+        failedAttempts++;
     }
 
     public void consume(Instant now) {

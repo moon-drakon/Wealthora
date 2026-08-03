@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Size;
 
 public record AdminSettingsRequest(
         boolean registrationRequiresAdminApproval,
-        @NotNull @Size(min = 1, max = 72) char[] currentPassword,
+        @NotNull @Size(min = 1, max = 128) char[] currentPassword,
         @NotBlank @Size(max = 500) String reason) {
 
     @Override

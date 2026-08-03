@@ -32,7 +32,7 @@ public final class SignUpPanel extends AuthFormPanel {
     private final JCheckBox terms = new JCheckBox(
             "I accept the Terms and Privacy Notice");
     private final JLabel passwordStrength = new JLabel(
-            "Password strength: enter at least 12 characters");
+            "Password: 8-128 characters with an English letter and number");
     private final JButton createButton;
     private final JButton googleButton;
 
@@ -68,7 +68,7 @@ public final class SignUpPanel extends AuthFormPanel {
                 createButton,
                 secondary("Back to Sign In", navigator::showSignIn)));
         addWide(helperLabel(
-                "Only exact @northsouth.edu addresses are accepted. A verification email is required, followed by administrator approval under the current rollout policy."));
+                "Only exact @northsouth.edu addresses are accepted. A verification email is required; administrator approval is optional and disabled by default."));
         password.getDocument().addDocumentListener(new DocumentListener() {
             @Override public void insertUpdate(DocumentEvent event) {
                 updatePasswordStrength();
@@ -164,23 +164,23 @@ public final class SignUpPanel extends AuthFormPanel {
     private void updatePasswordStrength() {
         char[] value = password.getPassword();
         try {
-            int score = 0;
-            if (value.length >= 12) score++;
-            if (value.length >= 16) score++;
-            boolean upper = false, lower = false, digit = false, symbol = false;
+            boolean englishLetter = false;
+            boolean digit = false;
             for (char character : value) {
-                upper |= Character.isUpperCase(character);
-                lower |= Character.isLowerCase(character);
-                digit |= Character.isDigit(character);
-                symbol |= !Character.isLetterOrDigit(character);
+                englishLetter |= (character >= 'A' && character <= 'Z')
+                        || (character >= 'a' && character <= 'z');
+                digit |= character >= '0' && character <= '9';
             }
-            if (upper && lower) score++;
-            if (digit && symbol) score++;
-            String text = score < 2 ? "Weak" : score < 4 ? "Good" : "Strong";
-            passwordStrength.setText("Password strength: " + text);
-            passwordStrength.setForeground(score < 2
-                    ? AppColors.expense() : score < 4
-                            ? AppColors.warning() : AppColors.income());
+            boolean outerSpace = value.length > 0
+                    && (Character.isWhitespace(value[0])
+                    || Character.isWhitespace(value[value.length - 1]));
+            boolean valid = value.length >= 8 && value.length <= 128
+                    && englishLetter && digit && !outerSpace;
+            passwordStrength.setText(valid
+                    ? "Password meets the required policy"
+                    : "Password: 8-128 characters with an English letter and number; no outer spaces");
+            passwordStrength.setForeground(valid
+                    ? AppColors.income() : AppColors.warning());
         } finally {
             clear(value);
         }

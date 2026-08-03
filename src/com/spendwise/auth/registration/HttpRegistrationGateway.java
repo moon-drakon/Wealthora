@@ -2,6 +2,7 @@ package com.spendwise.auth.registration;
 
 import com.spendwise.auth.AccountStatus;
 import com.spendwise.auth.AccountSession;
+import com.spendwise.auth.AuthenticationAvailability;
 import com.spendwise.auth.AuthException;
 import com.spendwise.auth.AuthProvider;
 import com.spendwise.auth.AuthenticatedUser;
@@ -71,6 +72,29 @@ public final class HttpRegistrationGateway
     }
 
     @Override
+    public AuthenticationAvailability getAuthenticationAvailability() {
+        if (!configuration.isConfigured()) {
+            return AuthenticationAvailability.serverUrlMissing();
+        }
+        try {
+            String health = send("GET", "/actuator/health", "", null);
+            if (!health.contains("\"status\":\"UP\"")) {
+                return AuthenticationAvailability.serverUnavailable();
+            }
+            try {
+                String status = send("GET", "/api/auth/status", "", null);
+                return AuthenticationAvailability.connected(
+                        bool(status, "emailProviderAvailable"),
+                        bool(status, "googleOAuthAvailable"));
+            } catch (RuntimeException exception) {
+                return AuthenticationAvailability.connected(false, false);
+            }
+        } catch (RuntimeException exception) {
+            return AuthenticationAvailability.serverUnavailable();
+        }
+    }
+
+    @Override
     public AuthenticatedUser register(
             String fullName,
             String email,
@@ -100,10 +124,14 @@ public final class HttpRegistrationGateway
     @Override
     public AuthenticatedUser verifyEmail(
             String email, String verificationCode) {
+        String code = required(verificationCode, "Verification code");
+        if (!code.matches("[0-9]{6}")) {
+            throw new AuthException(
+                    "Verification code must contain exactly six digits.");
+        }
         String body = "{" + field("email",
                 NsuEmailPolicy.requireInstitutionalEmail(email)) + ","
-                + field("code", required(
-                        verificationCode, "Verification code")) + "}";
+                + field("code", code) + "}";
         return user(post("/api/auth/verify-email", body));
     }
 
@@ -205,9 +233,10 @@ public final class HttpRegistrationGateway
     @Override
     public synchronized UserSession signIn(String email, char[] password) {
         String normalizedEmail = NsuEmailPolicy.requireInstitutionalEmail(email);
-        if (password == null || password.length < 8) {
+        if (password == null || password.length < 8
+                || password.length > PasswordService.MAXIMUM_LENGTH) {
             throw new AuthException(
-                    "Password must contain at least 8 characters.");
+                    "Password must contain 8-128 characters.");
         }
         clearSessionTokens();
         String body = "{" + field("email", normalizedEmail) + ","

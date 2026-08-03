@@ -4,6 +4,14 @@ import java.util.List;
 
 public interface AuthService {
 
+    default AuthenticationAvailability getAuthenticationAvailability() {
+        return AuthenticationAvailability.serverUrlMissing();
+    }
+
+    default String getServerConnectionStatus() {
+        return getAuthenticationAvailability().serverStatus();
+    }
+
     UserSession signInWithNsuEmail(String email, char[] password);
 
     UserSession continueWithGoogle();

@@ -36,7 +36,7 @@ management:
 
 wealthora:
   registration:
-    requires-admin-approval: ${REGISTRATION_REQUIRES_ADMIN_APPROVAL:true}
+    requires-admin-approval: ${REGISTRATION_REQUIRES_ADMIN_APPROVAL:false}
     verification-expiry: PT10M
     resend-cooldown: PT1M
     maximum-verification-attempts: 5
@@ -50,8 +50,10 @@ wealthora:
   password-recovery:
     reset-expiry: ${PASSWORD_RESET_EXPIRY:PT15M}
     request-cooldown: ${PASSWORD_RESET_REQUEST_COOLDOWN:PT1M}
+    maximum-reset-attempts: ${MAXIMUM_PASSWORD_RESET_ATTEMPTS:5}
   mail:
-    from: ${SMTP_FROM:}
+    from-address: ${SMTP_FROM_ADDRESS:${SMTP_FROM:}}
+    from-name: ${SMTP_FROM_NAME:Wealthora}
     development-directory: ${WEALTHORA_DEV_MAIL_DIR:./dev-mail}
   speech:
     project-id: ${GOOGLE_CLOUD_PROJECT:}

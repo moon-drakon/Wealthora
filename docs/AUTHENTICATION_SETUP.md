@@ -30,20 +30,22 @@ Run with PostgreSQL and SMTP configured:
 .\mvnw.cmd spring-boot:run
 ```
 
-The server applies Flyway migrations `authentication-foundation-v1` and
-`password-security-v2`, and exposes
+The server applies Flyway migrations V1-V4 for authentication, password
+security, Google OAuth, and the user-owned finance schema, and exposes
 only `health` and `info` Actuator endpoints. The current registration policy is
-controlled by `REGISTRATION_REQUIRES_ADMIN_APPROVAL` and defaults to `true`.
+controlled by `REGISTRATION_REQUIRES_ADMIN_APPROVAL` and defaults to `false`.
 Access tokens expire after 15 minutes and refresh tokens after 30 days by
 default. `ACCESS_TOKEN_EXPIRY`, `REFRESH_TOKEN_EXPIRY`,
 `LOGIN_LOCK_DURATION`, and `MAXIMUM_FAILED_LOGIN_ATTEMPTS` can change those
 values using ISO-8601 durations and a positive attempt count.
-`PASSWORD_RESET_EXPIRY` and `PASSWORD_RESET_REQUEST_COOLDOWN` control reset
-token lifetime and per-account request cooldown.
+`PASSWORD_RESET_EXPIRY`, `PASSWORD_RESET_REQUEST_COOLDOWN`, and
+`MAXIMUM_PASSWORD_RESET_ATTEMPTS` control reset token lifetime, per-account
+request cooldown, and the single-token attempt limit.
 
 The implemented authentication endpoints are:
 
 - `POST /api/auth/register`, `/verify-email`, and `/resend-verification`
+- public `GET /api/auth/status` for non-secret email/Google availability
 - `POST /api/auth/login` and `/refresh`
 - `POST /api/auth/forgot-password` and `/reset-password`
 - authenticated `GET /api/auth/me`
@@ -53,7 +55,15 @@ The implemented authentication endpoints are:
 Access and refresh values are random opaque tokens. Only HMAC-SHA-256 hashes
 are stored in PostgreSQL. Refresh rotates both tokens, reuse of a consumed
 refresh token revokes its session, and five failed password attempts trigger a
-15-minute account lock by default. Passwords use BCrypt cost 12.
+15-minute account lock by default. New password hashes use BCrypt cost 12 over
+a SHA-256 pre-hash so the 128-character policy is safe from BCrypt truncation;
+legacy BCrypt hashes remain valid.
+
+For Neon, keep `DATABASE_URL` in JDBC form and require TLS, for example
+`jdbc:postgresql://HOST/DATABASE?sslmode=require`. The database username and
+password remain separate environment variables. Flyway applies only forward
+V1-V4 migrations, while Hibernate runs with `ddl-auto: validate`; the server
+does not recreate or reset a schema automatically.
 
 ## Development-only mail sink
 
@@ -83,9 +93,10 @@ $env:WEALTHORA_SERVER_URL = 'http://localhost:8080'
 ```
 
 HTTP is accepted only for loopback development. A non-loopback server URL must
-use HTTPS. Create Account produces a pending user, delivers an eight-digit
-one-time code, verifies the email, and leaves the user in `PENDING_APPROVAL`
-under the default policy. It never starts a session before activation.
+use HTTPS. Create Account produces a pending user, delivers a six-digit
+one-time code, verifies the email, and activates the user under the default
+policy. Optional administrator approval can instead leave the user in
+`PENDING_APPROVAL`. Registration never starts a session before activation.
 
 An `ACTIVE`, verified online account can sign in from the same screen. The
 desktop keeps its access and refresh tokens only in process memory, sends them
@@ -95,10 +106,10 @@ not persist a bearer token for Remember Me yet. Local OWNER sign-in remains the
 offline fallback and is selected before online authentication for that OWNER
 email.
 
-For an end-to-end local development registration without the future Admin
-Console approval screen, set
-`REGISTRATION_REQUIRES_ADMIN_APPROVAL=false` before starting a disposable
-development server. Production should keep the default approval policy.
+To require approval after verification, set
+`REGISTRATION_REQUIRES_ADMIN_APPROVAL=true` before starting the server or use
+the OWNER-protected Application Settings control. The normal student-project
+flow keeps this disabled.
 
 Password recovery and authenticated password/session management use the same
 configured server connection. Forgot-password responses are generic, reset
@@ -106,5 +117,10 @@ tokens are single-use HMAC-hashed values, and successful password changes
 revoke every active session. The signed-in offline OWNER can also change the
 local BCrypt password; email recovery applies only to online accounts.
 
-Google Sign-In remains disabled until its later checkpoint is implemented and
-configured; no success is simulated.
+Google Sign-In uses the server callback
+`GET /api/auth/google/callback` and remains honestly unavailable until the
+server-only OAuth variables are configured; no success is simulated.
+Production email delivery similarly remains unavailable until `SMTP_HOST`,
+`SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`, and
+`SMTP_FROM_NAME` are supplied. The desktop reports these provider states
+separately from basic server connectivity.

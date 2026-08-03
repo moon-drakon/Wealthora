@@ -30,6 +30,8 @@ public final class ResetPasswordPanel extends AuthFormPanel {
         addField("Reset Token", token);
         addField("New Password", password);
         addField("Confirm New Password", confirmation);
+        addWide(helperLabel(
+                "Use 8-128 characters with an English letter and number, with no leading or trailing spaces."));
         resetButton = primary("Reset Password", this::resetPassword);
         addWide(buttonRow(
                 resetButton,

@@ -23,13 +23,18 @@ public final class DevelopmentMailSink implements
     }
 
     @Override
+    public boolean isAvailable() {
+        return true;
+    }
+
+    @Override
     public synchronized void sendVerificationCode(
             String recipient, String code) {
         String safeName = recipient.replaceAll("[^A-Za-z0-9._-]", "_");
         try {
             Files.createDirectories(directory);
             Files.writeString(directory.resolve(safeName + ".txt"),
-                    "Development-only Wealthora verification\nemail="
+                    "DEVELOPMENT ONLY - Wealthora verification\nemail="
                             + recipient + "\ncode=" + code + "\n",
                     StandardCharsets.UTF_8);
         } catch (IOException | SecurityException exception) {
@@ -47,7 +52,7 @@ public final class DevelopmentMailSink implements
             Files.createDirectories(directory);
             Files.writeString(directory.resolve(
                     safeName + ".reset.txt"),
-                    "Development-only Wealthora password reset\nemail="
+                    "DEVELOPMENT ONLY - Wealthora password reset\nemail="
                             + recipient + "\ntoken=" + token + "\n",
                     StandardCharsets.UTF_8);
         } catch (IOException | SecurityException exception) {

@@ -39,6 +39,7 @@ public class SecurityConfiguration {
                                 "/api/auth/google/poll")
                         .permitAll()
                         .requestMatchers(HttpMethod.GET,
+                                "/api/auth/status",
                                 "/api/auth/google/status",
                                 "/api/auth/google/callback")
                         .permitAll()

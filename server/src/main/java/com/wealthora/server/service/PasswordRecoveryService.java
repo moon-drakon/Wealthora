@@ -119,24 +119,25 @@ public class PasswordRecoveryService {
                 "One-time reset token delivered.", now);
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = ApiException.class)
     public void resetPassword(ResetPasswordRequest request) {
         Instant now = clock.instant();
         try {
             String email = NsuEmailPolicy.require(request.email());
             String rawToken = text(request.resetToken());
-            PasswordResetToken token = rawToken.length() >= 32
-                    ? resetTokens.findFirstByTokenHashOrderByCreatedAtDesc(
-                            tokenHasher.hash(rawToken)).orElse(null)
-                    : null;
-            UserAccount user = token == null ? null
-                    : users.findById(token.getUserId()).orElse(null);
+            UserAccount user = users.findByEmail(email).orElse(null);
+            PasswordResetToken token = user == null ? null : resetTokens
+                    .findFirstByUserIdOrderByCreatedAtDesc(user.getId())
+                    .orElse(null);
             AuthenticationIdentity identity = user == null ? null
                     : identities.findByUserIdAndProvider(
                             user.getId(), AuthProvider.PASSWORD).orElse(null);
             if (token == null || user == null || identity == null
-                    || !user.getEmail().equals(email)
-                    || !token.isUsableAt(now)) {
+                    || !token.isUsableAt(now,
+                            properties.maximumResetAttempts())
+                    || rawToken.length() < 32
+                    || !tokenHasher.matches(rawToken, token.getTokenHash())) {
+                recordFailedAttempt(token, now);
                 throw invalidReset();
             }
             requireMatchingStrongPasswords(
@@ -246,6 +247,16 @@ public class PasswordRecoveryService {
             session.revoke(now);
             sessions.save(session);
         });
+    }
+
+    private void recordFailedAttempt(PasswordResetToken token, Instant now) {
+        if (token == null || !token.isUsableAt(now,
+                properties.maximumResetAttempts())) return;
+        token.recordFailure();
+        if (token.getFailedAttempts() >= properties.maximumResetAttempts()) {
+            token.consume(now);
+        }
+        resetTokens.save(token);
     }
 
     private String encode(char[] password) {

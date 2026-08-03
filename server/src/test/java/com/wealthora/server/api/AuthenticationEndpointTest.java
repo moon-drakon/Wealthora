@@ -179,6 +179,34 @@ class AuthenticationEndpointTest {
     }
 
     @Test
+    void passwordResetAttemptLimitIsPersisted() throws Exception {
+        assertEquals(202, post("/api/auth/forgot-password",
+                "{\"email\":\"" + EMAIL + "\"}").statusCode());
+        String realToken = Files.readAllLines(resetMailFile()).stream()
+                .filter(line -> line.startsWith("token="))
+                .findFirst().orElseThrow().substring(6);
+        String newPassword = "moon1234";
+        String wrongToken = "wrong-token-value-with-more-than-32-characters";
+        for (int attempt = 0; attempt < 5; attempt++) {
+            String wrongJson = "{\"email\":\"" + EMAIL + "\","
+                    + "\"resetToken\":\"" + wrongToken + "\","
+                    + "\"newPassword\":\"" + newPassword + "\","
+                    + "\"passwordConfirmation\":\"" + newPassword + "\"}";
+            assertEquals(400, post(
+                    "/api/auth/reset-password", wrongJson).statusCode());
+        }
+        assertEquals(5, passwordResetTokens.findFirstByUserIdOrderByCreatedAtDesc(
+                users.findByEmail(EMAIL).orElseThrow().getId())
+                .orElseThrow().getFailedAttempts());
+        String realJson = "{\"email\":\"" + EMAIL + "\","
+                + "\"resetToken\":\"" + realToken + "\","
+                + "\"newPassword\":\"" + newPassword + "\","
+                + "\"passwordConfirmation\":\"" + newPassword + "\"}";
+        assertEquals(400, post(
+                "/api/auth/reset-password", realJson).statusCode());
+    }
+
+    @Test
     void sessionsCanBeListedAndIndividuallyRevoked() throws Exception {
         String firstAccess = string(post(
                 "/api/auth/login", loginJson()).body(), "accessToken");

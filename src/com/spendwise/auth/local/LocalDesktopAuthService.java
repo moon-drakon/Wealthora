@@ -2,6 +2,7 @@ package com.spendwise.auth.local;
 
 import com.spendwise.auth.AccountStatus;
 import com.spendwise.auth.AccountSession;
+import com.spendwise.auth.AuthenticationAvailability;
 import com.spendwise.auth.AuthConfigurationException;
 import com.spendwise.auth.AuthException;
 import com.spendwise.auth.AuthProvider;
@@ -133,6 +134,11 @@ public final class LocalDesktopAuthService
 
     public SpeechApiClient getSpeechApiClient() {
         return registrationGateway;
+    }
+
+    @Override
+    public AuthenticationAvailability getAuthenticationAvailability() {
+        return registrationGateway.getAuthenticationAvailability();
     }
 
     public AdministrationGateway getAdministrationGateway() {

@@ -151,7 +151,7 @@ public class AdministrationService {
     public AdminSecurityResponse security(SessionPrincipal principal) {
         requireAdministrator(principal);
         return new AdminSecurityResponse(
-                "At least 12 characters with uppercase, lowercase, number, and symbol",
+                "8-128 characters with an English letter and number; no outer spaces",
                 sessionProperties.accessExpiry().toString(),
                 sessionProperties.refreshExpiry().toString(),
                 sessionProperties.lockDuration().toString(),

@@ -1,9 +1,12 @@
 package com.wealthora.server.api;
 
+import com.wealthora.server.mail.VerificationMailDelivery;
+import com.wealthora.server.service.GoogleOAuthService;
 import com.wealthora.server.service.RegistrationService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,9 +17,23 @@ import org.springframework.web.bind.annotation.RestController;
 public class RegistrationController {
 
     private final RegistrationService registrationService;
+    private final VerificationMailDelivery mailDelivery;
+    private final GoogleOAuthService googleOAuthService;
 
-    public RegistrationController(RegistrationService registrationService) {
+    public RegistrationController(
+            RegistrationService registrationService,
+            VerificationMailDelivery mailDelivery,
+            GoogleOAuthService googleOAuthService) {
         this.registrationService = registrationService;
+        this.mailDelivery = mailDelivery;
+        this.googleOAuthService = googleOAuthService;
+    }
+
+    @GetMapping("/status")
+    AuthenticationAvailabilityResponse status() {
+        return new AuthenticationAvailabilityResponse(
+                mailDelivery.isAvailable(),
+                googleOAuthService.status().configured());
     }
 
     @PostMapping("/register")
