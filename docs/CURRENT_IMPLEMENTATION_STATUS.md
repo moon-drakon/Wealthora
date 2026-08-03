@@ -19,6 +19,7 @@ Verified on 2026-08-03 on branch
   `9fb9c05`.
 - Secret-safe live Neon and disposable authentication verification tooling:
   `718e96a`.
+- Anonymized real SMTP registration verification: `6af16c5`.
 - The commit containing this report follows those implementation commits; use
   `git rev-parse --short HEAD` for its exact hash.
 - The cloud-finance milestone commits were not pushed or merged. The remote
@@ -189,13 +190,16 @@ Flyway V1-V5 remain forward-only, and Hibernate remains configured with
 - The generated user, authentication child rows, audit rows, login attempts,
   verification/reset values, and temporary mail files were removed after the
   run. No existing user or finance row was changed.
-- Real SMTP is configured but message arrival and one-time-value consumption
-  still require a real NSU recipient and manual OTP entry. SMTP is not yet
-  claimed as a live pass.
+- Real SMTP registration passed with a private NSU recipient. The anonymized
+  read-only audit verified a consumed email verification, ACTIVE account,
+  password identity, USER role, active CLOUD session, and the expected
+  registration, verification, and login audit actions. No address, OTP,
+  password, or token was read or printed.
+- Real SMTP password-recovery delivery and reset-token use remain pending.
 
 ## Remaining configuration and limitations
 
-- Complete one real SMTP registration and password-recovery delivery check.
+- Complete one real SMTP password-recovery delivery and reset-token check.
 - Google OAuth is configured server-side, but browser authorization and live
   account linking remain unverified.
 - Google Cloud Speech has a project ID but no available Application Default

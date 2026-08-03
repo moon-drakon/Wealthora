@@ -5,17 +5,18 @@ Verified on 2026-08-03.
 ## Current stage
 
 - Branch: `feature/wealthora-online-auth-voice`
-- Recorded implementation HEAD: `718e96a`
-- Active stage: Stage 3, real SMTP registration and password recovery
+- Recorded verification HEAD: `6af16c5`
+- Active stage: Stage 3, real SMTP password recovery
 - Exact resume point: start the production-profile server on port 18080,
-  launch the Swing desktop in CLOUD mode, and complete the private NSU
-  registration/OTP flow
+  launch the Swing desktop, and complete the private Forgot Password/reset
+  flow
 
 ## Completed stages
 
 - Stage 0 repository and documentation recovery
 - Stage 2 live Neon PostgreSQL and Flyway V1-V5 validation
 - Stage 3 disposable development-mail authentication lifecycle
+- Stage 3 real SMTP registration, OTP consumption, activation, and sign-in
 
 Stage 1 is partially complete: the Windows restart, WSL checks, and Docker
 Client/Server checks passed. `hello-world` and Docker stability did not pass
@@ -32,6 +33,8 @@ pressure. No destructive Docker recovery was attempted.
   26-table inventory, and composite ownership-constraint audit
 - Two production-profile Neon starts with unchanged Flyway history
 - Disposable live authentication lifecycle and scoped cleanup
+- Real SMTP registration plus anonymized activation/session/audit verification
+- Five local OWNER finance files match the pre-online-auth backup byte-for-byte
 - Identical database data-count fingerprint before and after live testing
 - PowerShell syntax checks and `git diff --check`
 
@@ -39,7 +42,7 @@ pressure. No destructive Docker recovery was attempted.
 
 - Docker `hello-world`: failed with Docker Desktop engine HTTP 500
 - Docker clean relaunch: failed with WSL VHDX attach error `0x800705aa`
-- Real SMTP message arrival and one-time-value use: pending manual recipient
+- Real SMTP password-recovery message and reset-token use: pending
 - Desktop CLOUD-mode GUI finance smoke test: pending
 - Google Cloud Speech: pending Application Default Credentials
 - Google OAuth: pending browser authorization
@@ -47,8 +50,9 @@ pressure. No destructive Docker recovery was attempted.
 
 ## Manual gates
 
-- Next gate: the user privately enters a real `northsouth.edu` address,
-  password, and delivered OTP in the Swing UI, then replies `ready`.
+- Next gate: the user privately enters the existing `northsouth.edu` address,
+  delivered reset value, and replacement password in the Swing UI, then
+  replies `ready`.
 - Later gates: Google authorization/billing if requested, Render/Vercel
   account connections and secret entry, and explicit push/merge/deploy
   authorization.

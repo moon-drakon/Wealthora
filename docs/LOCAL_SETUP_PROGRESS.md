@@ -45,10 +45,13 @@ Verified on 2026-08-03 on branch
   constraints, restart validation, and stable data-count fingerprints passed.
 - The disposable live authentication lifecycle passed and restored the
   database to its original count fingerprint.
+- Real SMTP registration and OTP consumption passed. An anonymized read-only
+  audit verified activation, USER role assignment, a password identity, an
+  active CLOUD session, and the expected audit actions.
 
 ## Still pending
 
-- Real SMTP arrival and OTP use
+- Real SMTP password-recovery delivery and reset-token use
 - Live desktop CLOUD-mode GUI smoke testing
 - Docker `hello-world`, image build, and container run
 - Google Cloud ADC and browser OAuth authorization
