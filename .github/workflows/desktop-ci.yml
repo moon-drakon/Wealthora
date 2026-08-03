@@ -1,0 +1,50 @@
+name: Desktop CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Install Apache Ant
+        run: |
+          if ! command -v ant >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install --no-install-recommends --yes ant
+          fi
+          ant -version
+
+      - name: Run desktop authentication tests
+        run: ant test-auth
+
+      - name: Package desktop application
+        run: ant clean jar
+
+      - name: Upload desktop JAR
+        uses: actions/upload-artifact@v7
+        with:
+          name: wealthora-desktop-${{ github.sha }}
+          path: dist/Wealthora.jar
+          if-no-files-found: error
+          retention-days: 14
