@@ -20,6 +20,7 @@ public final class SignInPanel extends AuthFormPanel {
     private final JPasswordField password = passwordField("Password");
     private final JCheckBox rememberMe = new JCheckBox("Remember Me");
     private final JButton signInButton;
+    private final JButton googleButton;
 
     public SignInPanel(
             AuthService authService,
@@ -31,9 +32,9 @@ public final class SignInPanel extends AuthFormPanel {
         this.sessionManager = Objects.requireNonNull(sessionManager);
         this.navigator = Objects.requireNonNull(navigator);
 
-        JButton google = primary(
+        googleButton = primary(
                 "Continue with Google", this::continueWithGoogle);
-        addWide(google);
+        addWide(googleButton);
         addWide(helperLabel(
                 "Requires a configured Google authentication backend. "
                         + "Wealthora never simulates a successful Google sign-in."));
@@ -87,11 +88,24 @@ public final class SignInPanel extends AuthFormPanel {
     }
 
     private void continueWithGoogle() {
-        try {
-            completeAuthentication(authService.continueWithGoogle());
-        } catch (RuntimeException exception) {
-            showFailure(exception);
-        }
+        googleButton.setEnabled(false);
+        showStatus("Opening secure Google Sign-In in your browser...");
+        new SwingWorker<UserSession, Void>() {
+            @Override
+            protected UserSession doInBackground() {
+                return authService.continueWithGoogle();
+            }
+
+            @Override
+            protected void done() {
+                googleButton.setEnabled(true);
+                try {
+                    completeAuthentication(get());
+                } catch (Exception exception) {
+                    showFailure(workerFailure(exception));
+                }
+            }
+        }.execute();
     }
 
     private void completeAuthentication(UserSession session) {

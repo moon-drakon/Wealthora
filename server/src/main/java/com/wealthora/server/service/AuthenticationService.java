@@ -191,7 +191,27 @@ public class AuthenticationService {
     public UserResponse currentUser(SessionPrincipal principal) {
         UserAccount user = users.findById(principal.userId())
                 .orElseThrow(AuthenticationService::invalidSession);
-        return UserResponse.from(user, assignedRoles(user.getId()));
+        return userResponse(user);
+    }
+
+    @Transactional
+    public SessionResponse createGoogleSession(
+            UUID userId, String deviceLabel) {
+        Instant now = clock.instant();
+        UserAccount user = users.findById(userId)
+                .orElseThrow(AuthenticationService::invalidSession);
+        boolean googleIdentity = identities.findByUserIdAndProvider(
+                userId, AuthProvider.GOOGLE).isPresent();
+        if (!googleIdentity || !user.isEmailVerified()
+                || user.getAccountStatus() != AccountStatus.ACTIVE) {
+            throw invalidSession();
+        }
+        user.recordSuccessfulLogin(now);
+        users.save(user);
+        SessionResponse response = createSession(user, deviceLabel, now);
+        audit(user, "GOOGLE_LOGIN_SUCCESS", "SUCCESS",
+                "Verified Google sign-in completed.", now);
+        return response;
     }
 
     @Transactional
@@ -288,7 +308,12 @@ public class AuthenticationService {
             Instant accessExpiry, Instant refreshExpiry) {
         return new SessionResponse(accessToken, refreshToken,
                 session.getCreatedAt(), accessExpiry, refreshExpiry,
-                UserResponse.from(user, assignedRoles(user.getId())));
+                userResponse(user));
+    }
+
+    private UserResponse userResponse(UserAccount user) {
+        return UserResponse.from(user, assignedRoles(user.getId()),
+                identities.findByUserId(user.getId()));
     }
 
     private Set<String> assignedRoles(UUID userId) {

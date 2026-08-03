@@ -99,8 +99,19 @@ remain unchanged.
 
 After the OWNER exists, use the same command whenever you run the app. Sign
 Out and Switch Account are available from the account menu in the top-right
-corner. Google Sign-In and self-service registration remain disabled until a
-real authentication backend is configured.
+corner. Online registration, password sign-in, and Google Sign-In require
+`WEALTHORA_SERVER_URL` and the Spring Boot authentication server.
+
+Google Sign-In uses the system browser and keeps its OAuth client secret on the
+server. Configure `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, and
+`GOOGLE_OAUTH_REDIRECT_URI` on the server, and register that redirect URI
+exactly in the Google OAuth web client. Local development uses
+`http://127.0.0.1:8080/api/auth/google/callback`; a deployment uses its HTTPS
+API origin with `/api/auth/google/callback`. Only verified
+`northsouth.edu` Google identities are accepted. Existing password accounts
+link by exact validated email, while Google-first accounts can add a password
+from Security settings. With missing configuration, the UI reports Google
+Sign-In as unavailable.
 
 ## Run the core-model tests
 
@@ -503,4 +514,4 @@ Automated tests and smoke workflows use temporary directories and fingerprint th
 
 ## Known limitations
 
-Wealthora is currently a local-first, single-user desktop application. Its authentication screens and client contracts are integration-ready, but a real authentication backend, Google OAuth, cloud synchronization, and production session gating are not configured. Dark mode, validated CSV import, ZIP/JSON backup, CSV export, and dependency-free PDF summaries are available. Multi-process file locking, mobile clients, and website functionality are not implemented.
+Wealthora remains a local-first desktop finance application. Its Spring Boot authentication backend supports NSU registration, password security, opaque sessions, and verified system-browser Google OAuth with safe account linking, but deployment credentials and a desktop server URL are not included. Finance cloud synchronization and production deployment are not implemented. Dark mode, validated CSV import, ZIP/JSON backup, CSV export, and dependency-free PDF summaries are available. Multi-process file locking, mobile clients, and website functionality are not implemented.

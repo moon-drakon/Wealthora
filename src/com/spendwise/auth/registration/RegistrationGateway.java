@@ -3,6 +3,7 @@ package com.spendwise.auth.registration;
 import com.spendwise.auth.AuthenticatedUser;
 import com.spendwise.auth.AccountSession;
 import com.spendwise.auth.UserSession;
+import com.spendwise.auth.GoogleOAuthStatus;
 import com.spendwise.voice.SpeechApiClient;
 import java.util.List;
 
@@ -35,6 +36,16 @@ public interface RegistrationGateway extends SpeechApiClient {
     void logoutAll();
 
     UserSession signIn(String email, char[] password);
+
+    default GoogleOAuthStatus getGoogleOAuthStatus() {
+        return new GoogleOAuthStatus(false,
+                "Google Sign-In requires a configured authentication server.", "");
+    }
+
+    default UserSession continueWithGoogle() {
+        throw new com.spendwise.auth.AuthConfigurationException(
+                getGoogleOAuthStatus().message());
+    }
 
     UserSession refreshSession();
 

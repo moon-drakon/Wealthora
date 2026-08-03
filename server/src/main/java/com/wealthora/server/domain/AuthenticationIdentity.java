@@ -43,6 +43,13 @@ public class AuthenticationIdentity {
         this.updatedAt = now;
     }
 
+    public AuthenticationIdentity(
+            UUID id, UUID userId, AuthProvider provider,
+            String providerSubject, String passwordHash, Instant now) {
+        this(id, userId, provider, passwordHash, now);
+        this.providerSubject = providerSubject;
+    }
+
     public UUID getId() { return id; }
     public UUID getUserId() { return userId; }
     public AuthProvider getProvider() { return provider; }

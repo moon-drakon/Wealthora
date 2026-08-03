@@ -34,7 +34,13 @@ public class SecurityConfiguration {
                                 "/api/auth/login",
                                 "/api/auth/refresh",
                                 "/api/auth/forgot-password",
-                                "/api/auth/reset-password")
+                                "/api/auth/reset-password",
+                                "/api/auth/google/start",
+                                "/api/auth/google/poll")
+                        .permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/auth/google/status",
+                                "/api/auth/google/callback")
                         .permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info")
                         .permitAll()

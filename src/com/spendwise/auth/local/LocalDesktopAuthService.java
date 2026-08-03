@@ -243,8 +243,16 @@ public final class LocalDesktopAuthService
 
     @Override
     public UserSession continueWithGoogle() {
-        throw new AuthConfigurationException(
-                "Google Sign-In is not configured. No authentication was performed.");
+        if (!registrationGateway.isConfigured()) {
+            throw unavailable("Google Sign-In");
+        }
+        UserSession session = registrationGateway.continueWithGoogle();
+        prepareWorkspace(session.getUser());
+        auditRepository.append(new AuditEvent(clock.instant(),
+                session.getUserIdentifier(), AuditAction.LOGIN_SUCCESS,
+                session.getUserIdentifier(), "SUCCESS",
+                "Verified Google browser sign-in."));
+        return session;
     }
 
     @Override

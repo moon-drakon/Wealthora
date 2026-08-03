@@ -11,4 +11,9 @@ public interface AuthenticationIdentityRepository
 
     Optional<AuthenticationIdentity> findByUserIdAndProvider(
             UUID userId, AuthProvider provider);
+
+    Optional<AuthenticationIdentity> findByProviderAndProviderSubject(
+            AuthProvider provider, String providerSubject);
+
+    java.util.List<AuthenticationIdentity> findByUserId(UUID userId);
 }

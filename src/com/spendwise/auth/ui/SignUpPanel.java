@@ -34,6 +34,7 @@ public final class SignUpPanel extends AuthFormPanel {
     private final JLabel passwordStrength = new JLabel(
             "Password strength: enter at least 12 characters");
     private final JButton createButton;
+    private final JButton googleButton;
 
     public SignUpPanel(
             AuthService authService,
@@ -44,7 +45,9 @@ public final class SignUpPanel extends AuthFormPanel {
         this.authService = Objects.requireNonNull(authService);
         this.sessionManager = Objects.requireNonNull(sessionManager);
         this.navigator = Objects.requireNonNull(navigator);
-        addWide(primary("Continue with Google", this::continueWithGoogle));
+        googleButton = primary(
+                "Continue with Google", this::continueWithGoogle);
+        addWide(googleButton);
         addWide(helperLabel(
                 "Google registration requires real browser OAuth configuration; it never simulates success."));
         addWide(orDivider());
@@ -136,13 +139,26 @@ public final class SignUpPanel extends AuthFormPanel {
     }
 
     private void continueWithGoogle() {
-        try {
-            UserSession session = authService.continueWithGoogle();
-            sessionManager.startSession(session);
-            navigator.showAuthenticatedProfile(session);
-        } catch (RuntimeException exception) {
-            showFailure(exception);
-        }
+        googleButton.setEnabled(false);
+        showStatus("Opening secure Google Sign-In in your browser...");
+        new SwingWorker<UserSession, Void>() {
+            @Override
+            protected UserSession doInBackground() {
+                return authService.continueWithGoogle();
+            }
+
+            @Override
+            protected void done() {
+                googleButton.setEnabled(true);
+                try {
+                    UserSession session = get();
+                    sessionManager.startSession(session);
+                    navigator.showAuthenticatedProfile(session);
+                } catch (Exception exception) {
+                    showFailure(authenticationFailure(exception));
+                }
+            }
+        }.execute();
     }
 
     private void updatePasswordStrength() {

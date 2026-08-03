@@ -9,9 +9,12 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 public final class HttpRegistrationGatewayTest {
 
@@ -47,6 +50,8 @@ public final class HttpRegistrationGatewayTest {
                     setPasswordAndLogoutAll(baseUrl));
             test("authenticated speech status and result are parsed", () ->
                     speechRecognition(baseUrl));
+            test("Google browser flow returns linked online session", () ->
+                    googleBrowserFlow(baseUrl));
             System.out.println("All " + passed
                     + " online authentication gateway tests passed.");
         } finally {
@@ -114,6 +119,20 @@ public final class HttpRegistrationGatewayTest {
         assertEquals(VoiceInputLanguage.ENGLISH, result.detectedLanguage());
     }
 
+    private static void googleBrowserFlow(String baseUrl) {
+        AtomicReference<URI> opened = new AtomicReference<>();
+        HttpRegistrationGateway gateway = new HttpRegistrationGateway(
+                new ServerConfiguration(baseUrl), HttpClient.newHttpClient(),
+                opened::set);
+        assertTrue(gateway.getGoogleOAuthStatus().configured());
+        UserSession session = gateway.continueWithGoogle();
+        assertEquals("sub-google-test", session.getGoogleSubjectId());
+        assertEquals(com.spendwise.auth.AuthProvider.GOOGLE,
+                session.getProvider());
+        assertEquals("https", opened.get().getScheme());
+        assertTrue(gateway.hasActiveSession());
+    }
+
     private static HttpRegistrationGateway gateway(String baseUrl) {
         System.setProperty("os.name", "Test OS");
         return new HttpRegistrationGateway(new ServerConfiguration(baseUrl));
@@ -158,6 +177,21 @@ public final class HttpRegistrationGatewayTest {
                     StandardCharsets.UTF_8);
             if (path.equals("/api/auth/login")) {
                 respond(exchange, 200, loginResponse());
+            } else if (path.equals("/api/auth/google/status")) {
+                respond(exchange, 200,
+                        "{\"configured\":true,"
+                        + "\"message\":\"Google OAuth ready.\","
+                        + "\"redirectUri\":\"https://server.example/api/auth/google/callback\"}");
+            } else if (path.equals("/api/auth/google/start")) {
+                respond(exchange, 200,
+                        "{\"flowIdentifier\":\"33333333-3333-3333-3333-333333333333\","
+                        + "\"pollSecret\":\"poll-secret-with-at-least-thirty-two-characters\","
+                        + "\"authorizationUrl\":\"https://accounts.google.com/o/oauth2/v2/auth?state=test\","
+                        + "\"expiresAt\":\"2099-08-03T13:00:00Z\"}");
+            } else if (path.equals("/api/auth/google/poll")) {
+                respond(exchange, 200, "{\"status\":\"COMPLETED\","
+                        + "\"message\":\"Google sign-in completed.\","
+                        + "\"session\":" + googleSessionResponse() + "}");
             } else if (path.equals("/api/auth/forgot-password")) {
                 forgotRequests++;
                 respond(exchange, 202, "");
@@ -227,6 +261,25 @@ public final class HttpRegistrationGatewayTest {
                     + "\"email\":\"" + EMAIL + "\","
                     + "\"emailVerified\":true,"
                     + "\"accountStatus\":\"ACTIVE\","
+                    + "\"primaryAuthProvider\":\"LOCAL\","
+                    + "\"googleSubjectId\":\"\","
+                    + "\"createdAt\":\"2026-08-01T12:00:00Z\","
+                    + "\"updatedAt\":\"2026-08-03T12:00:00Z\","
+                    + "\"lastLoginAt\":\"2026-08-03T12:00:00Z\","
+                    + "\"roles\":[\"USER\"]}";
+        }
+
+        private static String googleSessionResponse() {
+            return "{\"accessToken\":\"" + ACCESS + "\","
+                    + "\"refreshToken\":\"" + REFRESH + "\","
+                    + "\"authenticatedAt\":\"2026-08-03T12:00:00Z\","
+                    + "\"userIdentifier\":\"user-google\","
+                    + "\"fullName\":\"Google Student\","
+                    + "\"email\":\"" + EMAIL + "\","
+                    + "\"emailVerified\":true,"
+                    + "\"accountStatus\":\"ACTIVE\","
+                    + "\"primaryAuthProvider\":\"GOOGLE\","
+                    + "\"googleSubjectId\":\"sub-google-test\","
                     + "\"createdAt\":\"2026-08-01T12:00:00Z\","
                     + "\"updatedAt\":\"2026-08-03T12:00:00Z\","
                     + "\"lastLoginAt\":\"2026-08-03T12:00:00Z\","

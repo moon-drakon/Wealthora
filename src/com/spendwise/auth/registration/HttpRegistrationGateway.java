@@ -9,6 +9,7 @@ import com.spendwise.auth.NsuEmailPolicy;
 import com.spendwise.auth.PasswordService;
 import com.spendwise.auth.UserRole;
 import com.spendwise.auth.UserSession;
+import com.spendwise.auth.GoogleOAuthStatus;
 import com.spendwise.voice.SpeechBackendStatus;
 import com.spendwise.voice.SpeechProviderStatus;
 import com.spendwise.voice.SpeechRecognitionResult;
@@ -37,19 +38,28 @@ public final class HttpRegistrationGateway implements RegistrationGateway {
     private final ServerConfiguration configuration;
     private final HttpClient client;
     private final PasswordService passwordService = new PasswordService();
+    private final BrowserLauncher browserLauncher;
     private String accessToken;
     private String refreshToken;
 
     public HttpRegistrationGateway(ServerConfiguration configuration) {
         this(configuration, HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(5))
-                .followRedirects(HttpClient.Redirect.NEVER).build());
+                .followRedirects(HttpClient.Redirect.NEVER).build(),
+                new SystemBrowserLauncher());
     }
 
     HttpRegistrationGateway(
             ServerConfiguration configuration, HttpClient client) {
+        this(configuration, client, new SystemBrowserLauncher());
+    }
+
+    HttpRegistrationGateway(
+            ServerConfiguration configuration, HttpClient client,
+            BrowserLauncher browserLauncher) {
         this.configuration = Objects.requireNonNull(configuration);
         this.client = Objects.requireNonNull(client);
+        this.browserLauncher = Objects.requireNonNull(browserLauncher);
     }
 
     @Override
@@ -196,6 +206,76 @@ public final class HttpRegistrationGateway implements RegistrationGateway {
                 + field("password", new String(password)) + ","
                 + field("deviceLabel", desktopDeviceLabel()) + "}";
         return acceptSession(post("/api/auth/login", body));
+    }
+
+    @Override
+    public GoogleOAuthStatus getGoogleOAuthStatus() {
+        if (!configuration.isConfigured()) {
+            return new GoogleOAuthStatus(false,
+                    "WEALTHORA_SERVER_URL is not configured.", "");
+        }
+        try {
+            String json = send("GET", "/api/auth/google/status", "", null);
+            return new GoogleOAuthStatus(bool(json, "configured"),
+                    required(string(json, "message"), "Google OAuth status"),
+                    optional(string(json, "redirectUri")));
+        } catch (AuthException exception) {
+            return new GoogleOAuthStatus(false, exception.getMessage(), "");
+        }
+    }
+
+    @Override
+    public synchronized UserSession continueWithGoogle() {
+        GoogleOAuthStatus status = getGoogleOAuthStatus();
+        if (!status.configured()) throw new AuthException(status.message());
+        clearSessionTokens();
+        String started = post("/api/auth/google/start", "{"
+                + field("deviceLabel", desktopDeviceLabel()) + "}");
+        String flowIdentifier = required(
+                string(started, "flowIdentifier"), "OAuth flow identifier");
+        char[] pollSecret = required(
+                string(started, "pollSecret"), "OAuth polling secret")
+                .toCharArray();
+        try {
+            URI authorizationUri = URI.create(required(
+                    string(started, "authorizationUrl"),
+                    "Google authorization URL"));
+            if (!"https".equalsIgnoreCase(authorizationUri.getScheme())
+                    || !"accounts.google.com".equalsIgnoreCase(
+                            authorizationUri.getHost())) {
+                throw new AuthException(
+                        "The server returned an invalid Google authorization URL.");
+            }
+            Instant expiresAt = instant(started, "expiresAt",
+                    Instant.now().plusSeconds(180));
+            browserLauncher.open(authorizationUri);
+            while (Instant.now().isBefore(expiresAt)) {
+                String secretText = new String(pollSecret);
+                String response;
+                try {
+                    response = post("/api/auth/google/poll", "{"
+                            + field("flowIdentifier", flowIdentifier) + ","
+                            + field("pollSecret", secretText) + "}");
+                } finally {
+                    secretText = null;
+                }
+                String flowStatus = required(
+                        string(response, "status"), "Google OAuth flow status");
+                if ("COMPLETED".equals(flowStatus)) {
+                    return acceptSession(response);
+                }
+                if ("FAILED".equals(flowStatus)) {
+                    throw new AuthException(required(
+                            string(response, "message"),
+                            "Google Sign-In result"));
+                }
+                sleepBeforePoll();
+            }
+            throw new AuthException(
+                    "Google Sign-In expired. Start again.");
+        } finally {
+            Arrays.fill(pollSecret, '\0');
+        }
     }
 
     @Override
@@ -359,8 +439,13 @@ public final class HttpRegistrationGateway implements RegistrationGateway {
         Instant updated = instant(json, "updatedAt", created);
         Instant lastLogin = instant(json, "lastLoginAt", null);
         Set<UserRole> roles = roleSet(json);
+        AuthProvider provider = AuthProvider.valueOf(required(
+                string(json, "primaryAuthProvider"),
+                "Authentication provider"));
+        String googleSubject = optional(
+                string(json, "googleSubjectId"));
         return new AuthenticatedUser(identifier, fullName, email, verified,
-                AuthProvider.LOCAL, "", status, created, updated, lastLogin,
+                provider, googleSubject, status, created, updated, lastLogin,
                 roles, optional(string(json, "studentId")), "System", "BDT");
     }
 
@@ -418,6 +503,15 @@ public final class HttpRegistrationGateway implements RegistrationGateway {
     private static String desktopDeviceLabel() {
         String operatingSystem = System.getProperty("os.name", "Desktop");
         return "Wealthora Desktop on " + operatingSystem;
+    }
+
+    private static void sleepBeforePoll() {
+        try {
+            Thread.sleep(750);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new AuthException("Google Sign-In was interrupted.", exception);
+        }
     }
 
     private static String requireToken(String value, String message) {

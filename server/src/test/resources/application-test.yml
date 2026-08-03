@@ -38,3 +38,8 @@ wealthora:
     project-id: wealthora-voice
     maximum-audio-bytes: 1000000
     minimum-audio-bytes: 3200
+  google-oauth:
+    client-id: test-google-client.apps.googleusercontent.com
+    client-secret: test-google-client-secret
+    redirect-uri: http://127.0.0.1:9999/api/auth/google/callback
+    flow-expiry: PT3M
