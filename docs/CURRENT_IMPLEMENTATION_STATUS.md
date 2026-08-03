@@ -1,134 +1,141 @@
 # Wealthora current implementation status
 
-Verified on 2026-08-03 on branch `feature/wealthora-online-auth-voice`.
+Verified on 2026-08-03 on branch
+`feature/wealthora-online-auth-voice`.
 
-## Recovery checkpoint
+## Release checkpoint
 
-- Recovered base HEAD: `ebd8150c54edf227200a4d938fe4474e039d9d58`
-  (`feat: complete Wealthora administration console`).
-- The interrupted session left 36 modified files and four untracked source,
-  migration, and test paths. They were inspected and continued in place; no
-  partial work was discarded or restarted.
-- The recovered unit contained the 8-128 password policy, six-digit email
-  verification, reset-attempt tracking, provider-neutral SMTP updates,
-  backward-compatible BCrypt pre-hashing, desktop connection reporting, and a
-  Flyway V4 finance-ownership migration. Completion work added explicit
-  provider availability, remaining 128-character bounds, secret-redacting
-  request representations, and focused default-flow/isolation tests.
-- Continuation commit: `feat: complete Wealthora authentication backend`
-  (the commit containing this status file; confirm its hash with
-  `git rev-parse --short HEAD`).
+- Verified authentication baseline: `f02fef4` (`feat: complete Wealthora
+  authentication backend`). The completed authentication audit and
+  implementation were not repeated or redesigned.
+- Repository hygiene and documentation: `076535a`.
+- GitHub desktop, server, and repository checks: `4523ad0`, followed by the
+  transparent whitespace correction `5fa6996`.
+- Render Docker readiness: `d747f8f`, followed by the Linux line-ending
+  contract `334376f`.
+- The commit containing this report follows those implementation commits; use
+  `git rev-parse --short HEAD` for its exact hash.
+- Nothing was pushed or merged.
 
-## COMPLETE
+## Complete
 
-- **Password policy:** Create, reset, change, set-password, OWNER setup,
-  desktop feedback, server validation, and tests use exactly 8-128 characters,
-  at least one English letter and one number, and no leading/trailing
-  whitespace. Uppercase and symbols are not required. The requested accepted
-  and rejected examples pass.
-- **Password storage:** New local and server passwords use BCrypt cost 12 over
-  a SHA-256 pre-hash, avoiding BCrypt's 72-byte truncation. Existing BCrypt
-  OWNER/password hashes remain usable. Password, reset-token, refresh-token,
-  and verification request representations are explicitly redacted.
-- **Create Account:** Full name, exact `northsouth.edu` email, optional student
-  ID, password confirmation, Terms/Privacy acceptance, Back to Sign In, and an
-  honest Google option are wired to the server. Duplicate email registration
-  is rejected and no OWNER creation route was added.
-- **Email verification:** Six-digit codes use `SecureRandom`, only HMAC hashes
-  are stored, and expiry, single use, five-attempt limit, resend cooldown,
-  resend action, generic failure wording, a verification screen, and code-free
-  audit records are implemented. The development mail sink is explicitly
-  labelled and profile-only.
-- **Default new-user login:** The default approval policy is false. A focused
-  endpoint test verifies pending-user denial, verification to `ACTIVE`, normal
-  password login, and suspended-user denial. Optional administrator approval
-  remains supported when explicitly enabled.
-- **Sessions and recovery:** Opaque HMAC-hashed access/refresh tokens, refresh
-  rotation/replay protection, expiry, failed-login lockout, generic recovery,
-  HMAC-hashed one-time reset tokens, expiry, cooldown, five-attempt limit,
-  password change/set/reset, session revocation, logout, logout-all, and
-  per-session revocation are implemented.
-- **Authorization and finance isolation:** Local finance workspaces are keyed
-  by user ID; logout and Switch Account clear the session and active private
-  data path. USER cannot use Admin Console, only OWNER can manage ADMIN roles,
-  OWNER cannot be replaced/demoted, and ADMIN receives no cross-user finance
-  privilege. Flyway V4 adds user-owned `accounts`, `categories`, and
-  `transactions` with composite ownership foreign keys that reject cross-user
-  transaction references.
-- **Spring Boot backend:** The existing `server/` module is reused with Java
-  25, Maven Wrapper, Spring Security, Validation, Data JPA, Mail, Actuator,
-  PostgreSQL, Flyway V1-V4, BCrypt, and health/info endpoints. Hibernate uses
-  `ddl-auto: validate`; no destructive schema recreation is configured.
-- **Desktop/server honesty:** `WEALTHORA_SERVER_URL` remains the only desktop
-  server setting. The sign-in screen separately shows Connected, Server
-  unavailable, Server URL missing, Email provider unavailable/configured, and
-  Google OAuth unavailable/configured. Public `/api/auth/status` exposes only
-  non-secret capability booleans.
-- **Google Sign-In:** The browser OAuth contract and PASSWORD/GOOGLE identity
-  linking remain implemented. Issuer, audience, expiry, nonce,
-  `email_verified`, exact NSU domain/hosted domain, subject, account status,
-  and single-use flow checks remain enforced. Callback:
-  `GET /api/auth/google/callback`. No Google password or desktop client secret
-  is requested or stored.
+### Authentication foundation
 
-## PARTIAL
+The verified authentication foundation remains complete: exact NSU
+registration, the 8-128 character password policy, six-digit verification,
+default activation after verification, password recovery, opaque sessions,
+revocation, USER/ADMIN/OWNER authorization, audit events, Google OAuth
+boundaries, SMTP capability reporting, and per-user finance isolation.
+Flyway V1-V4 remain forward-only, and Hibernate remains configured with
+`ddl-auto=validate`.
 
-- PostgreSQL/Neon is configuration-ready but not live-verified on this host.
-  No `psql`, `pg_isready`, Docker command, or PostgreSQL service is available,
-  and no database environment values are configured.
-- Server-owned finance tables and database-level ownership constraints exist;
-  the Swing application continues to use its established isolated local CSV
-  workspaces. Explicit LOCAL/CLOUD finance migration and sync remain a later
-  checkpoint.
+### Repository hygiene and documentation
 
-## MISSING
+- `.gitignore` now excludes environment files other than examples,
+  credential and service-account files, local databases and dumps, backups,
+  recordings, private reports, IDE-local state, build output, future web
+  output, and generated runtime storage.
+- Generated `build/`, `dist/`, and `server/target/` artifacts are untracked.
+  The only tracked JARs are the two reviewed desktop libraries and Maven
+  Wrapper bootstrap; no distributable application JAR is tracked.
+- A filename and high-confidence content scan found no secret candidate in
+  the current repository or any reachable commit. The scan never printed
+  matching values.
+- `README.md`, `SECURITY.md`, `CONTRIBUTING.md`, `.env.example`, and the
+  architecture, local-development, deployment, and Render guides describe
+  only implemented behavior and current limitations. No license was added.
+- Shared NetBeans project files remain in place. The desktop project was not
+  moved.
 
-- A live isolated PostgreSQL/Neon run of Flyway V1-V4, readiness, registration,
-  login, and one authorized administration read.
-- Real SMTP, Google OAuth, and remote server configuration.
-- The Next.js web application and deployment; both are intentionally outside
-  this checkpoint and were not started.
+### GitHub CI
 
-## BROKEN
+- Desktop CI sets up Java 25, runs `ant test-auth`, runs `ant clean jar`, and
+  uploads `dist/Wealthora.jar` after success.
+- Server CI sets up Java 25, uses the Maven Wrapper, runs tests, and packages
+  without production secrets.
+- Repository checks reject sensitive/generated tracked files, unexpected
+  JARs, high-confidence secret signatures, and whitespace errors.
+- The pull-request template covers summary, changes, testing, migration,
+  security, screenshots, and a concise checklist.
+- Workflow action majors were checked against their official repositories.
+  The workflows have not run on GitHub because nothing was pushed.
 
-- No known authentication or build breakage after the completed test/build
-  runs.
+### Render readiness
 
-## CONFIGURATION REQUIRED
-
-- Server: `DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, and a
-  random `TOKEN_PEPPER` of at least 32 characters. Neon JDBC URLs must include
-  TLS, such as `?sslmode=require`.
-- Production email: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`,
-  `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`, and `SMTP_FROM_NAME`.
-- Desktop online auth: `WEALTHORA_SERVER_URL` (loopback HTTP for development;
-  HTTPS otherwise).
-- Google OAuth: server-only `GOOGLE_OAUTH_CLIENT_ID`,
-  `GOOGLE_OAUTH_CLIENT_SECRET`, and `GOOGLE_OAUTH_REDIRECT_URI`.
-- None of those variables was configured in the verification shell. No real
-  values or secrets were added to Git.
+- `server/Dockerfile` is a multi-stage Java 25 build. The runtime stage copies
+  only the executable Spring Boot JAR, runs as numeric user/group `10001`,
+  uses an exec-form entry point, and handles `SIGTERM` for graceful shutdown.
+- The Docker copy uses the exact executable JAR name. This avoids accidentally
+  matching Maven's additional `.jar.original` file.
+- `application-prod.yml` binds to `0.0.0.0:${PORT:10000}`, requires the three
+  database variables, validates Flyway and Hibernate state, disables Flyway
+  clean and DDL generation, hides health details, and bounds graceful
+  shutdown.
+- Database, SMTP, Google OAuth, and speech configuration continues to come
+  only from environment variables. No credential is copied into an image.
+- Render dashboard fields and safe startup expectations are documented in
+  `docs/RENDER_DEPLOYMENT.md`. No deployment was attempted.
 
 ## Verification results
 
-- Java: Microsoft OpenJDK `25.0.2` was used for successful verification. The
-  shell initially exposed Java 21; that environmental failure was corrected by
-  setting command-scoped `JAVA_HOME` to the documented JDK 25 installation.
-- Desktop tests: `ant test-auth` passed its full dependency chain, including
-  14 authentication-policy tests, 22 local authentication/authorization
-  tests, 8 HTTP gateway tests, and all finance, persistence, backup/restore,
-  and data-portability suites.
-- Desktop build: `ant clean jar` passed; JAR:
-  `dist\Wealthora.jar`.
-- Server tests: `server\mvnw.cmd test` passed all 30 H2/Flyway tests,
-  including default activation/login, password/reset limits, SMTP
-  availability, secret redaction, roles/sessions, OAuth, and finance ownership.
-- Server build: `server\mvnw.cmd package` passed and produced
-  `server\target\wealthora-auth-server-1.0.0-SNAPSHOT.jar`.
-- Runtime: the desktop JAR was launched against isolated generated application
-  storage, remained active for the smoke interval, exposed the expected
-  `Wealthora Authentication` window title, and was then stopped.
-- Existing local application storage still contains the pre-existing ten
-  files (six CSV files). No existing OWNER/authentication/finance file was
-  migrated, overwritten, or deleted during this run.
+- **Desktop tests:** `ant test-auth` passed the full dependency chain,
+  including 14 authentication-policy, 22 local authentication/authorization,
+  and 8 online-gateway tests.
+- **Desktop build:** `ant clean jar` passed under Microsoft OpenJDK 25.0.2 and
+  produced `dist/Wealthora.jar`.
+- **Desktop runtime:** the JAR opened `Wealthora Authentication` using a new
+  temporary `LOCALAPPDATA`; the spawned process was then stopped.
+- **Server tests:** `server\mvnw.cmd test` passed all 30 tests. The isolated
+  H2/PostgreSQL-compatibility suite applied Flyway V1-V4 and exercised
+  registration, verification, login, password recovery, sessions, role
+  restrictions, audit behavior, OAuth boundaries, and finance ownership.
+- **Server build:** `server\mvnw.cmd package` passed all 30 tests again and
+  produced the executable server JAR.
+- **Production failure safety:** a bounded `prod` run against an unreachable
+  loopback database failed startup as expected. None of the synthetic database
+  URL, username, password, or token-pepper canaries appeared in captured logs.
+- **Diff and documentation checks:** `git diff --check`, generated-file
+  assertions, tracked-JAR assertions, and local documentation-link checks
+  passed. No local YAML parser was installed; workflows received a manual
+  syntax review and still require their first GitHub run.
+- **Docker:** not built or run because the `docker` command and daemon are not
+  available on this host. The Maven output confirmed the executable file used
+  by the corrected Docker copy exists.
+- **Existing data:** the established application-data fingerprint was
+  identical before and after verification: ten files, including six CSV
+  files. No existing OWNER, authentication, or finance file changed.
 
-The exact remaining task and resume commands are in `docs/NEXT_CODEX_STEPS.md`.
+## Live verification not run
+
+Real PostgreSQL/Neon verification was not run because these required process
+variables were absent:
+
+- `DATABASE_URL`
+- `DATABASE_USERNAME`
+- `DATABASE_PASSWORD`
+- `TOKEN_PEPPER`
+
+Therefore Flyway V1-V4, restart validation, ownership constraints, and the
+full authentication/administration flow are verified by automated H2 tests but
+are not yet claimed as real PostgreSQL/Neon passes.
+
+Real SMTP was also not tested because all six `SMTP_*` variables were absent.
+The automated SMTP behavior tests passed, and the explicit development mail
+sink remains available for a later isolated database run.
+
+## Remaining configuration and limitations
+
+- Provide the four required database/security variables outside Git. Neon
+  must use a JDBC URL with verified TLS, such as `sslmode=require`.
+- Provide all six SMTP variables before claiming production email delivery.
+- Google Sign-In still requires its three server-only OAuth variables.
+- Docker and GitHub-hosted workflow execution remain unverified in this
+  environment.
+- Flyway emitted a non-failing warning that test-only H2 2.4.240 is newer than
+  the H2 release it has verified. All H2 tests passed, but they do not replace
+  the required real PostgreSQL run.
+- Desktop finance data remains local; cloud finance migration and sync are not
+  implemented.
+- The Next.js web frontend was intentionally not started.
+
+The exact next task and safe commands are in `docs/NEXT_CODEX_STEPS.md`.

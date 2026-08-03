@@ -3,88 +3,116 @@
 ## Current state
 
 - Branch: `feature/wealthora-online-auth-voice`
-- Recovered base HEAD: `ebd8150`
-- Current checkpoint commit: `feat: complete Wealthora authentication backend`
-  (this handoff is committed with it; use `git rev-parse --short HEAD` for the
-  exact hash).
-- Authentication foundation is complete through secure NSU registration,
-  verification, default activation/login, sessions/recovery, role/workspace
-  isolation, Spring Boot, Flyway V1-V4 ownership constraints, provider status,
-  and honest Google OAuth preparation.
-- Desktop artifact: `dist\Wealthora.jar`
-- Server artifact:
-  `server\target\wealthora-auth-server-1.0.0-SNAPSHOT.jar`
-- Web application: not started, as required.
+- Verified authentication baseline: `f02fef4`
+- Latest release-foundation implementation commit: `334376f`
+- The report update is committed after that implementation commit; confirm the
+  exact current hash with `git rev-parse --short HEAD`.
+- Desktop and server tests/builds pass under Java 25.
+- Repository hygiene, focused GitHub workflows, and Render Docker readiness
+  are implemented.
+- Nothing was pushed, merged, or deployed.
+- The Next.js frontend was not started.
 
-## Previous partial work recovered
+## Exact next task
 
-The interrupted working tree was continued rather than discarded. Its password
-policy, verification, reset-attempt, SMTP, BCrypt compatibility, connection
-status, V4 migration, and tests now form one complete verified checkpoint.
-No generated file, database, OWNER record, or finance workspace was reset.
+Run Flyway V1-V4 and the authentication/administration checks against a new,
+empty, isolated PostgreSQL or Neon database. Do not use the desktop's local
+OWNER workspace or any database containing real finance data.
 
-## Verification summary
+The required variables are currently missing:
 
-- `ant test-auth`: passed the complete desktop dependency chain, including
-  14 policy, 22 local authentication/authorization, and 8 HTTP gateway tests.
-- `ant clean jar`: passed under JDK 25.
-- `server\mvnw.cmd test`: passed all 30 isolated H2/Flyway tests.
-- `server\mvnw.cmd package`: passed and packaged the executable server JAR.
-- `dist\Wealthora.jar`: launched with isolated temporary `LOCALAPPDATA` and
-  reached a responsive authentication window.
-- Live PostgreSQL/Neon: not run because this host has no PostgreSQL tooling or
-  service and no database credentials. This is configuration required, not a
-  simulated pass.
+- `DATABASE_URL`
+- `DATABASE_USERNAME`
+- `DATABASE_PASSWORD`
+- `TOKEN_PEPPER`
 
-## Remaining configuration and limitations
+Set them only in the process environment or a secret manager. Never paste
+their values into commands, files, screenshots, issues, reports, or commits.
+For Neon, use a JDBC URL with verified TLS, such as `sslmode=require`.
 
-- Configure database variables plus `TOKEN_PEPPER` outside source control.
-- Configure all six SMTP variables for production email. Without them,
-  registration/recovery remain unavailable and existing local OWNER login
-  stays functional.
-- Configure the three server-only Google OAuth variables. Callback:
-  `GET /api/auth/google/callback`.
-- Configure `WEALTHORA_SERVER_URL` for desktop online authentication.
-- Server finance tables are ownership-safe, but local/cloud finance migration
-  and sync have not been designed or run.
-- Do not start the Next.js app until the live PostgreSQL checkpoint below is
-  complete.
+## Live database sequence
 
-## Exact next smallest task
+1. Confirm the target database is empty and disposable.
+2. Run `server\mvnw.cmd test` and `server\mvnw.cmd package` before the live
+   check.
+3. Start the server with the explicit development mail sink in a new temporary
+   directory:
 
-Provide or start an isolated empty PostgreSQL database, set the already
-documented database variables and `TOKEN_PEPPER` only in the process
-environment, then run the packaged server. Verify Flyway V1-V4, Actuator
-health/readiness, `/api/auth/status`, one NSU register/verify/login flow using
-the development mail sink, and one authorized admin read. Record concrete
-PostgreSQL/Neon SSL or pooling gaps only if the live run exposes them. Do not
-migrate desktop OWNER or finance data.
+   ```powershell
+   cd G:\Projects\SpendWiseExpenseTracker\server
+   $env:SPRING_PROFILES_ACTIVE = 'dev-mail-sink'
+   $env:WEALTHORA_DEV_MAIL_DIR = Join-Path $env:TEMP 'wealthora-dev-mail-live'
+   .\mvnw.cmd spring-boot:run
+   ```
 
-## Exact resume commands
+4. Verify `GET /actuator/health` and `GET /api/auth/status` without exposing
+   configuration values.
+5. In the database console, verify `flyway_schema_history` contains successful
+   V1, V2, V3, and V4 rows in order. Confirm the expected user, identity,
+   verification, reset, session, audit, account, category, and transaction
+   tables and constraints exist.
+6. Stop and restart the server. Confirm Flyway validates existing checksums,
+   applies no duplicate migration, and preserves test records.
+7. Run the isolated end-to-end checks:
+   - exact `northsouth.edu` registration and rejection of other domains;
+   - accepted and rejected 8-128 character passwords;
+   - pending login rejection, development-code verification, and active login;
+   - wrong-password rejection, duplicate registration, reset, refresh,
+     per-session revocation, and logout-all;
+   - USER, ADMIN, and OWNER restrictions;
+   - user-owned account/category/transaction isolation and rejection of
+     cross-user references; and
+   - audit records for the security and administration actions.
+8. The server has no public OWNER-creation route. For administration smoke
+   checks, use only a dedicated identity in the disposable database and a
+   controlled database fixture to assign its OWNER role. Do not copy or alter
+   the desktop OWNER, and do not add a production OWNER-registration endpoint.
+9. Run the server tests and package again after the live check. Record only
+   pass/fail results, schema versions, safe error categories, and test-user
+   identifiers that contain no private data.
+
+Delete the temporary mail-sink output securely after recording the pass/fail
+result. It contains live one-time codes and reset tokens and must never enter
+Git or a test report.
+
+## SMTP verification
+
+After the development-sink flow passes, configure all six variables through a
+secret store and repeat registration and password recovery with real SMTP:
+
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_USERNAME`
+- `SMTP_PASSWORD`
+- `SMTP_FROM_ADDRESS`
+- `SMTP_FROM_NAME`
+
+Do not claim SMTP success until both messages arrive and their one-time values
+work exactly once.
+
+## Docker and CI follow-up
+
+When Docker is available:
 
 ```powershell
-cd G:\Projects\SpendWiseExpenseTracker
-git status -sb
-git log -3 --oneline
-$env:JAVA_HOME = 'C:\DevelopmentTools\jdk-25\jdk-25.0.2'
-$env:Path = "$env:JAVA_HOME\bin;$env:Path"
-& 'C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat' test-auth
-& 'C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat' clean jar
-cd server
-.\mvnw.cmd test
-.\mvnw.cmd package
+cd G:\Projects\SpendWiseExpenseTracker\server
+docker build --tag wealthora-server:local .
 ```
 
-For the live database task, first set `DATABASE_URL`, `DATABASE_USERNAME`,
-`DATABASE_PASSWORD`, and `TOKEN_PEPPER` in the current shell without writing
-their values to the repository. For Neon, use a JDBC URL with
-`sslmode=require`. Then:
+Run the image with name-only `--env` arguments as documented in
+`docs/DEPLOYMENT.md`, then verify `/actuator/health`, provider status, graceful
+termination, and the absence of source credentials or local data in the image.
 
-```powershell
-$env:SPRING_PROFILES_ACTIVE = 'dev-mail-sink'
-$env:WEALTHORA_DEV_MAIL_DIR = Join-Path $env:TEMP 'wealthora-dev-mail'
-.\mvnw.cmd spring-boot:run
-```
+After pushing is separately authorized, let all three GitHub workflows run on
+the branch and confirm the desktop JAR artifact is uploaded. Do not deploy to
+Render until live PostgreSQL, SMTP where required, Docker, and CI checks pass.
 
-Do not commit the temporary development mail output; it contains one-time
-codes and tokens. Do not push or merge.
+## Stop conditions
+
+- If migration validation fails, stop and add a new forward-only migration;
+  never edit V1-V4 or run Flyway clean on a non-disposable database.
+- If any secret is logged or found in history, stop, identify only the affected
+  file and commit, rotate the credential, and plan history cleanup without
+  exposing the value.
+- Do not push, merge, deploy, start the web frontend, or migrate desktop finance
+  data without explicit authorization.
