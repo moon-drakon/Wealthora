@@ -54,6 +54,8 @@ public class SecurityConfiguration {
                         .authenticated()
                         .requestMatchers("/api/speech/**")
                         .authenticated()
+                        .requestMatchers("/api/finance/**")
+                        .authenticated()
                         .requestMatchers("/api/admin/**")
                         .authenticated()
                         .anyRequest().denyAll())

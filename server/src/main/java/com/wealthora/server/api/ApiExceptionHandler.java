@@ -2,8 +2,11 @@ package com.wealthora.server.api;
 
 import java.time.Clock;
 import java.util.stream.Collectors;
+import jakarta.validation.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -32,6 +35,23 @@ public class ApiExceptionHandler {
                 .distinct().collect(Collectors.joining("; "));
         return ResponseEntity.badRequest().body(new ApiError(
                 "VALIDATION_FAILED", message, clock.instant()));
+    }
+
+    @ExceptionHandler({HttpMessageNotReadableException.class,
+            ConstraintViolationException.class})
+    ResponseEntity<ApiError> handleMalformed(Exception exception) {
+        return ResponseEntity.badRequest().body(new ApiError(
+                "MALFORMED_REQUEST", "The request contains an invalid value.",
+                clock.instant()));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    ResponseEntity<ApiError> handleConflict(
+            DataIntegrityViolationException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiError(
+                "FINANCE_CONFLICT",
+                "The requested finance change conflicts with stored data.",
+                clock.instant()));
     }
 
     @ExceptionHandler(Exception.class)
