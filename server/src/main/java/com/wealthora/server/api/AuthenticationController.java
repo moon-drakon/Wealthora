@@ -7,6 +7,8 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -53,6 +55,20 @@ public class AuthenticationController {
     ResponseEntity<Void> logoutAll(
             @AuthenticationPrincipal SessionPrincipal principal) {
         authenticationService.logoutAll(principal);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/sessions")
+    java.util.List<SessionSummaryResponse> sessions(
+            @AuthenticationPrincipal SessionPrincipal principal) {
+        return authenticationService.listSessions(principal);
+    }
+
+    @DeleteMapping("/sessions/{sessionIdentifier}")
+    ResponseEntity<Void> revokeSession(
+            @AuthenticationPrincipal SessionPrincipal principal,
+            @PathVariable String sessionIdentifier) {
+        authenticationService.revokeSession(principal, sessionIdentifier);
         return ResponseEntity.noContent().build();
     }
 }

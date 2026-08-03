@@ -250,7 +250,11 @@ public final class SpendWiseApplication {
                     frame::openMyFinance,
                     () -> new AccountProfileDialog(frame, session)
                             .setVisible(true),
-                    () -> new SecuritySessionsDialog(frame, session)
+                    () -> new SecuritySessionsDialog(
+                            frame, session, authService,
+                            () -> returnToAuthentication(
+                                    frame, authService,
+                                    sessionManager, adminService))
                             .setVisible(true),
                     () -> leaveWorkspace(frame, authService, sessionManager,
                             adminService, true),
@@ -304,6 +308,20 @@ public final class SpendWiseApplication {
             ConfirmationDialogs.showError(
                     null, action + " audit warning", exception);
         }
+        showAuthentication(authService, sessionManager, adminService);
+    }
+
+    private static void returnToAuthentication(
+            SpendWiseFrame frame,
+            LocalDesktopAuthService authService,
+            SessionManager sessionManager,
+            AdminService adminService) {
+        for (java.awt.Window owned : frame.getOwnedWindows()) {
+            owned.dispose();
+        }
+        frame.dispose();
+        sessionManager.clearSession();
+        AppPaths.clearUserDataDirectory();
         showAuthentication(authService, sessionManager, adminService);
     }
 

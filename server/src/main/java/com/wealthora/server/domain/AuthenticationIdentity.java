@@ -48,4 +48,9 @@ public class AuthenticationIdentity {
     public AuthProvider getProvider() { return provider; }
     public String getProviderSubject() { return providerSubject; }
     public String getPasswordHash() { return passwordHash; }
+
+    public void changePasswordHash(String newPasswordHash, Instant now) {
+        passwordHash = newPasswordHash;
+        updatedAt = now;
+    }
 }

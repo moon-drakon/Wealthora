@@ -47,6 +47,9 @@ wealthora:
     refresh-expiry: ${REFRESH_TOKEN_EXPIRY:P30D}
     lock-duration: ${LOGIN_LOCK_DURATION:PT15M}
     maximum-failed-attempts: ${MAXIMUM_FAILED_LOGIN_ATTEMPTS:5}
+  password-recovery:
+    reset-expiry: ${PASSWORD_RESET_EXPIRY:PT15M}
+    request-cooldown: ${PASSWORD_RESET_REQUEST_COOLDOWN:PT1M}
   mail:
     from: ${SMTP_FROM:}
     development-directory: ${WEALTHORA_DEV_MAIL_DIR:./dev-mail}

@@ -1,7 +1,6 @@
 package com.spendwise.auth.ui;
 
 import com.spendwise.auth.AuthService;
-import com.spendwise.auth.AuthException;
 import com.spendwise.auth.SessionManager;
 import com.spendwise.auth.UserSession;
 import com.spendwise.config.AppBrand;
@@ -81,7 +80,7 @@ public final class SignInPanel extends AuthFormPanel {
                 try {
                     completeAuthentication(get());
                 } catch (Exception exception) {
-                    showFailure(authenticationFailure(exception));
+                    showFailure(workerFailure(exception));
                 }
             }
         }.execute();
@@ -101,13 +100,4 @@ public final class SignInPanel extends AuthFormPanel {
         navigator.showAuthenticatedProfile(session);
     }
 
-    private static RuntimeException authenticationFailure(
-            Exception exception) {
-        Throwable cause = exception
-                instanceof java.util.concurrent.ExecutionException
-                ? exception.getCause() : exception;
-        return cause instanceof RuntimeException runtime
-                ? runtime : new AuthException(
-                        "Sign-in could not be completed.", cause);
-    }
 }

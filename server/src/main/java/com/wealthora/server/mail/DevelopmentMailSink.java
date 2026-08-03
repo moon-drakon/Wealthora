@@ -12,7 +12,8 @@ import org.springframework.stereotype.Service;
 
 @Service
 @Profile("dev-mail-sink")
-public final class DevelopmentMailSink implements VerificationMailDelivery {
+public final class DevelopmentMailSink implements
+        VerificationMailDelivery, PasswordResetMailDelivery {
 
     private final Path directory;
 
@@ -30,6 +31,24 @@ public final class DevelopmentMailSink implements VerificationMailDelivery {
             Files.writeString(directory.resolve(safeName + ".txt"),
                     "Development-only Wealthora verification\nemail="
                             + recipient + "\ncode=" + code + "\n",
+                    StandardCharsets.UTF_8);
+        } catch (IOException | SecurityException exception) {
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "DEVELOPMENT_MAIL_SINK_FAILED",
+                    "The development mail sink is unavailable.");
+        }
+    }
+
+    @Override
+    public synchronized void sendPasswordResetToken(
+            String recipient, String token) {
+        String safeName = recipient.replaceAll("[^A-Za-z0-9._-]", "_");
+        try {
+            Files.createDirectories(directory);
+            Files.writeString(directory.resolve(
+                    safeName + ".reset.txt"),
+                    "Development-only Wealthora password reset\nemail="
+                            + recipient + "\ntoken=" + token + "\n",
                     StandardCharsets.UTF_8);
         } catch (IOException | SecurityException exception) {
             throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,

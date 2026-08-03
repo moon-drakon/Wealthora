@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 @Service
 @Profile("!dev-mail-sink")
 public final class SmtpVerificationMailDelivery
-        implements VerificationMailDelivery {
+        implements VerificationMailDelivery, PasswordResetMailDelivery {
 
     private final JavaMailSender mailSender;
     private final String host;
@@ -45,6 +45,32 @@ public final class SmtpVerificationMailDelivery
             throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,
                     "EMAIL_DELIVERY_FAILED",
                     "The verification email could not be delivered. Try again later.");
+        }
+    }
+
+    @Override
+    public void sendPasswordResetToken(String recipient, String token) {
+        requireConfigured();
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(from);
+        message.setTo(recipient);
+        message.setSubject("Reset your Wealthora password");
+        message.setText("Use this one-time Wealthora reset token: " + token
+                + ". It expires shortly. If you did not request this, ignore this message.");
+        try {
+            mailSender.send(message);
+        } catch (RuntimeException exception) {
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "EMAIL_DELIVERY_FAILED",
+                    "The password-reset email could not be delivered. Try again later.");
+        }
+    }
+
+    private void requireConfigured() {
+        if (host.isBlank() || from.isBlank()) {
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "EMAIL_NOT_CONFIGURED",
+                    "Email delivery is not configured on this server.");
         }
     }
 }

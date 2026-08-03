@@ -6,11 +6,14 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.wealthora.server.domain.AccountStatus;
+import com.wealthora.server.domain.AuthenticationIdentity;
+import com.wealthora.server.domain.AuthProvider;
 import com.wealthora.server.domain.UserAccount;
 import com.wealthora.server.repository.AuditLogRepository;
 import com.wealthora.server.repository.AuthenticationIdentityRepository;
 import com.wealthora.server.repository.EmailVerificationRepository;
 import com.wealthora.server.repository.LoginAttemptRepository;
+import com.wealthora.server.repository.PasswordResetTokenRepository;
 import com.wealthora.server.repository.RefreshTokenRepository;
 import com.wealthora.server.repository.SessionRecordRepository;
 import com.wealthora.server.repository.UserAccountRepository;
@@ -46,6 +49,7 @@ class AuthenticationEndpointTest {
     @Autowired private RefreshTokenRepository refreshTokens;
     @Autowired private SessionRecordRepository sessions;
     @Autowired private LoginAttemptRepository loginAttempts;
+    @Autowired private PasswordResetTokenRepository passwordResetTokens;
     @Autowired private AuditLogRepository auditLogs;
     @Autowired private EmailVerificationRepository verifications;
     @Autowired private AuthenticationIdentityRepository identities;
@@ -57,6 +61,7 @@ class AuthenticationEndpointTest {
         refreshTokens.deleteAll();
         sessions.deleteAll();
         loginAttempts.deleteAll();
+        passwordResetTokens.deleteAll();
         auditLogs.deleteAll();
         verifications.deleteAll();
         identities.deleteAll();
@@ -64,6 +69,7 @@ class AuthenticationEndpointTest {
         users.deleteAll();
         Files.createDirectories(MAIL_DIRECTORY);
         Files.deleteIfExists(mailFile());
+        Files.deleteIfExists(resetMailFile());
         createActiveAccount();
     }
 
@@ -72,6 +78,7 @@ class AuthenticationEndpointTest {
         refreshTokens.deleteAll();
         sessions.deleteAll();
         loginAttempts.deleteAll();
+        passwordResetTokens.deleteAll();
         auditLogs.deleteAll();
         verifications.deleteAll();
         identities.deleteAll();
@@ -140,6 +147,108 @@ class AuthenticationEndpointTest {
         assertEquals(401, get("/api/auth/me", secondAccess).statusCode());
     }
 
+    @Test
+    void forgotAndResetAreGenericSingleUseAndRevokeSessions()
+            throws Exception {
+        assertEquals(202, post("/api/auth/forgot-password",
+                "{\"email\":\"unknown.student@northsouth.edu\"}")
+                .statusCode());
+        assertFalse(Files.exists(MAIL_DIRECTORY.resolve(
+                "unknown.student_northsouth.edu.reset.txt")));
+
+        String oldAccess = string(post(
+                "/api/auth/login", loginJson()).body(), "accessToken");
+        assertEquals(202, post("/api/auth/forgot-password",
+                "{\"email\":\"" + EMAIL + "\"}").statusCode());
+        String resetToken = Files.readAllLines(resetMailFile()).stream()
+                .filter(line -> line.startsWith("token="))
+                .findFirst().orElseThrow().substring(6);
+        String newPassword = "UpdatedStudent2!";
+        String resetJson = "{\"email\":\"" + EMAIL + "\","
+                + "\"resetToken\":\"" + resetToken + "\","
+                + "\"newPassword\":\"" + newPassword + "\","
+                + "\"passwordConfirmation\":\"" + newPassword + "\"}";
+        assertEquals(204, post(
+                "/api/auth/reset-password", resetJson).statusCode());
+        assertEquals(401, get("/api/auth/me", oldAccess).statusCode());
+        assertEquals(401, post("/api/auth/login", loginJson()).statusCode());
+        assertEquals(200, post("/api/auth/login",
+                loginJson().replace(PASSWORD, newPassword)).statusCode());
+        assertEquals(400, post(
+                "/api/auth/reset-password", resetJson).statusCode());
+    }
+
+    @Test
+    void sessionsCanBeListedAndIndividuallyRevoked() throws Exception {
+        String firstAccess = string(post(
+                "/api/auth/login", loginJson()).body(), "accessToken");
+        String secondAccess = string(post(
+                "/api/auth/login", loginJson()).body(), "accessToken");
+        HttpResponse<String> listed = get(
+                "/api/auth/sessions", secondAccess);
+        assertEquals(200, listed.statusCode());
+        Matcher sessionsMatcher = Pattern.compile(
+                "\\{\\\"sessionIdentifier\\\":\\\"([^\\\"]+)\\\".*?"
+                + "\\\"currentSession\\\":(true|false)\\}",
+                Pattern.DOTALL).matcher(listed.body());
+        String otherSession = null;
+        int count = 0;
+        while (sessionsMatcher.find()) {
+            count++;
+            if (!Boolean.parseBoolean(sessionsMatcher.group(2))) {
+                otherSession = sessionsMatcher.group(1);
+            }
+        }
+        assertEquals(2, count);
+        assertTrue(otherSession != null);
+        assertEquals(204, delete("/api/auth/sessions/"
+                + otherSession, secondAccess).statusCode());
+        assertEquals(401, get("/api/auth/me", firstAccess).statusCode());
+        assertEquals(200, get("/api/auth/me", secondAccess).statusCode());
+    }
+
+    @Test
+    void passwordChangeRevokesEverySession() throws Exception {
+        String firstAccess = string(post(
+                "/api/auth/login", loginJson()).body(), "accessToken");
+        String secondAccess = string(post(
+                "/api/auth/login", loginJson()).body(), "accessToken");
+        String newPassword = "ChangedStudent3!";
+        String changeJson = "{\"currentPassword\":\"" + PASSWORD + "\","
+                + "\"newPassword\":\"" + newPassword + "\","
+                + "\"passwordConfirmation\":\"" + newPassword + "\"}";
+        assertEquals(204, postAuthorized(
+                "/api/auth/change-password", changeJson,
+                secondAccess).statusCode());
+        assertEquals(401, get("/api/auth/me", firstAccess).statusCode());
+        assertEquals(401, get("/api/auth/me", secondAccess).statusCode());
+        assertEquals(200, post("/api/auth/login",
+                loginJson().replace(PASSWORD, newPassword)).statusCode());
+    }
+
+    @Test
+    void passwordCanBeSetOnlyWhenIdentityIsMissing() throws Exception {
+        String access = string(post(
+                "/api/auth/login", loginJson()).body(), "accessToken");
+        AuthenticationIdentity identity = identities
+                .findByUserIdAndProvider(users.findByEmail(EMAIL)
+                        .orElseThrow().getId(), AuthProvider.PASSWORD)
+                .orElseThrow();
+        identities.delete(identity);
+
+        String newPassword = "AddedStudent4!";
+        String setJson = "{\"newPassword\":\"" + newPassword + "\","
+                + "\"passwordConfirmation\":\"" + newPassword + "\"}";
+        assertEquals(204, postAuthorized(
+                "/api/auth/set-password", setJson, access).statusCode());
+        assertEquals(401, get("/api/auth/me", access).statusCode());
+        String nextAccess = string(post("/api/auth/login",
+                loginJson().replace(PASSWORD, newPassword)).body(),
+                "accessToken");
+        assertEquals(409, postAuthorized(
+                "/api/auth/set-password", setJson, nextAccess).statusCode());
+    }
+
     private void createActiveAccount() throws Exception {
         post("/api/auth/register", "{"
                 + "\"fullName\":\"Session Student\","
@@ -161,6 +270,11 @@ class AuthenticationEndpointTest {
     private Path mailFile() {
         return MAIL_DIRECTORY.resolve(
                 "session.student_northsouth.edu.txt");
+    }
+
+    private Path resetMailFile() {
+        return MAIL_DIRECTORY.resolve(
+                "session.student_northsouth.edu.reset.txt");
     }
 
     private String loginJson() {
@@ -192,6 +306,15 @@ class AuthenticationEndpointTest {
                 .header("Content-Type", "application/json")
                 .header("Authorization", "Bearer " + accessToken)
                 .POST(HttpRequest.BodyPublishers.ofString(json)).build();
+        return send(request);
+    }
+
+    private HttpResponse<String> delete(String path, String accessToken)
+            throws Exception {
+        HttpRequest request = HttpRequest.newBuilder(uri(path))
+                .header("Accept", "application/json")
+                .header("Authorization", "Bearer " + accessToken)
+                .DELETE().build();
         return send(request);
     }
 

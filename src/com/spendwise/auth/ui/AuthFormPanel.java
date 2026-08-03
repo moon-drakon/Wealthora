@@ -2,6 +2,7 @@ package com.spendwise.auth.ui;
 
 import com.formdev.flatlaf.FlatClientProperties;
 import com.spendwise.config.AppBrand;
+import com.spendwise.auth.AuthException;
 import com.spendwise.ui.component.PrimaryButton;
 import com.spendwise.ui.component.SecondaryButton;
 import com.spendwise.ui.component.StyledTextField;
@@ -204,6 +205,15 @@ abstract class AuthFormPanel extends JPanel {
         String message = exception.getMessage();
         statusLabel.setText(message == null || message.isBlank()
                 ? "Authentication could not be completed." : message);
+    }
+
+    protected static RuntimeException workerFailure(Exception exception) {
+        Throwable cause = exception
+                instanceof java.util.concurrent.ExecutionException
+                ? exception.getCause() : exception;
+        return cause instanceof RuntimeException runtime
+                ? runtime : new AuthException(
+                        "Authentication could not be completed.", cause);
     }
 
     protected static void clear(char[] value) {

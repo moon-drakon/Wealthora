@@ -29,5 +29,8 @@ wealthora:
     refresh-expiry: P30D
     lock-duration: PT15M
     maximum-failed-attempts: 5
+  password-recovery:
+    reset-expiry: PT15M
+    request-cooldown: PT1M
   mail:
     development-directory: ${java.io.tmpdir}/wealthora-test-mail

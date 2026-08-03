@@ -3,11 +3,14 @@ package com.spendwise.auth.ui;
 import com.spendwise.auth.AuthService;
 import com.spendwise.ui.component.StyledTextField;
 import java.util.Objects;
+import javax.swing.JButton;
+import javax.swing.SwingWorker;
 
 public final class ForgotPasswordPanel extends AuthFormPanel {
 
     private final AuthService authService;
     private final StyledTextField email = textField("NSU email");
+    private final JButton requestButton;
 
     public ForgotPasswordPanel(
             AuthService authService, AuthNavigator navigator) {
@@ -17,8 +20,9 @@ public final class ForgotPasswordPanel extends AuthFormPanel {
         AuthNavigator requiredNavigator = Objects.requireNonNull(navigator);
         addWide(policyLabel());
         addField("NSU Email", email);
+        requestButton = primary("Request Reset", this::requestReset);
         addWide(buttonRow(
-                primary("Request Reset", this::requestReset),
+                requestButton,
                 secondary("Enter Reset Token",
                         requiredNavigator::showResetPassword)));
         addWide(buttonRow(secondary(
@@ -26,11 +30,26 @@ public final class ForgotPasswordPanel extends AuthFormPanel {
     }
 
     private void requestReset() {
-        try {
-            authService.forgotPassword(email.getText());
-            showSuccess("Password-reset instructions requested.");
-        } catch (RuntimeException exception) {
-            showFailure(exception);
-        }
+        String enteredEmail = email.getText();
+        requestButton.setEnabled(false);
+        showStatus("Requesting password-reset instructions...");
+        new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() {
+                authService.forgotPassword(enteredEmail);
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                requestButton.setEnabled(true);
+                try {
+                    get();
+                    showSuccess("If the account is eligible, reset instructions were sent.");
+                } catch (Exception exception) {
+                    showFailure(workerFailure(exception));
+                }
+            }
+        }.execute();
     }
 }

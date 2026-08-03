@@ -1,8 +1,10 @@
 package com.spendwise.auth.registration;
 
 import com.spendwise.auth.AuthConfigurationException;
+import com.spendwise.auth.AccountSession;
 import com.spendwise.auth.AuthenticatedUser;
 import com.spendwise.auth.UserSession;
+import java.util.List;
 
 public final class UnconfiguredRegistrationGateway
         implements RegistrationGateway {
@@ -23,6 +25,42 @@ public final class UnconfiguredRegistrationGateway
 
     @Override
     public void resendVerification(String email) {
+        throw unavailable();
+    }
+
+    @Override
+    public void forgotPassword(String email) {
+        throw unavailable();
+    }
+
+    @Override
+    public void resetPassword(
+            String email, String resetToken, char[] newPassword) {
+        throw unavailable();
+    }
+
+    @Override
+    public void changePassword(char[] currentPassword, char[] newPassword) {
+        throw unavailable();
+    }
+
+    @Override
+    public void setPassword(char[] newPassword) {
+        throw unavailable();
+    }
+
+    @Override
+    public List<AccountSession> listSessions() {
+        throw unavailable();
+    }
+
+    @Override
+    public void revokeSession(AccountSession session) {
+        throw unavailable();
+    }
+
+    @Override
+    public void logoutAll() {
         throw unavailable();
     }
 

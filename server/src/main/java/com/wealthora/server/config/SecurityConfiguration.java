@@ -32,13 +32,18 @@ public class SecurityConfiguration {
                                 "/api/auth/verify-email",
                                 "/api/auth/resend-verification",
                                 "/api/auth/login",
-                                "/api/auth/refresh")
+                                "/api/auth/refresh",
+                                "/api/auth/forgot-password",
+                                "/api/auth/reset-password")
                         .permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info")
                         .permitAll()
                         .requestMatchers("/api/auth/me",
                                 "/api/auth/logout",
-                                "/api/auth/logout-all")
+                                "/api/auth/logout-all",
+                                "/api/auth/change-password",
+                                "/api/auth/set-password",
+                                "/api/auth/sessions/**")
                         .authenticated()
                         .anyRequest().denyAll())
                 .exceptionHandling(exceptions -> exceptions

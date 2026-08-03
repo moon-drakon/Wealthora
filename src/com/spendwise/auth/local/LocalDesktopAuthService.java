@@ -1,6 +1,7 @@
 package com.spendwise.auth.local;
 
 import com.spendwise.auth.AccountStatus;
+import com.spendwise.auth.AccountSession;
 import com.spendwise.auth.AuthConfigurationException;
 import com.spendwise.auth.AuthException;
 import com.spendwise.auth.AuthProvider;
@@ -26,6 +27,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -272,13 +274,106 @@ public final class LocalDesktopAuthService
 
     @Override
     public void forgotPassword(String email) {
-        throw unavailable("Password recovery");
+        if (!registrationGateway.isConfigured()) {
+            throw unavailable("Password recovery");
+        }
+        registrationGateway.forgotPassword(email);
     }
 
     @Override
     public void resetPassword(
             String email, String resetToken, char[] newPassword) {
-        throw unavailable("Password recovery");
+        if (!registrationGateway.isConfigured()) {
+            throw unavailable("Password recovery");
+        }
+        registrationGateway.resetPassword(email, resetToken, newPassword);
+    }
+
+    @Override
+    public synchronized void changePassword(
+            char[] currentPassword, char[] newPassword) {
+        if (registrationGateway.hasActiveSession()) {
+            registrationGateway.changePassword(currentPassword, newPassword);
+            clearDesktopSession();
+            return;
+        }
+        UserSession current = sessionManager.getCurrentSession()
+                .orElseThrow(() -> new AuthException("No active session."));
+        LocalUserRecord record = userRepository.findById(
+                current.getUserIdentifier()).orElseThrow(
+                        () -> new AuthException(
+                                "The signed-in account no longer exists."));
+        if (!passwordService.matches(currentPassword, record.passwordHash())) {
+            throw new AuthException("The current password is incorrect.");
+        }
+        passwordService.requireStrong(newPassword);
+        if (passwordService.matches(newPassword, record.passwordHash())) {
+            throw new AuthException(
+                    "Choose a password different from the current password.");
+        }
+        userRepository.save(new LocalUserRecord(record.user(),
+                passwordService.hash(newPassword), 0, null));
+        auditRepository.append(new AuditEvent(clock.instant(),
+                current.getUserIdentifier(), AuditAction.PASSWORD_CHANGED,
+                current.getUserIdentifier(), "SUCCESS",
+                "Local password changed and session revoked."));
+        clearDesktopSession();
+    }
+
+    @Override
+    public synchronized void setPassword(char[] newPassword) {
+        if (!registrationGateway.hasActiveSession()) {
+            throw new AuthException(
+                    "This local account already has a password.");
+        }
+        registrationGateway.setPassword(newPassword);
+        clearDesktopSession();
+    }
+
+    @Override
+    public synchronized List<AccountSession> listSessions() {
+        if (registrationGateway.hasActiveSession()) {
+            return registrationGateway.listSessions();
+        }
+        UserSession current = sessionManager.getCurrentSession()
+                .orElseThrow(() -> new AuthException("No active session."));
+        return List.of(new AccountSession(
+                localSessionIdentifier(current),
+                "This Windows application",
+                current.getAuthenticatedAt(), null, true));
+    }
+
+    @Override
+    public synchronized void revokeSession(AccountSession session) {
+        AccountSession required = Objects.requireNonNull(
+                session, "Session is required.");
+        if (registrationGateway.hasActiveSession()) {
+            registrationGateway.revokeSession(required);
+            if (required.currentSession()) clearDesktopSession();
+            return;
+        }
+        UserSession current = sessionManager.getCurrentSession()
+                .orElseThrow(() -> new AuthException("No active session."));
+        if (!localSessionIdentifier(current).equals(
+                required.sessionIdentifier())) {
+            throw new AuthException("The selected session is unavailable.");
+        }
+        auditRepository.append(new AuditEvent(clock.instant(),
+                current.getUserIdentifier(), AuditAction.SESSION_REVOKED,
+                current.getUserIdentifier(), "SUCCESS",
+                "Local desktop session revoked."));
+        clearDesktopSession();
+    }
+
+    @Override
+    public synchronized void logoutAll() {
+        try {
+            if (registrationGateway.hasActiveSession()) {
+                registrationGateway.logoutAll();
+            }
+        } finally {
+            clearDesktopSession();
+        }
     }
 
     @Override
@@ -368,6 +463,15 @@ public final class LocalDesktopAuthService
                     "The personal finance workspace could not be opened.",
                     exception);
         }
+    }
+
+    private void clearDesktopSession() {
+        sessionManager.clearSession();
+        AppPaths.clearUserDataDirectory();
+    }
+
+    private static String localSessionIdentifier(UserSession session) {
+        return "local:" + session.getUserIdentifier();
     }
 
     private void auditFailed(

@@ -1,6 +1,7 @@
 package com.spendwise.auth.registration;
 
 import com.spendwise.auth.AccountStatus;
+import com.spendwise.auth.AccountSession;
 import com.spendwise.auth.AuthException;
 import com.spendwise.auth.AuthProvider;
 import com.spendwise.auth.AuthenticatedUser;
@@ -16,7 +17,9 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -84,6 +87,95 @@ public final class HttpRegistrationGateway implements RegistrationGateway {
     public void resendVerification(String email) {
         post("/api/auth/resend-verification", "{" + field("email",
                 NsuEmailPolicy.requireInstitutionalEmail(email)) + "}");
+    }
+
+    @Override
+    public void forgotPassword(String email) {
+        post("/api/auth/forgot-password", "{" + field("email",
+                NsuEmailPolicy.requireInstitutionalEmail(email)) + "}");
+    }
+
+    @Override
+    public void resetPassword(
+            String email, String resetToken, char[] newPassword) {
+        String normalizedEmail = NsuEmailPolicy.requireInstitutionalEmail(email);
+        String token = required(resetToken, "Reset token");
+        passwordService.requireStrong(newPassword);
+        String passwordText = new String(newPassword);
+        post("/api/auth/reset-password", "{"
+                + field("email", normalizedEmail) + ","
+                + field("resetToken", token) + ","
+                + field("newPassword", passwordText) + ","
+                + field("passwordConfirmation", passwordText) + "}");
+    }
+
+    @Override
+    public synchronized void changePassword(
+            char[] currentPassword, char[] newPassword) {
+        if (currentPassword == null || currentPassword.length == 0) {
+            throw new AuthException("Current password is required.");
+        }
+        passwordService.requireStrong(newPassword);
+        String newPasswordText = new String(newPassword);
+        send("POST", "/api/auth/change-password", "{"
+                + field("currentPassword", new String(currentPassword)) + ","
+                + field("newPassword", newPasswordText) + ","
+                + field("passwordConfirmation", newPasswordText) + "}",
+                requireToken(accessToken, "No online session is active."));
+        clearSessionTokens();
+    }
+
+    @Override
+    public synchronized void setPassword(char[] newPassword) {
+        passwordService.requireStrong(newPassword);
+        String passwordText = new String(newPassword);
+        send("POST", "/api/auth/set-password", "{"
+                + field("newPassword", passwordText) + ","
+                + field("passwordConfirmation", passwordText) + "}",
+                requireToken(accessToken, "No online session is active."));
+        clearSessionTokens();
+    }
+
+    @Override
+    public synchronized List<AccountSession> listSessions() {
+        String json = send("GET", "/api/auth/sessions", "",
+                requireToken(accessToken, "No online session is active."));
+        List<AccountSession> result = new ArrayList<>();
+        Matcher objects = Pattern.compile("\\{([^{}]*)}").matcher(json);
+        while (objects.find()) {
+            String object = objects.group();
+            result.add(new AccountSession(
+                    required(string(object, "sessionIdentifier"),
+                            "Session identifier"),
+                    string(object, "deviceLabel"),
+                    instant(object, "createdAt", null),
+                    instant(object, "accessExpiresAt", null),
+                    bool(object, "currentSession")));
+        }
+        return List.copyOf(result);
+    }
+
+    @Override
+    public synchronized void revokeSession(AccountSession session) {
+        AccountSession requiredSession = Objects.requireNonNull(
+                session, "Session is required.");
+        send("DELETE", "/api/auth/sessions/"
+                + requiredSession.sessionIdentifier(), "",
+                requireToken(accessToken, "No online session is active."));
+        if (requiredSession.currentSession()) {
+            clearSessionTokens();
+        }
+    }
+
+    @Override
+    public synchronized void logoutAll() {
+        try {
+            send("POST", "/api/auth/logout-all", "{}",
+                    requireToken(accessToken,
+                            "No online session is active."));
+        } finally {
+            clearSessionTokens();
+        }
     }
 
     @Override
@@ -155,10 +247,12 @@ public final class HttpRegistrationGateway implements RegistrationGateway {
         if (bearerToken != null && !bearerToken.isBlank()) {
             builder.header("Authorization", "Bearer " + bearerToken);
         }
-        HttpRequest request = "GET".equals(method)
-                ? builder.GET().build()
-                : builder.POST(HttpRequest.BodyPublishers.ofString(body))
-                        .build();
+        HttpRequest request = switch (method) {
+            case "GET" -> builder.GET().build();
+            case "DELETE" -> builder.DELETE().build();
+            default -> builder.POST(HttpRequest.BodyPublishers.ofString(body))
+                    .build();
+        };
         try {
             HttpResponse<String> response = client.send(request,
                     HttpResponse.BodyHandlers.ofString());

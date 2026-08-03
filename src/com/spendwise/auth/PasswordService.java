@@ -2,6 +2,8 @@ package com.spendwise.auth;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Locale;
+import java.util.Set;
 import org.mindrot.jbcrypt.BCrypt;
 
 public final class PasswordService {
@@ -9,6 +11,9 @@ public final class PasswordService {
     public static final int MINIMUM_LENGTH = 12;
     private static final int BCRYPT_COST = 12;
     private static final int BCRYPT_MAXIMUM_BYTES = 72;
+    private static final Set<String> COMMON = Set.of(
+            "password123!", "admin123456!", "administrator1!",
+            "welcome1234!", "wealthora123!", "qwerty123456!");
 
     public String hash(char[] password) {
         char[] protectedPassword = requireStrong(password).clone();
@@ -58,6 +63,13 @@ public final class PasswordService {
         if (!(upper && lower && digit && symbol)) {
             throw new AuthException(
                     "Password must include uppercase, lowercase, number, and symbol characters.");
+        }
+        String normalized = new String(password).toLowerCase(Locale.ROOT);
+        if (COMMON.contains(normalized)
+                || normalized.contains("admin")
+                || normalized.contains("default")) {
+            throw new AuthException(
+                    "Choose a password that is not common or administrator-themed.");
         }
         return password;
     }

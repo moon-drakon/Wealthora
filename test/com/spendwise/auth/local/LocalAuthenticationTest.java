@@ -1,6 +1,7 @@
 package com.spendwise.auth.local;
 
 import com.spendwise.auth.AccountStatus;
+import com.spendwise.auth.AccountSession;
 import com.spendwise.auth.AuthConfigurationException;
 import com.spendwise.auth.AuthException;
 import com.spendwise.auth.AuthProvider;
@@ -23,6 +24,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Set;
 
 public final class LocalAuthenticationTest {
@@ -203,6 +205,33 @@ public final class LocalAuthenticationTest {
                     "Support duty ended");
             assertFalse(demoted.hasRole(UserRole.ADMIN));
         });
+        test("local session can be listed and revoked", () -> {
+            sessions.startSession(normalSession);
+            List<AccountSession> activeSessions = service.listSessions();
+            assertEquals(1, activeSessions.size());
+            assertTrue(activeSessions.get(0).currentSession());
+            service.revokeSession(activeSessions.get(0));
+            assertTrue(sessions.getCurrentSession().isEmpty());
+            assertTrue(users.findOwner().isPresent());
+        });
+        test("local password change revokes session and preserves owner", () -> {
+            char[] oldPassword = "NormalUser1!Password".toCharArray();
+            char[] newPassword = "ChangedNormal2!Password".toCharArray();
+            UserSession current = service.signInWithNsuEmail(
+                    normalUser.getEmail(), oldPassword);
+            sessions.startSession(current);
+            service.changePassword(oldPassword, newPassword);
+            assertTrue(sessions.getCurrentSession().isEmpty());
+            expect(AuthException.class, () -> service.signInWithNsuEmail(
+                    normalUser.getEmail(), oldPassword));
+            assertEquals(normalUser.getUserIdentifier(),
+                    service.signInWithNsuEmail(
+                            normalUser.getEmail(), newPassword)
+                            .getUserIdentifier());
+            assertTrue(users.findOwner().isPresent());
+            Arrays.fill(oldPassword, '\0');
+            Arrays.fill(newPassword, '\0');
+        });
         test("finance workspace ownership rejects cross-user access", () -> {
             AuthorizationService authorization = new AuthorizationService();
             authorization.requireOwnWorkspace(signedIn, ownerId);
@@ -228,6 +257,7 @@ public final class LocalAuthenticationTest {
             }
         });
         test("switch account clears the previous session", () -> {
+            sessions.startSession(signedIn);
             service.switchAccount();
             assertTrue(sessions.getCurrentSession().isEmpty());
         });
@@ -340,6 +370,46 @@ public final class LocalAuthenticationTest {
         @Override
         public void resendVerification(String email) {
             throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void forgotPassword(String email) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void resetPassword(
+                String email, String resetToken, char[] newPassword) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void changePassword(
+                char[] currentPassword, char[] newPassword) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void setPassword(char[] newPassword) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public List<AccountSession> listSessions() {
+            return List.of(new AccountSession(
+                    "session-remote", "Test Desktop", NOW,
+                    NOW.plusSeconds(900), true));
+        }
+
+        @Override
+        public void revokeSession(AccountSession session) {
+            if (session.currentSession()) active = false;
+        }
+
+        @Override
+        public void logoutAll() {
+            active = false;
+            loggedOut = true;
         }
 
         @Override

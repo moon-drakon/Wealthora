@@ -1,7 +1,9 @@
 package com.spendwise.auth.registration;
 
 import com.spendwise.auth.AuthenticatedUser;
+import com.spendwise.auth.AccountSession;
 import com.spendwise.auth.UserSession;
+import java.util.List;
 
 public interface RegistrationGateway {
 
@@ -16,6 +18,20 @@ public interface RegistrationGateway {
     AuthenticatedUser verifyEmail(String email, String verificationCode);
 
     void resendVerification(String email);
+
+    void forgotPassword(String email);
+
+    void resetPassword(String email, String resetToken, char[] newPassword);
+
+    void changePassword(char[] currentPassword, char[] newPassword);
+
+    void setPassword(char[] newPassword);
+
+    List<AccountSession> listSessions();
+
+    void revokeSession(AccountSession session);
+
+    void logoutAll();
 
     UserSession signIn(String email, char[] password);
 

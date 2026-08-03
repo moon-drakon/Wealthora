@@ -3,6 +3,7 @@ package com.wealthora.server.service;
 import com.wealthora.server.api.ApiException;
 import com.wealthora.server.api.LoginRequest;
 import com.wealthora.server.api.SessionResponse;
+import com.wealthora.server.api.SessionSummaryResponse;
 import com.wealthora.server.api.UserResponse;
 import com.wealthora.server.config.SessionProperties;
 import com.wealthora.server.domain.AccountStatus;
@@ -31,6 +32,7 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Locale;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -214,6 +216,53 @@ public class AuthenticationService {
         users.findById(principal.userId()).ifPresent(user -> audit(
                 user, "LOGOUT_ALL", "SUCCESS",
                 "All sessions revoked.", now));
+    }
+
+    @Transactional(readOnly = true)
+    public List<SessionSummaryResponse> listSessions(
+            SessionPrincipal principal) {
+        Instant now = clock.instant();
+        return sessions.findByUserIdAndRevokedAtIsNull(principal.userId())
+                .stream()
+                .filter(session -> session.getExpiresAt().isAfter(now)
+                        || refreshTokens
+                                .existsBySessionIdAndConsumedAtIsNullAndExpiresAtAfter(
+                                        session.getId(), now))
+                .sorted(java.util.Comparator.comparing(
+                        SessionRecord::getCreatedAt).reversed())
+                .map(session -> new SessionSummaryResponse(
+                        session.getId().toString(),
+                        session.getDeviceLabel(), session.getCreatedAt(),
+                        session.getExpiresAt(),
+                        session.getId().equals(principal.sessionId())))
+                .toList();
+    }
+
+    @Transactional
+    public void revokeSession(
+            SessionPrincipal principal, String sessionIdentifier) {
+        UUID identifier;
+        try {
+            identifier = UUID.fromString(sessionIdentifier);
+        } catch (IllegalArgumentException exception) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                    "SESSION_IDENTIFIER_INVALID",
+                    "The session identifier is invalid.");
+        }
+        SessionRecord session = sessions.findById(identifier)
+                .filter(candidate -> candidate.getUserId()
+                        .equals(principal.userId()))
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND,
+                        "SESSION_NOT_FOUND",
+                        "The session was not found."));
+        Instant now = clock.instant();
+        session.revoke(now);
+        sessions.save(session);
+        users.findById(principal.userId()).ifPresent(user -> audit(
+                user, "SESSION_REVOKED", "SUCCESS",
+                session.getId().equals(principal.sessionId())
+                        ? "Current session revoked."
+                        : "Selected session revoked.", now));
     }
 
     private SessionResponse createSession(

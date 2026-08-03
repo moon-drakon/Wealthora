@@ -493,6 +493,16 @@
                 <pathelement path="${javac.classpath}"/>
             </classpath>
         </java>
+        <java classname="com.spendwise.auth.registration.HttpRegistrationGatewayTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+                <pathelement path="${javac.classpath}"/>
+            </classpath>
+        </java>
     </target>
     <target name="test-voice" depends="test-auth"
             description="Runs voice command parsing, validation, and confirm-before-save tests.">

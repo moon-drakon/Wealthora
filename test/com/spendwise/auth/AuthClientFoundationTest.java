@@ -16,10 +16,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import javax.swing.AbstractButton;
+import javax.swing.JPasswordField;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
+import javax.swing.text.JTextComponent;
 
 public final class AuthClientFoundationTest {
 
@@ -53,6 +57,8 @@ public final class AuthClientFoundationTest {
                 AuthClientFoundationTest::sessionLifecycle);
         test("authentication panels express correct policy",
                 AuthClientFoundationTest::panelsConstruct);
+        test("recovery panels keep server IO off the EDT",
+                AuthClientFoundationTest::recoveryPanelsAreAsynchronous);
         test("server URL requires HTTPS except localhost",
                 AuthClientFoundationTest::serverUrlPolicy);
         System.out.println("All " + passed
@@ -247,6 +253,45 @@ public final class AuthClientFoundationTest {
                 new ServerConfiguration("").requireBaseUri());
     }
 
+    private static void recoveryPanelsAreAsynchronous() throws Exception {
+        RecordingClient client = new RecordingClient();
+        BackendAuthService service = new BackendAuthService(client);
+        NoOpNavigator navigator = new NoOpNavigator();
+        AtomicReference<ForgotPasswordPanel> forgot = new AtomicReference<>();
+        AtomicReference<ResetPasswordPanel> reset = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            forgot.set(new ForgotPasswordPanel(service, navigator));
+            reset.set(new ResetPasswordPanel(service, navigator));
+        });
+
+        client.forgotLatch = new CountDownLatch(1);
+        SwingUtilities.invokeAndWait(() -> {
+            textComponent(forgot.get(), "NSU email").setText(
+                    "student@northsouth.edu");
+            button(forgot.get(), "Request Reset").doClick();
+        });
+        assertTrue(client.forgotLatch.await(5, TimeUnit.SECONDS));
+        assertFalse(client.forgotCalledOnEdt);
+
+        client.resetLatch = new CountDownLatch(1);
+        SwingUtilities.invokeAndWait(() -> {
+            textComponent(reset.get(), "NSU email").setText(
+                    "student@northsouth.edu");
+            textComponent(reset.get(), "Reset token").setText(
+                    "one-time-reset-token-value");
+            ((JPasswordField) textComponent(
+                    reset.get(), "New password")).setText("ChangedUser2!");
+            ((JPasswordField) textComponent(
+                    reset.get(), "Confirm new password")).setText(
+                            "ChangedUser2!");
+            button(reset.get(), "Reset Password").doClick();
+        });
+        assertTrue(client.resetLatch.await(5, TimeUnit.SECONDS));
+        assertFalse(client.resetCalledOnEdt);
+        SwingUtilities.invokeAndWait(() -> {
+        });
+    }
+
     private static GoogleAuthorization authorization() {
         return new GoogleAuthorization(
                 "one-time-code".toCharArray(), "http://127.0.0.1/callback");
@@ -285,6 +330,42 @@ public final class AuthClientFoundationTest {
             }
         }
         return values;
+    }
+
+    private static JTextComponent textComponent(
+            Component component, String accessibleName) {
+        if (component instanceof JTextComponent text
+                && accessibleName.equals(text.getAccessibleContext()
+                        .getAccessibleName())) {
+            return text;
+        }
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                try {
+                    return textComponent(child, accessibleName);
+                } catch (AssertionError ignored) {
+                }
+            }
+        }
+        throw new AssertionError(
+                "Text component not found: " + accessibleName);
+    }
+
+    private static AbstractButton button(
+            Component component, String text) {
+        if (component instanceof AbstractButton button
+                && text.equals(button.getText())) {
+            return button;
+        }
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                try {
+                    return button(child, text);
+                } catch (AssertionError ignored) {
+                }
+            }
+        }
+        throw new AssertionError("Button not found: " + text);
     }
 
     private static void assertAllCleared(char[] value) {
@@ -353,6 +434,10 @@ public final class AuthClientFoundationTest {
         private AuthenticatedUser user;
         private char[] receivedPassword;
         private char[] receivedAuthorizationCode;
+        private CountDownLatch forgotLatch;
+        private CountDownLatch resetLatch;
+        private boolean forgotCalledOnEdt;
+        private boolean resetCalledOnEdt;
 
         @Override
         public UserSession signInWithNsuEmail(String email, char[] password) {
@@ -386,12 +471,16 @@ public final class AuthClientFoundationTest {
 
         @Override
         public void forgotPassword(String email) {
+            forgotCalledOnEdt = SwingUtilities.isEventDispatchThread();
+            if (forgotLatch != null) forgotLatch.countDown();
         }
 
         @Override
         public void resetPassword(
                 String email, String resetToken, char[] newPassword) {
             receivedPassword = newPassword;
+            resetCalledOnEdt = SwingUtilities.isEventDispatchThread();
+            if (resetLatch != null) resetLatch.countDown();
         }
 
         @Override

@@ -30,20 +30,25 @@ Run with PostgreSQL and SMTP configured:
 .\mvnw.cmd spring-boot:run
 ```
 
-The server applies Flyway migration `authentication-foundation-v1` and exposes
+The server applies Flyway migrations `authentication-foundation-v1` and
+`password-security-v2`, and exposes
 only `health` and `info` Actuator endpoints. The current registration policy is
 controlled by `REGISTRATION_REQUIRES_ADMIN_APPROVAL` and defaults to `true`.
 Access tokens expire after 15 minutes and refresh tokens after 30 days by
 default. `ACCESS_TOKEN_EXPIRY`, `REFRESH_TOKEN_EXPIRY`,
 `LOGIN_LOCK_DURATION`, and `MAXIMUM_FAILED_LOGIN_ATTEMPTS` can change those
 values using ISO-8601 durations and a positive attempt count.
+`PASSWORD_RESET_EXPIRY` and `PASSWORD_RESET_REQUEST_COOLDOWN` control reset
+token lifetime and per-account request cooldown.
 
 The implemented authentication endpoints are:
 
 - `POST /api/auth/register`, `/verify-email`, and `/resend-verification`
 - `POST /api/auth/login` and `/refresh`
+- `POST /api/auth/forgot-password` and `/reset-password`
 - authenticated `GET /api/auth/me`
-- authenticated `POST /api/auth/logout` and `/logout-all`
+- authenticated `POST /api/auth/change-password`, `/set-password`, `/logout`, and `/logout-all`
+- authenticated `GET /api/auth/sessions` and `DELETE /api/auth/sessions/{sessionIdentifier}`
 
 Access and refresh values are random opaque tokens. Only HMAC-SHA-256 hashes
 are stored in PostgreSQL. Refresh rotates both tokens, reuse of a consumed
@@ -53,8 +58,8 @@ refresh token revokes its session, and five failed password attempts trigger a
 ## Development-only mail sink
 
 The `dev-mail-sink` profile is an explicit local testing facility. It writes a
-verification message into `WEALTHORA_DEV_MAIL_DIR` instead of sending SMTP.
-Those files contain one-time codes, are ignored by Git, and must never be used
+verification or password-reset message into `WEALTHORA_DEV_MAIL_DIR` instead
+of sending SMTP. Those files contain one-time codes/tokens, are ignored by Git, and must never be used
 in production, attached to issues, or copied into backups.
 
 ```powershell
@@ -95,5 +100,11 @@ Console approval screen, set
 `REGISTRATION_REQUIRES_ADMIN_APPROVAL=false` before starting a disposable
 development server. Production should keep the default approval policy.
 
-Google Sign-In and password recovery remain disabled until their later
-checkpoints are implemented and configured; no success is simulated.
+Password recovery and authenticated password/session management use the same
+configured server connection. Forgot-password responses are generic, reset
+tokens are single-use HMAC-hashed values, and successful password changes
+revoke every active session. The signed-in offline OWNER can also change the
+local BCrypt password; email recovery applies only to online accounts.
+
+Google Sign-In remains disabled until its later checkpoint is implemented and
+configured; no success is simulated.
