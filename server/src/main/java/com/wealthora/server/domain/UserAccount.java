@@ -7,6 +7,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.time.Duration;
 import java.util.UUID;
 
 @Entity
@@ -67,6 +68,31 @@ public class UserAccount {
     public void verifyEmail(AccountStatus nextStatus, Instant now) {
         emailVerified = true;
         accountStatus = nextStatus;
+        updatedAt = now;
+    }
+
+    public boolean isLockedAt(Instant now) {
+        return lockedUntil != null && lockedUntil.isAfter(now);
+    }
+
+    public void recordFailedLogin(
+            Instant now, int maximumAttempts, Duration lockDuration) {
+        failedLoginAttempts++;
+        if (failedLoginAttempts >= maximumAttempts) {
+            lockedUntil = now.plus(lockDuration);
+        }
+        updatedAt = now;
+    }
+
+    public void recordSuccessfulLogin(Instant now) {
+        failedLoginAttempts = 0;
+        lockedUntil = null;
+        lastLoginAt = now;
+        updatedAt = now;
+    }
+
+    public void changeStatus(AccountStatus status, Instant now) {
+        accountStatus = status;
         updatedAt = now;
     }
 }

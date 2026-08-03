@@ -4,14 +4,14 @@
 
 - Branch: `feature/wealthora-online-auth-voice`
 - Baseline HEAD: `8b2b226`
-- Current HEAD: the verified registration checkpoint commit containing this document; confirm with `git rev-parse --short HEAD`
-- Completed checkpoints: 0 (baseline verification) and 1 (verified NSU Create Account)
-- Spring Boot checkpoint: foundation created; remaining authentication/session APIs are not yet complete
+- Current HEAD: the verified online-session checkpoint commit containing this document; confirm with `git rev-parse --short HEAD`
+- Completed checkpoints: 0 (baseline verification), 1 (verified NSU Create Account), and the password-login/opaque-session subcheckpoint
+- Spring Boot checkpoint: registration and core session APIs are complete; recovery, OAuth, administration, speech, and sync APIs remain
 - Java: Microsoft OpenJDK `25.0.2`
 - Desktop build: `ant clean jar` passed after compiling 236 production sources
-- Desktop tests: `ant test-auth` passed the full prerequisite chain, 13 policy tests, and 18 local authentication/authorization tests
+- Desktop tests: `ant test-auth` passed the full prerequisite chain, 13 policy tests, and 19 local/hybrid authentication/authorization tests
 - Server build: `server\mvnw.cmd clean package` passed on Spring Boot 4.1.0 and Java 25
-- Server tests: service registration lifecycle and real HTTP registration/verification tests passed with H2/Flyway and the explicit development mail sink
+- Server tests: registration plus real HTTP login, `/me`, refresh rotation/replay, lockout evidence, and logout tests passed with H2/Flyway
 - Migration version: `authentication-foundation-v1`
 
 ## Completed in this checkpoint
@@ -27,6 +27,11 @@
 - SMTP is the production delivery boundary. Missing delivery configuration fails honestly; the explicit `dev-mail-sink` profile is documented and never logs a code.
 - Five wrong verification attempts, ten-minute expiry, one-minute resend cooldown, configurable post-verification approval, and safe audit events are implemented.
 - Registration responses never contain passwords, password hashes, or verification codes.
+- Password login enforces verified `ACTIVE` status, a generic failure message, BCrypt verification, five-attempt/15-minute default lockout, hashed attempted-email/remote-address evidence, and audit events.
+- Server sessions use random opaque access/refresh tokens with only HMAC hashes stored. Refresh rotates both values; consumed-token replay revokes the session.
+- Authenticated `/api/auth/me`, `/logout`, and `/logout-all` are guarded by a stateless bearer filter. Debug representations redact verification and session secrets.
+- The desktop performs server I/O off the Swing EDT, keeps tokens in memory only, revokes them on logout/switch-account, and creates a separate finance workspace for an online user.
+- The local OWNER account remains preferred for its email and continues to work without the server.
 
 ## Safety and data preservation
 
@@ -38,29 +43,29 @@
 
 ## Remaining checkpoints
 
-1. Complete server password login, opaque access/refresh sessions, logout/logout-all, `/me`, and desktop online-user login while retaining local OWNER fallback.
-2. Complete forgot/reset/change/set-password and session list/revocation UI/API.
-3. Add authenticated Java Sound capture and backend Google Cloud Speech-to-Text V2 status/recognition endpoints.
-4. Add real system-browser Google OAuth and same-email identity linking.
-5. Complete Pending Registrations, Verification, Security, Settings, Backup, and Database Health Admin Console functions.
-6. Add explicit LOCAL/SERVER finance migration and sync status without mixing data.
-7. Finish provider/team setup documents and safe helper scripts.
+1. Complete forgot/reset/change/set-password and session list/revocation UI/API.
+2. Add authenticated Java Sound capture and backend Google Cloud Speech-to-Text V2 status/recognition endpoints.
+3. Add real system-browser Google OAuth and same-email identity linking.
+4. Complete Pending Registrations, Verification, Security, Settings, Backup, and Database Health Admin Console functions.
+5. Add explicit LOCAL/SERVER finance migration and sync status without mixing data.
+6. Finish provider/team setup documents and safe helper scripts.
 
 Known limitations:
 
 - Users verified under the default policy remain `PENDING_APPROVAL`; the server approval API/UI belongs to the Admin Console checkpoint.
-- The server currently implements register, verify-email, and resend-verification only. Other reserved schema/API work is intentionally not presented as complete.
+- Password recovery, password change, persisted Remember Me, and user-visible session management are not implemented yet.
 - Google OAuth and microphone recognition remain honestly unconfigured.
-- Additional verified users cannot sign into My Finance until the online login/session checkpoint is complete.
+- Additional verified users can sign into My Finance only after becoming `ACTIVE`; the default policy still requires the future Admin Console approval flow.
 - No checkpoint source files are partially implemented.
 
 ## Exact next task
 
-Implement opaque server sessions and password login: password verification,
-failed-attempt lockout, active-status enforcement, access/refresh token hashing,
-refresh rotation, logout/logout-all, `/api/auth/me`, an authorization filter,
-desktop token handling, and safe online-user workspace selection. Add focused
-service/HTTP/desktop tests without changing the existing OWNER database.
+Implement password security and recovery end to end: generic forgot-password,
+single-use hashed reset tokens with expiry, SMTP/dev-sink reset delivery,
+reset/change/set-password rules, revoke-all-sessions after password changes,
+authenticated session listing and single-session revocation, and real Swing
+recovery/security UI running network work off the EDT. Preserve local OWNER
+fallback and do not expose whether an email exists.
 
 ## Exact resume commands
 
@@ -76,4 +81,4 @@ cd server
 
 ## Ready-to-paste continuation prompt
 
-Continue Wealthora on `feature/wealthora-online-auth-voice` from the verified NSU registration checkpoint. Read `docs/NEXT_CODEX_STEPS.md`, inspect the clean HEAD once, and implement the next exact task: opaque password sessions and desktop online-user login. Preserve the existing local OWNER login, user finance workspaces, logout/switch-account behavior, exact `northsouth.edu` policy, BCrypt password hashes, HMAC token hashing, pending-approval policy, and all local data. Never fake Google or speech recognition, expose tokens/hashes, commit secrets or databases, push, or merge. Run `ant test-auth`, `ant clean jar`, and `server\mvnw.cmd clean package`; commit only verified work and update this file.
+Continue Wealthora on `feature/wealthora-online-auth-voice` from the verified online password-session checkpoint. Read `docs/NEXT_CODEX_STEPS.md`, inspect the clean HEAD once, and implement the exact next task: password recovery/change plus session-list/revocation API and Swing UI. Preserve local OWNER fallback, online opaque-token rotation, user finance workspaces, exact `northsouth.edu` policy, BCrypt hashes, HMAC token hashing, pending-approval policy, and all local data. Never reveal account existence, fake Google or speech recognition, expose tokens/hashes, commit secrets or databases, push, or merge. Run `ant test-auth`, `ant clean jar`, and `server\mvnw.cmd clean package`; commit only verified work and update this file.

@@ -1,6 +1,7 @@
 package com.spendwise.auth.ui;
 
 import com.spendwise.auth.AuthService;
+import com.spendwise.auth.AuthException;
 import com.spendwise.auth.SessionManager;
 import com.spendwise.auth.UserSession;
 import com.spendwise.config.AppBrand;
@@ -9,6 +10,7 @@ import java.util.Objects;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JPasswordField;
+import javax.swing.SwingWorker;
 
 public final class SignInPanel extends AuthFormPanel {
 
@@ -18,6 +20,7 @@ public final class SignInPanel extends AuthFormPanel {
     private final StyledTextField email = textField("NSU email");
     private final JPasswordField password = passwordField("Password");
     private final JCheckBox rememberMe = new JCheckBox("Remember Me");
+    private final JButton signInButton;
 
     public SignInPanel(
             AuthService authService,
@@ -48,7 +51,8 @@ public final class SignInPanel extends AuthFormPanel {
                 "Create Account", navigator::showSignUp);
         createAccount.setToolTipText(
                 "Registration requires a configured Wealthora authentication server.");
-        addWide(buttonRow(primary("Sign In", this::signIn), createAccount));
+        signInButton = primary("Sign In", this::signIn);
+        addWide(buttonRow(signInButton, createAccount));
         addWide(buttonRow(secondary(
                 "Forgot Password?", navigator::showForgotPassword)));
         addWide(policyLabel());
@@ -56,16 +60,31 @@ public final class SignInPanel extends AuthFormPanel {
 
     private void signIn() {
         char[] enteredPassword = password.getPassword();
-        try {
-            UserSession session = authService.signInWithNsuEmail(
-                    email.getText(), enteredPassword);
-            completeAuthentication(session);
-        } catch (RuntimeException exception) {
-            showFailure(exception);
-        } finally {
-            clear(enteredPassword);
-            password.setText("");
-        }
+        String enteredEmail = email.getText();
+        signInButton.setEnabled(false);
+        password.setText("");
+        showStatus("Signing in securely...");
+        new SwingWorker<UserSession, Void>() {
+            @Override
+            protected UserSession doInBackground() {
+                try {
+                    return authService.signInWithNsuEmail(
+                            enteredEmail, enteredPassword);
+                } finally {
+                    clear(enteredPassword);
+                }
+            }
+
+            @Override
+            protected void done() {
+                signInButton.setEnabled(true);
+                try {
+                    completeAuthentication(get());
+                } catch (Exception exception) {
+                    showFailure(authenticationFailure(exception));
+                }
+            }
+        }.execute();
     }
 
     private void continueWithGoogle() {
@@ -80,5 +99,15 @@ public final class SignInPanel extends AuthFormPanel {
         sessionManager.startSession(session);
         showSuccess("Signed in as " + session.getEmail() + ".");
         navigator.showAuthenticatedProfile(session);
+    }
+
+    private static RuntimeException authenticationFailure(
+            Exception exception) {
+        Throwable cause = exception
+                instanceof java.util.concurrent.ExecutionException
+                ? exception.getCause() : exception;
+        return cause instanceof RuntimeException runtime
+                ? runtime : new AuthException(
+                        "Sign-in could not be completed.", cause);
     }
 }

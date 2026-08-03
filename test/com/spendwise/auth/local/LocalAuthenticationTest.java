@@ -13,6 +13,7 @@ import com.spendwise.auth.UserRole;
 import com.spendwise.auth.UserSession;
 import com.spendwise.auth.admin.AdminService;
 import com.spendwise.auth.audit.CsvAuditRepository;
+import com.spendwise.auth.registration.RegistrationGateway;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -134,6 +135,30 @@ public final class LocalAuthenticationTest {
         test("Google sign-in never succeeds without backend", () ->
                 expect(AuthConfigurationException.class,
                         service::continueWithGoogle));
+        test("online NSU user uses server session without replacing owner", () -> {
+            RecordingGateway gateway = new RecordingGateway();
+            SessionManager onlineSessions = new SessionManager();
+            LocalDesktopAuthService hybrid = new LocalDesktopAuthService(
+                    users, passwords, new OwnerConfiguration(OWNER_EMAIL),
+                    onlineSessions, audit,
+                    new LegacyDataMigrationService(
+                            legacy, backups, audit, clock),
+                    clock, identifier -> workspaces.resolve(identifier),
+                    gateway);
+            UserSession remote = hybrid.signInWithNsuEmail(
+                    gateway.user.getEmail(),
+                    "RemoteStudent1!".toCharArray());
+            onlineSessions.startSession(remote);
+            assertTrue(gateway.active);
+            assertTrue(Files.isDirectory(workspaces.resolve(
+                    gateway.user.getUserIdentifier())));
+            assertEquals(gateway.user.getUserIdentifier(),
+                    hybrid.refreshSession().getUserIdentifier());
+            hybrid.logout();
+            assertTrue(gateway.loggedOut);
+            assertTrue(onlineSessions.getCurrentSession().isEmpty());
+            assertTrue(users.findOwner().isPresent());
+        });
 
         service.logout();
         test("logout clears the current session", () ->
@@ -283,6 +308,72 @@ public final class LocalAuthenticationTest {
         if (!java.util.Objects.equals(expected, actual)) {
             throw new AssertionError("Expected <" + expected
                     + "> but was <" + actual + ">.");
+        }
+    }
+
+    private static final class RecordingGateway
+            implements RegistrationGateway {
+
+        private final AuthenticatedUser user = new AuthenticatedUser(
+                "usr_remote_1", "Remote Student",
+                "remote.student@northsouth.edu", true,
+                AuthProvider.LOCAL, "", AccountStatus.ACTIVE,
+                NOW, NOW, NOW, Set.of(UserRole.USER), "2530000003",
+                "System", "BDT");
+        private boolean active;
+        private boolean loggedOut;
+
+        @Override
+        public AuthenticatedUser register(
+                String fullName, String email, String studentIdentifier,
+                char[] password, char[] passwordConfirmation,
+                boolean termsAccepted) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public AuthenticatedUser verifyEmail(
+                String email, String verificationCode) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void resendVerification(String email) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public UserSession signIn(String email, char[] password) {
+            active = true;
+            loggedOut = false;
+            return new UserSession(user, NOW);
+        }
+
+        @Override
+        public UserSession refreshSession() {
+            if (!active) throw new AuthException("No active session.");
+            return new UserSession(user, NOW);
+        }
+
+        @Override
+        public void logout() {
+            active = false;
+            loggedOut = true;
+        }
+
+        @Override
+        public AuthenticatedUser getCurrentUser() {
+            return user;
+        }
+
+        @Override
+        public boolean hasActiveSession() {
+            return active;
+        }
+
+        @Override
+        public boolean isConfigured() {
+            return true;
         }
     }
 

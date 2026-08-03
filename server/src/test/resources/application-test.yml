@@ -24,5 +24,10 @@ wealthora:
     maximum-verification-attempts: 5
   security:
     token-pepper: test-only-token-pepper-with-more-than-32-characters
+  session:
+    access-expiry: PT15M
+    refresh-expiry: P30D
+    lock-duration: PT15M
+    maximum-failed-attempts: 5
   mail:
     development-directory: ${java.io.tmpdir}/wealthora-test-mail

@@ -7,6 +7,7 @@ import com.spendwise.auth.AuthenticatedUser;
 import com.spendwise.auth.NsuEmailPolicy;
 import com.spendwise.auth.PasswordService;
 import com.spendwise.auth.UserRole;
+import com.spendwise.auth.UserSession;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -27,6 +28,8 @@ public final class HttpRegistrationGateway implements RegistrationGateway {
     private final ServerConfiguration configuration;
     private final HttpClient client;
     private final PasswordService passwordService = new PasswordService();
+    private String accessToken;
+    private String refreshToken;
 
     public HttpRegistrationGateway(ServerConfiguration configuration) {
         this(configuration, HttpClient.newBuilder()
@@ -84,18 +87,78 @@ public final class HttpRegistrationGateway implements RegistrationGateway {
     }
 
     @Override
+    public synchronized UserSession signIn(String email, char[] password) {
+        String normalizedEmail = NsuEmailPolicy.requireInstitutionalEmail(email);
+        if (password == null || password.length < 8) {
+            throw new AuthException(
+                    "Password must contain at least 8 characters.");
+        }
+        clearSessionTokens();
+        String body = "{" + field("email", normalizedEmail) + ","
+                + field("password", new String(password)) + ","
+                + field("deviceLabel", desktopDeviceLabel()) + "}";
+        return acceptSession(post("/api/auth/login", body));
+    }
+
+    @Override
+    public synchronized UserSession refreshSession() {
+        String currentRefresh = requireToken(
+                refreshToken, "No online session can be refreshed.");
+        try {
+            return acceptSession(post("/api/auth/refresh", "{"
+                    + field("refreshToken", currentRefresh) + "}"));
+        } catch (RuntimeException exception) {
+            clearSessionTokens();
+            throw exception;
+        }
+    }
+
+    @Override
+    public synchronized void logout() {
+        String currentAccess = accessToken;
+        if (currentAccess == null || currentAccess.isBlank()) return;
+        try {
+            send("POST", "/api/auth/logout", "{}", currentAccess);
+        } finally {
+            clearSessionTokens();
+        }
+    }
+
+    @Override
+    public synchronized AuthenticatedUser getCurrentUser() {
+        return user(send("GET", "/api/auth/me", "",
+                requireToken(accessToken, "No online session is active.")));
+    }
+
+    @Override
+    public synchronized boolean hasActiveSession() {
+        return accessToken != null && !accessToken.isBlank()
+                && refreshToken != null && !refreshToken.isBlank();
+    }
+
+    @Override
     public boolean isConfigured() {
         return configuration.isConfigured();
     }
 
     private String post(String path, String body) {
+        return send("POST", path, body, null);
+    }
+
+    private String send(
+            String method, String path, String body, String bearerToken) {
         URI target = URI.create(configuration.requireBaseUri() + path);
-        HttpRequest request = HttpRequest.newBuilder(target)
+        HttpRequest.Builder builder = HttpRequest.newBuilder(target)
                 .timeout(REQUEST_TIMEOUT)
                 .header("Accept", "application/json")
-                .header("Content-Type", "application/json; charset=UTF-8")
-                .POST(HttpRequest.BodyPublishers.ofString(body))
-                .build();
+                .header("Content-Type", "application/json; charset=UTF-8");
+        if (bearerToken != null && !bearerToken.isBlank()) {
+            builder.header("Authorization", "Bearer " + bearerToken);
+        }
+        HttpRequest request = "GET".equals(method)
+                ? builder.GET().build()
+                : builder.POST(HttpRequest.BodyPublishers.ofString(body))
+                        .build();
         try {
             HttpResponse<String> response = client.send(request,
                     HttpResponse.BodyHandlers.ofString());
@@ -114,6 +177,27 @@ public final class HttpRegistrationGateway implements RegistrationGateway {
             throw new AuthException(
                     "The authentication server is unavailable.", exception);
         }
+    }
+
+    private UserSession acceptSession(String json) {
+        AuthenticatedUser authenticatedUser = user(json);
+        UserSession session = new UserSession(authenticatedUser,
+                instant(json, "authenticatedAt",
+                        authenticatedUser.getLastLoginAt() == null
+                                ? Instant.now()
+                                : authenticatedUser.getLastLoginAt()));
+        String receivedAccess = required(
+                string(json, "accessToken"), "Access token");
+        String receivedRefresh = required(
+                string(json, "refreshToken"), "Refresh token");
+        accessToken = receivedAccess;
+        refreshToken = receivedRefresh;
+        return session;
+    }
+
+    private void clearSessionTokens() {
+        accessToken = null;
+        refreshToken = null;
     }
 
     private static AuthenticatedUser user(String json) {
@@ -171,6 +255,18 @@ public final class HttpRegistrationGateway implements RegistrationGateway {
     private static String field(String name, String value) {
         return "\"" + escape(name) + "\":\""
                 + escape(value == null ? "" : value) + "\"";
+    }
+
+    private static String desktopDeviceLabel() {
+        String operatingSystem = System.getProperty("os.name", "Desktop");
+        return "Wealthora Desktop on " + operatingSystem;
+    }
+
+    private static String requireToken(String value, String message) {
+        if (value == null || value.isBlank()) {
+            throw new AuthException(message);
+        }
+        return value;
     }
 
     private static String escape(String value) {

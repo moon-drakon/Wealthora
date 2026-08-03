@@ -2,6 +2,7 @@ package com.spendwise.auth.registration;
 
 import com.spendwise.auth.AuthConfigurationException;
 import com.spendwise.auth.AuthenticatedUser;
+import com.spendwise.auth.UserSession;
 
 public final class UnconfiguredRegistrationGateway
         implements RegistrationGateway {
@@ -26,12 +27,37 @@ public final class UnconfiguredRegistrationGateway
     }
 
     @Override
+    public UserSession signIn(String email, char[] password) {
+        throw unavailable();
+    }
+
+    @Override
+    public UserSession refreshSession() {
+        throw unavailable();
+    }
+
+    @Override
+    public void logout() {
+        throw unavailable();
+    }
+
+    @Override
+    public AuthenticatedUser getCurrentUser() {
+        throw unavailable();
+    }
+
+    @Override
+    public boolean hasActiveSession() {
+        return false;
+    }
+
+    @Override
     public boolean isConfigured() {
         return false;
     }
 
     private static AuthConfigurationException unavailable() {
         return new AuthConfigurationException(
-                "Account registration requires WEALTHORA_SERVER_URL and a configured authentication server.");
+                "Online authentication requires WEALTHORA_SERVER_URL and a configured authentication server.");
     }
 }

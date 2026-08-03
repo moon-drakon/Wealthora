@@ -184,6 +184,17 @@ public final class LocalDesktopAuthService
         } catch (RuntimeException exception) {
             record = null;
         }
+        if (record == null && registrationGateway.isConfigured()) {
+            UserSession onlineSession = registrationGateway.signIn(
+                    email, password);
+            prepareWorkspace(onlineSession.getUser());
+            auditRepository.append(new AuditEvent(now,
+                    onlineSession.getUserIdentifier(),
+                    AuditAction.LOGIN_SUCCESS,
+                    onlineSession.getUserIdentifier(), "SUCCESS",
+                    "Online password sign-in."));
+            return onlineSession;
+        }
         if (record == null) {
             passwordService.matches(password, dummyPasswordHash);
             auditRepository.append(new AuditEvent(now, "",
@@ -272,6 +283,9 @@ public final class LocalDesktopAuthService
 
     @Override
     public UserSession refreshSession() {
+        if (registrationGateway.hasActiveSession()) {
+            return registrationGateway.refreshSession();
+        }
         UserSession current = sessionManager.getCurrentSession()
                 .orElseThrow(() -> new AuthException("No active session."));
         LocalUserRecord record = userRepository.findById(
@@ -283,6 +297,9 @@ public final class LocalDesktopAuthService
     @Override
     public synchronized void logout() {
         try {
+            if (registrationGateway.hasActiveSession()) {
+                registrationGateway.logout();
+            }
             sessionManager.getCurrentSession().ifPresent(session ->
                     auditRepository.append(new AuditEvent(clock.instant(),
                             session.getUserIdentifier(), AuditAction.LOGOUT,
@@ -296,6 +313,9 @@ public final class LocalDesktopAuthService
 
     public synchronized void switchAccount() {
         try {
+            if (registrationGateway.hasActiveSession()) {
+                registrationGateway.logout();
+            }
             sessionManager.getCurrentSession().ifPresent(session ->
                     auditRepository.append(new AuditEvent(clock.instant(),
                             session.getUserIdentifier(),
@@ -310,6 +330,9 @@ public final class LocalDesktopAuthService
 
     @Override
     public AuthenticatedUser getCurrentUser() {
+        if (registrationGateway.hasActiveSession()) {
+            return registrationGateway.getCurrentUser();
+        }
         return sessionManager.getCurrentSession().map(UserSession::getUser)
                 .orElseThrow(() -> new AuthException("No active session."));
     }

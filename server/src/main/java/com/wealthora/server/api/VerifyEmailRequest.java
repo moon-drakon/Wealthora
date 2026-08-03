@@ -7,4 +7,9 @@ import jakarta.validation.constraints.Pattern;
 public record VerifyEmailRequest(
         @NotBlank @Email String email,
         @NotBlank @Pattern(regexp = "[0-9]{8}") String code) {
+
+    @Override
+    public String toString() {
+        return "VerifyEmailRequest[email=" + email + ", code=[REDACTED]]";
+    }
 }

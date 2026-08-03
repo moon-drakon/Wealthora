@@ -1,5 +1,7 @@
 package com.wealthora.server.config;
 
+import com.wealthora.server.security.SessionAuthenticationFilter;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -9,12 +11,15 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 public class SecurityConfiguration {
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http)
+    SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            SessionAuthenticationFilter sessionAuthenticationFilter)
             throws Exception {
         return http
                 .csrf(csrf -> csrf.disable())
@@ -25,11 +30,34 @@ public class SecurityConfiguration {
                         .requestMatchers(HttpMethod.POST,
                                 "/api/auth/register",
                                 "/api/auth/verify-email",
-                                "/api/auth/resend-verification")
+                                "/api/auth/resend-verification",
+                                "/api/auth/login",
+                                "/api/auth/refresh")
                         .permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info")
                         .permitAll()
+                        .requestMatchers("/api/auth/me",
+                                "/api/auth/logout",
+                                "/api/auth/logout-all")
+                        .authenticated()
                         .anyRequest().denyAll())
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint((request, response, failure) -> {
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType("application/json");
+                            response.getWriter().write(
+                                    "{\"code\":\"AUTHENTICATION_REQUIRED\","
+                                    + "\"message\":\"Authentication is required.\"}");
+                        })
+                        .accessDeniedHandler((request, response, failure) -> {
+                            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                            response.setContentType("application/json");
+                            response.getWriter().write(
+                                    "{\"code\":\"ACCESS_DENIED\","
+                                    + "\"message\":\"Access is denied.\"}");
+                        }))
+                .addFilterBefore(sessionAuthenticationFilter,
+                        UsernamePasswordAuthenticationFilter.class)
                 .httpBasic(basic -> basic.disable())
                 .formLogin(form -> form.disable())
                 .logout(logout -> logout.disable())
