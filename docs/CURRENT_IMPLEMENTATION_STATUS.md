@@ -14,9 +14,13 @@ Verified on 2026-08-03 on branch
   `779360a`.
 - Render Docker readiness: `d747f8f`, followed by the Linux line-ending
   contract `334376f`.
+- Owner-scoped cloud finance APIs and Flyway V5: `80f1b5a`.
+- Explicit desktop LOCAL/CLOUD finance mode and API-backed repositories:
+  `9fb9c05`.
 - The commit containing this report follows those implementation commits; use
   `git rev-parse --short HEAD` for its exact hash.
-- Nothing was pushed or merged.
+- The cloud-finance milestone commits were not pushed or merged. The remote
+  branch remains at the previously published release-foundation checkpoint.
 
 ## Complete
 
@@ -27,8 +31,51 @@ registration, the 8-128 character password policy, six-digit verification,
 default activation after verification, password recovery, opaque sessions,
 revocation, USER/ADMIN/OWNER authorization, audit events, Google OAuth
 boundaries, SMTP capability reporting, and per-user finance isolation.
-Flyway V1-V4 remain forward-only, and Hibernate remains configured with
+Flyway V1-V5 remain forward-only, and Hibernate remains configured with
 `ddl-auto=validate`.
+
+### Owner-scoped cloud finance milestone
+
+- Authenticated `/api/finance/**` endpoints now cover accounts, categories,
+  expenses, income, transfers, the combined transaction ledger, monthly and
+  advanced budgets, recurring entries, savings goals and contributions,
+  debts and repayments, and the dashboard summary.
+- Every finance lookup takes ownership from the authenticated
+  `SessionPrincipal`. Finance requests contain no owner/user authorization
+  field. USER, ADMIN, and OWNER records remain private to their own user ID;
+  elevated roles do not imply access to somebody else's finances.
+- Amounts, dates, ISO currency codes, account/category references, archived
+  state, recurrence rules, and transfer currencies are validated. Growing
+  lists use bounded pagination and errors use the safe shared API envelope.
+- Income, expense, and transfer changes lock owned accounts and update ledger
+  rows and balances in one database transaction. A transfer has one transfer
+  record and exactly two ledger legs; duplicate identifiers are rejected and
+  failed transfers leave both balances unchanged.
+- Flyway V5 extends the ownership scaffolding with external desktop IDs and
+  forward-only finance, planning, preference, goal, and debt tables. Composite
+  foreign keys enforce that referenced accounts, categories, goals, and debts
+  belong to the same user. Cascades preserve safe user lifecycle cleanup.
+- Routine private finance operations do not create security/administrative
+  audit records.
+
+### Explicit desktop data modes
+
+- Local password/OWNER sessions remain `LOCAL` and continue to use the exact
+  existing per-user CSV repositories and services. The local construction
+  path and existing OWNER data layout were not migrated or rewritten.
+- Server-authenticated password and Google sessions are `CLOUD`. They no
+  longer create or activate a local finance workspace. The Swing application
+  uses authenticated HTTP repository adapters for all required finance and
+  planning areas while retaining the existing service and UI layers.
+- The window title and top bar show `LOCAL` or `CLOUD`. Cloud transport state
+  distinguishes Connected, Offline, Unauthorized, and Server unavailable.
+  Access and refresh tokens stay inside the authentication gateway.
+- CLOUD mode does not instantiate local finance CSV, import, backup, card, or
+  currency-preference storage. Unsupported local-only tools are disabled or
+  shown as unavailable instead of silently mixing datasets.
+- The Cloud Data menu provides a read-only preview of the local OWNER
+  workspace. It lists candidate files and bytes but has no upload, automatic
+  migration, or synchronization action.
 
 ### Repository hygiene and documentation
 
@@ -82,16 +129,17 @@ Flyway V1-V4 remain forward-only, and Hibernate remains configured with
 
 - **Desktop tests:** `ant test-auth` passed the full dependency chain,
   including 14 authentication-policy, 22 local authentication/authorization,
-  and 8 online-gateway tests.
+  9 online-gateway, and 4 cloud-finance repository/migration-preview tests.
 - **Desktop build:** `ant clean jar` passed under Microsoft OpenJDK 25.0.2 and
   produced `dist/Wealthora.jar`.
 - **Desktop runtime:** the JAR opened `Wealthora Authentication` using a new
   temporary `LOCALAPPDATA`; the spawned process was then stopped.
-- **Server tests:** `server\mvnw.cmd test` passed all 30 tests. The isolated
-  H2/PostgreSQL-compatibility suite applied Flyway V1-V4 and exercised
+- **Server tests:** `server\mvnw.cmd test` passed all 33 tests. The isolated
+  H2/PostgreSQL-compatibility suite applied Flyway V1-V5 and exercised
   registration, verification, login, password recovery, sessions, role
-  restrictions, audit behavior, OAuth boundaries, and finance ownership.
-- **Server build:** `server\mvnw.cmd package` passed all 30 tests again and
+  restrictions, audit behavior, OAuth boundaries, private finance role
+  isolation, pagination, planning APIs, safe errors, and atomic transfers.
+- **Server build:** `server\mvnw.cmd package` passed all 33 tests again and
   produced the executable server JAR.
 - **Production failure safety:** a bounded `prod` run against an unreachable
   loopback database failed startup as expected. None of the synthetic database
@@ -117,7 +165,7 @@ variables were absent:
 - `DATABASE_PASSWORD`
 - `TOKEN_PEPPER`
 
-Therefore Flyway V1-V4, restart validation, ownership constraints, and the
+Therefore Flyway V1-V5, restart validation, ownership constraints, and the
 full authentication/administration flow are verified by automated H2 tests but
 are not yet claimed as real PostgreSQL/Neon passes.
 
@@ -136,8 +184,11 @@ sink remains available for a later isolated database run.
 - Flyway emitted a non-failing warning that test-only H2 2.4.240 is newer than
   the H2 release it has verified. All H2 tests passed, but they do not replace
   the required real PostgreSQL run.
-- Desktop finance data remains local; cloud finance migration and sync are not
-  implemented.
+- A real PostgreSQL/Neon run of V5 and a live desktop-to-server CLOUD-mode
+  smoke test remain pending.
+- Cloud card storage, currency preferences, import, backup/restore,
+  synchronization, and automatic local-data migration are intentionally not
+  implemented. The existing local tools remain available only in LOCAL mode.
 - The Next.js web frontend was intentionally not started.
 
 The exact next task and safe commands are in `docs/NEXT_CODEX_STEPS.md`.

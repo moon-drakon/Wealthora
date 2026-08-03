@@ -4,20 +4,25 @@
 
 - Branch: `feature/wealthora-online-auth-voice`
 - Verified authentication baseline: `f02fef4`
-- Latest release-foundation implementation commit: `779360a`
+- Cloud finance API commit: `80f1b5a`
+- Desktop CLOUD-mode commit: `9fb9c05`
 - The report update is committed after that implementation commit; confirm the
   exact current hash with `git rev-parse --short HEAD`.
 - Desktop and server tests/builds pass under Java 25.
-- Repository hygiene, focused GitHub workflows, and Render Docker readiness
-  are implemented.
-- Nothing was pushed, merged, or deployed.
+- Repository hygiene, focused GitHub workflows, Render Docker readiness,
+  authenticated finance APIs, and the explicit Swing LOCAL/CLOUD boundary are
+  implemented.
+- The cloud-finance milestone was not pushed, merged, or deployed. The remote
+  branch is still at the earlier release-foundation checkpoint.
 - The Next.js frontend was not started.
 
 ## Exact next task
 
-Run Flyway V1-V4 and the authentication/administration checks against a new,
-empty, isolated PostgreSQL or Neon database. Do not use the desktop's local
-OWNER workspace or any database containing real finance data.
+Run Flyway V1-V5 plus the authentication, administration, and cloud-finance
+checks against a new, empty, isolated PostgreSQL or Neon database. Then run a
+bounded desktop CLOUD-mode smoke test against that disposable server. Do not
+use the desktop's local OWNER workspace or any database containing real
+finance data.
 
 The required variables are currently missing:
 
@@ -48,9 +53,10 @@ For Neon, use a JDBC URL with verified TLS, such as `sslmode=require`.
 4. Verify `GET /actuator/health` and `GET /api/auth/status` without exposing
    configuration values.
 5. In the database console, verify `flyway_schema_history` contains successful
-   V1, V2, V3, and V4 rows in order. Confirm the expected user, identity,
-   verification, reset, session, audit, account, category, and transaction
-   tables and constraints exist.
+   V1, V2, V3, V4, and V5 rows in order. Confirm the authentication, account,
+   category, transaction, transfer, finance-preference, budget, recurring,
+   goal/contribution, and debt/repayment tables and ownership constraints
+   exist.
 6. Stop and restart the server. Confirm Flyway validates existing checksums,
    applies no duplicate migration, and preserves test records.
 7. Run the isolated end-to-end checks:
@@ -60,14 +66,31 @@ For Neon, use a JDBC URL with verified TLS, such as `sslmode=require`.
    - wrong-password rejection, duplicate registration, reset, refresh,
      per-session revocation, and logout-all;
    - USER, ADMIN, and OWNER restrictions;
-   - user-owned account/category/transaction isolation and rejection of
-     cross-user references; and
+   - user-owned account/category/transaction/planning isolation and rejection
+     of cross-user references;
+   - paged finance lists and consistent safe validation errors;
+   - income and expense balance changes plus an atomic two-leg transfer;
+   - duplicate and cross-currency transfer rejection with unchanged balances;
+   - monthly/advanced budgets, recurring entries, goals, debts, and dashboard
+     summary behavior; and
    - audit records for the security and administration actions.
 8. The server has no public OWNER-creation route. For administration smoke
    checks, use only a dedicated identity in the disposable database and a
    controlled database fixture to assign its OWNER role. Do not copy or alter
    the desktop OWNER, and do not add a production OWNER-registration endpoint.
-9. Run the server tests and package again after the live check. Record only
+9. Sign into the Swing desktop with the disposable server user and verify:
+   - the title/top bar say `CLOUD · Connected`;
+   - account, category, income, expense, transfer, budget, recurring, goal,
+     debt, transaction, and report views use only that server user's records;
+   - an ADMIN or OWNER session still cannot see the first user's records;
+   - stopping the server changes the displayed state to Server unavailable;
+   - an expired/revoked session changes it to Unauthorized; and
+   - the local OWNER file hashes remain identical. Do not use the migration
+     preview to upload anything; no upload implementation exists.
+10. Sign into the local OWNER separately and verify the title/top bar say
+    `LOCAL · Offline` and the established CSV records are unchanged.
+11. Run the desktop/server tests and both packages again after the live check.
+   Record only
    pass/fail results, schema versions, safe error categories, and test-user
    identifiers that contain no private data.
 
@@ -110,7 +133,7 @@ Render until live PostgreSQL, SMTP where required, Docker, and CI checks pass.
 ## Stop conditions
 
 - If migration validation fails, stop and add a new forward-only migration;
-  never edit V1-V4 or run Flyway clean on a non-disposable database.
+  never edit V1-V5 or run Flyway clean on a non-disposable database.
 - If any secret is logged or found in history, stop, identify only the affected
   file and commit, rotate the credential, and plan history cleanup without
   exposing the value.
