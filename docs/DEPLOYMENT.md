@@ -32,7 +32,7 @@ JDBC form with TLS, for example:
 jdbc:postgresql://HOST/DATABASE?sslmode=require
 ```
 
-Flyway applies V1-V4 during startup before the service accepts traffic. A
+Flyway applies V1-V5 during startup before the service accepts traffic. A
 second startup validates the recorded checksums. Never edit an applied
 migration, enable Flyway clean, or point a verification run at the desktop's
 local finance data.

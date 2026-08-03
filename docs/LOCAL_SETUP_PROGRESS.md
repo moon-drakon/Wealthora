@@ -19,57 +19,40 @@ Verified on 2026-08-03 on branch
 - Installed Docker Desktop 4.84.0 through Winget. The installed CLI reports
   Docker 29.6.2.
 
-## Restart checkpoint
+## Current platform result
 
-Windows now reports a pending Component Based Servicing restart. No restart
-was initiated automatically. Docker Desktop was not started in this boot, so
-the Docker Server and `hello-world` are not yet verified.
+- Windows booted at 2026-08-03 21:58:13 +06:00 and both checked
+  pending-restart indicators are clear.
+- WSL 2.7.11.0 and kernel 6.18.33.2-2 respond. Docker's managed
+  `docker-desktop` distribution remains the only listed distribution.
+- Docker Client and Server 29.6.2 responded to version and info checks.
+- `docker run --rm hello-world` failed during container creation with a
+  Docker Desktop HTTP 500.
+- Docker Desktop was shut down cleanly, WSL was shut down, and Docker Desktop
+  was relaunched. The relaunch failed while attaching the existing
+  `docker_data.vhdx` with `Wsl/Service/AttachDisk/MountDisk/HCS/0x800705aa`
+  (insufficient system resources).
+- The host had about 1 GB of free physical and virtual memory and about
+  4.5 GB free on the system drive when diagnosed. No Docker data or settings
+  were reset.
 
-### Resume check
+## Completed after the restart
 
-A resume check later on 2026-08-03 found that Windows still reported its last
-boot at 7:05 PM, before the Docker installation began after 7:19 PM. The
-Component Based Servicing restart flag also remained present. This means the
-installation restart was not completed as a full Windows restart; a shutdown
-followed by power-on can preserve the kernel session when Fast Startup is
-enabled.
+- The external environment file was validated without printing values.
+- The secret-safe server and live-verification scripts are committed in
+  `718e96a`.
+- Live Neon TLS, Flyway V1-V5, the exact 26-table inventory, ownership
+  constraints, restart validation, and stable data-count fingerprints passed.
+- The disposable live authentication lifecycle passed and restored the
+  database to its original count fingerprint.
 
-WSL 2 itself responded, and the `docker-desktop` WSL 2 distribution was
-running. Docker Client 29.6.2 and Docker Server 29.6.2 responded successfully.
-The `hello-world` check was not started because the restart gate had not
-cleared.
+## Still pending
 
-Use **Start > Power > Restart**. Do not use Shut down for this checkpoint.
-After signing in, open a new PowerShell terminal and run:
+- Real SMTP arrival and OTP use
+- Live desktop CLOUD-mode GUI smoke testing
+- Docker `hello-world`, image build, and container run
+- Google Cloud ADC and browser OAuth authorization
+- Next.js web application and deployments
 
-```powershell
-cd G:\Projects\SpendWiseExpenseTracker
-(Get-CimInstance Win32_OperatingSystem).LastBootUpTime
-wsl.exe --status
-wsl.exe --version
-wsl.exe --list --verbose
-Start-Process -FilePath 'C:\Program Files\Docker\Docker\Docker Desktop.exe'
-```
-
-Complete any first-run Docker Desktop terms prompt, choose the WSL 2 backend if
-asked, and do not sign in. Then resume Codex in this repository. The first
-verification commands must use the installed CLI path until a new terminal is
-confirmed to have Docker on `PATH`:
-
-```powershell
-& 'C:\Program Files\Docker\Docker\resources\bin\docker.exe' version
-& 'C:\Program Files\Docker\Docker\resources\bin\docker.exe' info
-& 'C:\Program Files\Docker\Docker\resources\bin\docker.exe' run --rm hello-world
-```
-
-## Not started at this checkpoint
-
-- External environment-file validation
-- The secret-safe PowerShell launcher
-- Live Neon/PostgreSQL and Flyway verification
-- Live SMTP and authentication end-to-end verification
-- Live desktop CLOUD smoke testing
-- Docker image build and run verification
-
-No secret file was read or copied, no `web/` directory was created, no local
-OWNER finance data was accessed or changed, and nothing was pushed or merged.
+No local OWNER finance data was migrated or modified, and nothing was pushed
+or merged.

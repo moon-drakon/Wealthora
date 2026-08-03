@@ -29,7 +29,7 @@ Run with PostgreSQL and SMTP configured:
 .\mvnw.cmd spring-boot:run
 ```
 
-The server applies Flyway migrations V1-V4 for authentication, password
+The server applies Flyway migrations V1-V5 for authentication, password
 security, Google OAuth, and the user-owned finance schema, and exposes
 only `health` and `info` Actuator endpoints. The current registration policy is
 controlled by `REGISTRATION_REQUIRES_ADMIN_APPROVAL` and defaults to `false`.
@@ -61,7 +61,7 @@ legacy BCrypt hashes remain valid.
 For Neon, keep `DATABASE_URL` in JDBC form and require TLS, for example
 `jdbc:postgresql://HOST/DATABASE?sslmode=require`. The database username and
 password remain separate environment variables. Flyway applies only forward
-V1-V4 migrations, while Hibernate runs with `ddl-auto: validate`; the server
+V1-V5 migrations, while Hibernate runs with `ddl-auto: validate`; the server
 does not recreate or reset a schema automatically.
 
 ## Development-only mail sink

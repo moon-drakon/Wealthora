@@ -17,6 +17,8 @@ Verified on 2026-08-03 on branch
 - Owner-scoped cloud finance APIs and Flyway V5: `80f1b5a`.
 - Explicit desktop LOCAL/CLOUD finance mode and API-backed repositories:
   `9fb9c05`.
+- Secret-safe live Neon and disposable authentication verification tooling:
+  `718e96a`.
 - The commit containing this report follows those implementation commits; use
   `git rev-parse --short HEAD` for its exact hash.
 - The cloud-finance milestone commits were not pushed or merged. The remote
@@ -134,13 +136,15 @@ Flyway V1-V5 remain forward-only, and Hibernate remains configured with
   produced `dist/Wealthora.jar`.
 - **Desktop runtime:** the JAR opened `Wealthora Authentication` using a new
   temporary `LOCALAPPDATA`; the spawned process was then stopped.
-- **Server tests:** `server\mvnw.cmd test` passed all 33 tests. The isolated
+- **Server tests:** `server\mvnw.cmd package` passed 35 tests with no failures
+  or errors. The two tests that require explicit live-environment flags were
+  skipped during the ordinary package build. The isolated
   H2/PostgreSQL-compatibility suite applied Flyway V1-V5 and exercised
   registration, verification, login, password recovery, sessions, role
   restrictions, audit behavior, OAuth boundaries, private finance role
   isolation, pagination, planning APIs, safe errors, and atomic transfers.
-- **Server build:** `server\mvnw.cmd package` passed all 33 tests again and
-  produced the executable server JAR.
+- **Server build:** the package build produced
+  `server/target/wealthora-auth-server-1.0.0-SNAPSHOT.jar`.
 - **Production failure safety:** a bounded `prod` run against an unreachable
   loopback database failed startup as expected. None of the synthetic database
   URL, username, password, or token-pepper canaries appeared in captured logs.
@@ -148,44 +152,60 @@ Flyway V1-V5 remain forward-only, and Hibernate remains configured with
   assertions, tracked-JAR assertions, and local documentation-link checks
   passed. No local YAML parser was installed; workflows received a manual
   syntax review and still require their first GitHub run.
-- **Docker:** not built or run because the `docker` command and daemon are not
-  available on this host. The Maven output confirmed the executable file used
-  by the corrected Docker copy exists.
+- **Docker:** Client and Server version/info responded after the required
+  Windows restart, but `hello-world` failed at container creation with a
+  Docker Desktop HTTP 500. A clean Docker shutdown, `wsl --shutdown`, and
+  relaunch then exposed WSL VHDX attach error `0x800705aa` (insufficient
+  system resources). No image, volume, VHDX, or Docker setting was reset.
 - **Existing data:** the established application-data fingerprint was
   identical before and after verification: ten files, including six CSV
   files. No existing OWNER, authentication, or finance file changed.
 
-## Live verification not run
+## Live Neon and authentication verification
 
-Real PostgreSQL/Neon verification was not run because these required process
-variables were absent:
-
-- `DATABASE_URL`
-- `DATABASE_USERNAME`
-- `DATABASE_PASSWORD`
-- `TOKEN_PEPPER`
-
-Therefore Flyway V1-V5, restart validation, ownership constraints, and the
-full authentication/administration flow are verified by automated H2 tests but
-are not yet claimed as real PostgreSQL/Neon passes.
-
-Real SMTP was also not tested because all six `SMTP_*` variables were absent.
-The automated SMTP behavior tests passed, and the explicit development mail
-sink remains available for a later isolated database run.
+- The external environment file is outside the repository. The four required
+  database/security variables, all six SMTP variables, and all three Google
+  OAuth variables are set. Only status and invariant results were reported;
+  no values were printed or copied.
+- The JDBC URL is PostgreSQL, contains no embedded credentials, requires TLS,
+  and completed direct PostgreSQL TLS negotiation with certificate
+  verification.
+- A read-only live audit verified PostgreSQL, five successful Flyway SQL
+  history rows with checksums, the exact 26-table public inventory, and all
+  composite finance-ownership constraints.
+- Two production-profile starts against Neon passed health and provider
+  readiness. The second start validated existing Flyway checksums and applied
+  no migration.
+- The data-count fingerprint was identical before startup, after restart, and
+  after the disposable live authentication run:
+  `13a7999f25ba8051d2ee8d95490ebbf334409e887ccb651d1e2659c9773bf42e`.
+- The disposable live authentication run passed domain/password/terms
+  validation, duplicate rejection, pending-login rejection, verification
+  expiry and resend controls, wrong-code handling, activation, wrong-password
+  handling, refresh rotation and replay defense, individual/global
+  revocation, password change and recovery, reset-token single use, failed
+  login protection, suspended/disabled rejection, session expiry, USER
+  restrictions, and audit coverage.
+- The generated user, authentication child rows, audit rows, login attempts,
+  verification/reset values, and temporary mail files were removed after the
+  run. No existing user or finance row was changed.
+- Real SMTP is configured but message arrival and one-time-value consumption
+  still require a real NSU recipient and manual OTP entry. SMTP is not yet
+  claimed as a live pass.
 
 ## Remaining configuration and limitations
 
-- Provide the four required database/security variables outside Git. Neon
-  must use a JDBC URL with verified TLS, such as `sslmode=require`.
-- Provide all six SMTP variables before claiming production email delivery.
-- Google Sign-In still requires its three server-only OAuth variables.
+- Complete one real SMTP registration and password-recovery delivery check.
+- Google OAuth is configured server-side, but browser authorization and live
+  account linking remain unverified.
+- Google Cloud Speech has a project ID but no available Application Default
+  Credentials on this host.
 - Docker and GitHub-hosted workflow execution remain unverified in this
   environment.
 - Flyway emitted a non-failing warning that test-only H2 2.4.240 is newer than
   the H2 release it has verified. All H2 tests passed, but they do not replace
   the required real PostgreSQL run.
-- A real PostgreSQL/Neon run of V5 and a live desktop-to-server CLOUD-mode
-  smoke test remain pending.
+- A live desktop-to-server CLOUD-mode GUI smoke test remains pending.
 - Cloud card storage, currency preferences, import, backup/restore,
   synchronization, and automatic local-data migration are intentionally not
   implemented. The existing local tools remain available only in LOCAL mode.

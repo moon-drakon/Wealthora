@@ -30,13 +30,16 @@ The server provides:
 - an 8-128 character password policy requiring an English letter and number;
 - opaque access and refresh sessions, rotation, revocation, and lockout;
 - USER, ADMIN, and OWNER authorization with protected audit records;
-- Flyway V1-V4 for authentication and user-owned finance tables; and
+- Flyway V1-V5 for authentication and owner-scoped finance tables;
+- authenticated finance APIs for accounts, categories, ledger entries,
+  transfers, budgets, recurring entries, goals, debts, and dashboard reports;
+  and
 - provider status that distinguishes unavailable SMTP, OAuth, and speech
   configuration from basic server connectivity.
 
-Cloud synchronization of desktop finance data is not implemented. The server
-finance schema currently establishes database ownership constraints for later
-work.
+Server-authenticated desktop sessions use CLOUD mode and owner-scoped finance
+APIs. LOCAL workspaces remain separate. Automatic synchronization or migration
+between LOCAL CSV data and CLOUD data is not implemented.
 
 ## Architecture
 
@@ -45,6 +48,7 @@ The repository contains two builds:
 ```text
 src/ and test/       Java 25 Swing desktop, Ant, NetBeans project metadata
 server/              Java 25 Spring Boot server, Maven Wrapper, Flyway
+scripts/             Secret-safe local server and live verification helpers
 docs/                Architecture, authentication, development, and deployment
 lib/                 Reviewed desktop runtime libraries and license notices
 .github/workflows/   Desktop, server, and repository checks

@@ -64,7 +64,7 @@ On every new instance:
 
 1. Required configuration resolves before the server becomes ready.
 2. PostgreSQL connects with the SSL behavior in `DATABASE_URL`.
-3. Flyway validates existing checksums and applies only pending V1-V4
+3. Flyway validates existing checksums and applies only pending V1-V5
    migrations under its migration lock.
 4. Hibernate validates the mapped schema and never creates or drops it.
 5. The health endpoint returns success before Render sends traffic.

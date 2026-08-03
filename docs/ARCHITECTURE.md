@@ -15,11 +15,11 @@ Spring Boot server
   |-- registration, verification, login, recovery, and opaque sessions
   |-- USER, ADMIN, and OWNER authorization plus audit events
   |-- Google OAuth and Google Cloud Speech provider boundaries
-  `-- PostgreSQL schema managed by Flyway V1-V4
+  `-- owner-scoped finance APIs on PostgreSQL managed by Flyway V1-V5
 ```
 
-There is no web client in this release. The desktop remains in the repository
-root; the server is the separate Maven module under `server/`.
+There is no web client yet. The desktop remains in the repository root; the
+server is the separate Maven module under `server/`.
 
 ## Desktop layers
 
@@ -54,15 +54,17 @@ legacy BCrypt hashes remain readable.
 
 ## Persistence boundaries
 
-Desktop finance data stays in the operating system's application-data area and
-is not copied into the server. PostgreSQL stores online users, identities,
-roles, verification/reset records, sessions, login attempts, audit entries,
-settings, OAuth flows, and the server-owned finance schema.
+LOCAL desktop finance data stays in the operating system's application-data
+area and is not copied into the server. CLOUD sessions use HTTP repository
+adapters and PostgreSQL for the authenticated user's finance workspace.
+PostgreSQL also stores online users, identities, roles, verification/reset
+records, sessions, login attempts, audit entries, settings, and OAuth flows.
 
-Flyway owns schema evolution. Migrations V1-V4 are forward-only, and Hibernate
+Flyway owns schema evolution. Migrations V1-V5 are forward-only, and Hibernate
 uses `ddl-auto=validate`, so application startup does not recreate the schema.
-V4 gives accounts, categories, and transactions a `user_id` and uses composite
-foreign keys to reject cross-user account or category references.
+V4 establishes user-owned accounts, categories, and transactions. V5 adds the
+cloud finance, planning, goal, debt, and transfer model. Composite foreign
+keys reject cross-user references.
 
 ## Trust boundaries
 
@@ -77,7 +79,7 @@ foreign keys to reject cross-user account or category references.
 
 ## Current boundary
 
-Cloud finance synchronization and migration from local CSV storage are not
-implemented. The server finance schema establishes ownership constraints only.
-Any future synchronization design must define conflict resolution, encryption,
-offline behavior, and an explicit user-controlled migration path first.
+Automatic synchronization and migration from local CSV storage are not
+implemented. The desktop exposes only a read-only migration preview. Any
+future upload path must add explicit confirmation, verification, rollback,
+conflict resolution, and offline behavior without mixing LOCAL and CLOUD data.

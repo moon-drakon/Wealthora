@@ -6,7 +6,8 @@
 - Verified authentication baseline: `f02fef4`
 - Cloud finance API commit: `80f1b5a`
 - Desktop CLOUD-mode commit: `9fb9c05`
-- The report update is committed after that implementation commit; confirm the
+- Live verification tooling commit: `718e96a`
+- The status-document commit follows that implementation commit; confirm the
   exact current hash with `git rev-parse --short HEAD`.
 - Desktop and server tests/builds pass under Java 25.
 - Repository hygiene, focused GitHub workflows, Render Docker readiness,
@@ -14,45 +15,38 @@
   implemented.
 - The cloud-finance milestone was not pushed, merged, or deployed. The remote
   branch is still at the earlier release-foundation checkpoint.
-- The Next.js frontend was not started.
-- Docker Desktop 4.84.0 and Docker CLI 29.6.2 were installed through the
-  official `Docker.DockerDesktop` Winget package. Windows then reported a
-  pending Component Based Servicing restart. Docker Client and Server now
-  respond, but `hello-world` verification has not run.
+- Live Neon TLS, Flyway V1-V5, the 26-table inventory, ownership constraints,
+  production-profile restart behavior, and unchanged data-count fingerprints
+  have passed.
+- A disposable live Neon authentication lifecycle passed and cleaned up all
+  of its generated database and mail-sink state.
+- The external configuration reports the core, SMTP, and Google OAuth groups
+  as set. Google Cloud Application Default Credentials are unavailable.
+- The Next.js frontend has not been started.
+- Docker Desktop 4.84.0 and Docker CLI/Server 29.6.2 responded after the
+  required Windows restart, but `hello-world` failed with an engine HTTP 500.
+  A clean relaunch then failed to attach Docker's existing WSL data VHDX with
+  `0x800705aa` because system resources were insufficient.
 - WSL 2.7.11.0 is current and defaults to WSL 2. No Linux distribution is
   installed apart from Docker's managed `docker-desktop` WSL 2 distribution.
-- The first resume check found that the reported restart had not produced a
-  new Windows boot: the last boot time still preceded the Docker installation,
-  and the Component Based Servicing restart flag remained set. Docker Client
-  and Server responded, but `hello-world` was deliberately not started past
-  this uncleared restart gate.
+- The Windows pending-restart indicators are now clear. No Docker factory
+  reset, unregister, VHDX deletion, image deletion, or volume deletion was
+  attempted.
 
 ## Exact next task
 
-Use **Start > Power > Restart** to perform a full Windows restart; do not use
-Shut down because Fast Startup can preserve the current kernel session. Then
-follow `docs/LOCAL_SETUP_PROGRESS.md` to confirm a new boot time, re-check WSL,
-start Docker Desktop, and verify both Docker Client and Server plus
-`hello-world`. Do not claim Docker complete until all three checks pass and
-the Component Based Servicing restart flag has cleared.
-After Docker is verified, validate the external environment file without
-printing values, create or verify the secret-safe launcher, and only then run
-Flyway V1-V5 plus the authentication, administration, and cloud-finance checks
-against the configured isolated PostgreSQL or Neon database. Finish with a
-bounded desktop CLOUD-mode smoke test. Do not use the desktop's local OWNER
-workspace or any database containing real finance data.
+Start the production-profile server with
+`scripts/Start-WealthoraServer.ps1`, launch the desktop with
+`WEALTHORA_SERVER_URL=http://127.0.0.1:18080`, and complete one real NSU
+registration. The user enters the address, password, and delivered OTP
+directly in the Swing UI; none of those values belong in chat, logs, scripts,
+or Git. After verification, confirm CLOUD mode and then exercise real password
+recovery using the same private UI flow.
 
-The external file was reported to contain the four core values, but it was not
-read or validated during this restart-gated checkpoint. Required names are:
-
-- `DATABASE_URL`
-- `DATABASE_USERNAME`
-- `DATABASE_PASSWORD`
-- `TOKEN_PEPPER`
-
-Set them only in the process environment or a secret manager. Never paste
-their values into commands, files, screenshots, issues, reports, or commits.
-For Neon, use a JDBC URL with verified TLS, such as `sslmode=require`.
+After SMTP passes, continue automatically with the desktop CLOUD-mode finance
+smoke test, Google Cloud Speech ADC authorization, Google OAuth browser flow,
+administration verification, Docker recovery, the production container, and
+then the Next.js web application.
 
 ## Live database sequence
 
