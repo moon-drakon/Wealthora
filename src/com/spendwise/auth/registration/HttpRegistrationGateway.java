@@ -9,6 +9,10 @@ import com.spendwise.auth.NsuEmailPolicy;
 import com.spendwise.auth.PasswordService;
 import com.spendwise.auth.UserRole;
 import com.spendwise.auth.UserSession;
+import com.spendwise.voice.SpeechBackendStatus;
+import com.spendwise.voice.SpeechProviderStatus;
+import com.spendwise.voice.SpeechRecognitionResult;
+import com.spendwise.voice.VoiceInputLanguage;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -18,6 +22,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
@@ -28,6 +33,7 @@ import java.util.regex.Pattern;
 public final class HttpRegistrationGateway implements RegistrationGateway {
 
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(15);
+    private static final Duration SPEECH_TIMEOUT = Duration.ofSeconds(45);
     private final ServerConfiguration configuration;
     private final HttpClient client;
     private final PasswordService passwordService = new PasswordService();
@@ -229,6 +235,48 @@ public final class HttpRegistrationGateway implements RegistrationGateway {
     }
 
     @Override
+    public synchronized SpeechBackendStatus getSpeechStatus() {
+        if (!hasActiveSession()) {
+            return new SpeechBackendStatus(SpeechProviderStatus.NOT_CONFIGURED,
+                    "Sign in with an online account to use speech recognition.");
+        }
+        try {
+            String json = send("GET", "/api/speech/status", "",
+                    accessToken);
+            boolean ready = bool(json, "ready");
+            return new SpeechBackendStatus(
+                    ready ? SpeechProviderStatus.READY
+                            : SpeechProviderStatus.NOT_CONFIGURED,
+                    required(string(json, "message"), "Speech status"));
+        } catch (AuthException exception) {
+            return new SpeechBackendStatus(SpeechProviderStatus.UNAVAILABLE,
+                    exception.getMessage());
+        }
+    }
+
+    @Override
+    public synchronized SpeechRecognitionResult recognizeSpeech(
+            byte[] linearPcmAudio,
+            int sampleRateHertz,
+            VoiceInputLanguage language) {
+        Objects.requireNonNull(linearPcmAudio, "Speech audio is required.");
+        Objects.requireNonNull(language, "Speech language is required.");
+        String body = "{" + field("audioBase64",
+                Base64.getEncoder().encodeToString(linearPcmAudio)) + ","
+                + "\"sampleRateHertz\":" + sampleRateHertz + ","
+                + field("language", language.name()) + "}";
+        String json = send("POST", "/api/speech/recognize", body,
+                requireToken(accessToken,
+                        "No online session is active."), SPEECH_TIMEOUT);
+        return new SpeechRecognitionResult(
+                required(string(json, "transcript"), "Speech transcript"),
+                number(json, "confidence"),
+                VoiceInputLanguage.valueOf(required(
+                        string(json, "detectedLanguage"),
+                        "Detected language")));
+    }
+
+    @Override
     public boolean isConfigured() {
         return configuration.isConfigured();
     }
@@ -239,9 +287,15 @@ public final class HttpRegistrationGateway implements RegistrationGateway {
 
     private String send(
             String method, String path, String body, String bearerToken) {
+        return send(method, path, body, bearerToken, REQUEST_TIMEOUT);
+    }
+
+    private String send(
+            String method, String path, String body, String bearerToken,
+            Duration timeout) {
         URI target = URI.create(configuration.requireBaseUri() + path);
         HttpRequest.Builder builder = HttpRequest.newBuilder(target)
-                .timeout(REQUEST_TIMEOUT)
+                .timeout(timeout)
                 .header("Accept", "application/json")
                 .header("Content-Type", "application/json; charset=UTF-8");
         if (bearerToken != null && !bearerToken.isBlank()) {
@@ -338,6 +392,16 @@ public final class HttpRegistrationGateway implements RegistrationGateway {
                 + "\\\"\\s*:\\s*(true|false)")
                 .matcher(json == null ? "" : json);
         return matcher.find() && Boolean.parseBoolean(matcher.group(1));
+    }
+
+    private static double number(String json, String name) {
+        Matcher matcher = Pattern.compile("\\\"" + Pattern.quote(name)
+                + "\\\"\\s*:\\s*(-?[0-9]+(?:\\.[0-9]+)?)")
+                .matcher(json == null ? "" : json);
+        if (!matcher.find()) {
+            throw new AuthException(name + " is missing from the server response.");
+        }
+        return Double.parseDouble(matcher.group(1));
     }
 
     private static Instant instant(

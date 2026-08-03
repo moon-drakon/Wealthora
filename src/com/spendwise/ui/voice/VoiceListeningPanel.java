@@ -17,6 +17,7 @@ public final class VoiceListeningPanel extends JPanel {
     private final JLabel detail = new JLabel(
             "Speak naturally. No transaction will be saved automatically.",
             JLabel.CENTER);
+    private final JLabel duration = new JLabel("00:00", JLabel.CENTER);
 
     public VoiceListeningPanel(
             Runnable stopAction,
@@ -37,7 +38,13 @@ public final class VoiceListeningPanel extends JPanel {
         JPanel center = new JPanel(new BorderLayout(0, 10));
         center.setOpaque(false);
         center.add(state, BorderLayout.CENTER);
-        center.add(detail, BorderLayout.SOUTH);
+        JPanel information = new JPanel(new BorderLayout(0, 6));
+        information.setOpaque(false);
+        information.add(detail, BorderLayout.CENTER);
+        duration.setFont(AppFonts.button());
+        AppTheme.mark(duration, AppTheme.SECONDARY_TEXT_ROLE);
+        information.add(duration, BorderLayout.SOUTH);
+        center.add(information, BorderLayout.SOUTH);
         add(center, BorderLayout.CENTER);
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
@@ -61,10 +68,17 @@ public final class VoiceListeningPanel extends JPanel {
         state.setText("Listening…");
         detail.setText(
                 "Speak naturally. No transaction will be saved automatically.");
+        duration.setText("00:00");
     }
 
     public void showStatus(String title, String message) {
         state.setText(title);
         detail.setText(message);
+    }
+
+    public void setDuration(java.time.Duration elapsed) {
+        long seconds = Math.max(0, elapsed.toSeconds());
+        duration.setText(String.format("%02d:%02d", seconds / 60,
+                seconds % 60));
     }
 }

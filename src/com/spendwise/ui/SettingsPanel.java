@@ -29,6 +29,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
 
 public final class SettingsPanel extends JPanel {
 
@@ -218,11 +219,40 @@ public final class SettingsPanel extends JPanel {
         JPanel buttons = actions();
         SecondaryButton test = new SecondaryButton("Test microphone");
         test.addActionListener(event -> {
-            boolean available = speechProvider.testMicrophone();
-            microphone.setText("Microphone: "
-                    + speechProvider.getMicrophoneStatus());
-            status(available ? "Microphone test completed."
-                    : speechProvider.getMicrophoneStatus(), !available);
+            test.setEnabled(false);
+            status("Testing the selected microphone...", false);
+            new SwingWorker<Boolean, Void>() {
+                @Override
+                protected Boolean doInBackground() {
+                    speechProvider.refreshStatus();
+                    return speechProvider.testMicrophone();
+                }
+
+                @Override
+                protected void done() {
+                    boolean available = false;
+                    String message = speechProvider.getMicrophoneStatus();
+                    try {
+                        available = get();
+                    } catch (Exception exception) {
+                        if (exception instanceof InterruptedException) {
+                            Thread.currentThread().interrupt();
+                        }
+                        Throwable cause = exception.getCause();
+                        if (cause != null && cause.getMessage() != null
+                                && !cause.getMessage().isBlank()) {
+                            message = cause.getMessage();
+                        }
+                    }
+                    provider.setText("Provider: "
+                            + speechProvider.getStatus());
+                    microphone.setText("Microphone: "
+                            + speechProvider.getMicrophoneStatus());
+                    status(available ? "Microphone test completed."
+                            : message, !available);
+                    test.setEnabled(true);
+                }
+            }.execute();
         });
         SecondaryButton manual = new SecondaryButton("Manual parser test");
         manual.addActionListener(event -> voiceEntryAction.run());

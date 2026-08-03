@@ -54,6 +54,8 @@ import com.spendwise.service.JsonBackupService;
 import com.spendwise.service.CsvImportService;
 import com.spendwise.service.PdfReportService;
 import com.spendwise.ui.SpendWiseFrame;
+import com.spendwise.voice.AuthenticatedSpeechRecognitionProvider;
+import com.spendwise.voice.JavaSoundMicrophoneCapture;
 import com.spendwise.ui.component.ConfirmationDialogs;
 import com.spendwise.ui.shell.ProfileMenuActions;
 import com.spendwise.ui.theme.AppTheme;
@@ -245,7 +247,10 @@ public final class SpendWiseApplication {
                             notificationService,
                             jsonBackupService,
                             csvImportService,
-                            new PdfReportService());
+                            new PdfReportService(),
+                            new AuthenticatedSpeechRecognitionProvider(
+                                    authService.getSpeechApiClient(),
+                                    new JavaSoundMicrophoneCapture()));
             frame.configureProfileMenu(session, new ProfileMenuActions(
                     frame::openMyFinance,
                     () -> new AccountProfileDialog(frame, session)

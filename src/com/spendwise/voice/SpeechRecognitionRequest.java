@@ -36,8 +36,10 @@ public record SpeechRecognitionRequest(
         Objects.requireNonNull(language, "Input language is required.");
         return new SpeechRecognitionRequest(language, switch (language) {
             case ENGLISH -> "en-US";
-            case BANGLA, BANGLISH_MIXED -> "bn-BD";
-            case AUTOMATIC -> "und";
-        }, DEFAULT_TIMEOUT, language == VoiceInputLanguage.AUTOMATIC, false);
+            case BANGLA -> "bn-BD";
+            case BANGLISH_MIXED, AUTOMATIC -> "en-US";
+        }, DEFAULT_TIMEOUT,
+                language == VoiceInputLanguage.AUTOMATIC
+                || language == VoiceInputLanguage.BANGLISH_MIXED, false);
     }
 }

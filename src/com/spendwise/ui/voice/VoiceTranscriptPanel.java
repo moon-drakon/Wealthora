@@ -7,6 +7,7 @@ import com.spendwise.ui.theme.AppFonts;
 import com.spendwise.ui.theme.AppTheme;
 import com.spendwise.voice.VoiceEntrySettings;
 import com.spendwise.voice.VoiceInputLanguage;
+import com.spendwise.voice.MicrophoneDevice;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
@@ -22,17 +23,22 @@ public final class VoiceTranscriptPanel extends JPanel {
 
     private final JTextArea transcript = new JTextArea(5, 54);
     private final JLabel providerStatus = new JLabel(" ");
+    private final JLabel recognitionStatus = new JLabel(" ");
     private final SecondaryButton listen = new SecondaryButton("Start Listening");
+    private final StyledComboBox<MicrophoneDevice> microphone =
+            new StyledComboBox<>();
 
     public VoiceTranscriptPanel(
             VoiceEntrySettings settings,
             Runnable listenAction,
             Consumer<String> parseAction,
+            Consumer<String> microphoneAction,
             Runnable cancelAction) {
         super(new BorderLayout(0, 14));
         Objects.requireNonNull(settings);
         Objects.requireNonNull(listenAction);
         Objects.requireNonNull(parseAction);
+        Objects.requireNonNull(microphoneAction);
         Objects.requireNonNull(cancelAction);
         setBorder(BorderFactory.createEmptyBorder(18, 20, 18, 20));
         AppTheme.mark(this, AppTheme.PAGE_ROLE);
@@ -50,7 +56,13 @@ public final class VoiceTranscriptPanel extends JPanel {
         AppTheme.mark(providerStatus, AppTheme.SECONDARY_TEXT_ROLE);
         heading.add(title, BorderLayout.NORTH);
         heading.add(detail, BorderLayout.CENTER);
-        heading.add(providerStatus, BorderLayout.SOUTH);
+        JPanel statuses = new JPanel(new GridLayout(0, 1, 0, 3));
+        statuses.setOpaque(false);
+        recognitionStatus.setFont(AppFonts.caption());
+        AppTheme.mark(recognitionStatus, AppTheme.SECONDARY_TEXT_ROLE);
+        statuses.add(providerStatus);
+        statuses.add(recognitionStatus);
+        heading.add(statuses, BorderLayout.SOUTH);
         add(heading, BorderLayout.NORTH);
 
         JPanel input = new JPanel(new BorderLayout(0, 9));
@@ -67,6 +79,15 @@ public final class VoiceTranscriptPanel extends JPanel {
                 (VoiceInputLanguage) language.getSelectedItem()));
         languageRow.add(languageLabel);
         languageRow.add(language);
+        JLabel microphoneLabel = new JLabel("Microphone");
+        microphoneLabel.setFont(AppFonts.button());
+        microphone.addActionListener(event -> {
+            MicrophoneDevice selected =
+                    (MicrophoneDevice) microphone.getSelectedItem();
+            if (selected != null) microphoneAction.accept(selected.identifier());
+        });
+        languageRow.add(microphoneLabel);
+        languageRow.add(microphone);
 
         JLabel label = new JLabel(
                 "Type or paste a command in English, বাংলা, or Banglish.");
@@ -120,6 +141,23 @@ public final class VoiceTranscriptPanel extends JPanel {
         listen.setEnabled(available);
         listen.setToolTipText(available ? "Start microphone recognition"
                 : "Configure a real speech provider in Settings; manual parsing remains available.");
+    }
+
+    public void setMicrophones(
+            java.util.List<MicrophoneDevice> devices, String selectedId) {
+        microphone.removeAllItems();
+        for (MicrophoneDevice device : devices) microphone.addItem(device);
+        for (int index = 0; index < microphone.getItemCount(); index++) {
+            if (microphone.getItemAt(index).identifier().equals(selectedId)) {
+                microphone.setSelectedIndex(index);
+                break;
+            }
+        }
+        microphone.setEnabled(!devices.isEmpty());
+    }
+
+    public void setRecognitionStatus(String status) {
+        recognitionStatus.setText(status == null ? " " : status);
     }
 
     public void setTranscript(String value) {

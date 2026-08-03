@@ -45,6 +45,8 @@ public class SecurityConfiguration {
                                 "/api/auth/set-password",
                                 "/api/auth/sessions/**")
                         .authenticated()
+                        .requestMatchers("/api/speech/**")
+                        .authenticated()
                         .anyRequest().denyAll())
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint((request, response, failure) -> {

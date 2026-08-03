@@ -1,5 +1,7 @@
 package com.spendwise.voice;
 
+import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
 
 public final class VoiceCaptureService {
@@ -31,6 +33,26 @@ public final class VoiceCaptureService {
 
     public void stop() {
         provider.stop();
+    }
+
+    public void cancel() {
+        provider.cancel();
+    }
+
+    public void refreshStatus() {
+        provider.refreshStatus();
+    }
+
+    public List<MicrophoneDevice> listMicrophones() {
+        return provider.listMicrophones();
+    }
+
+    public void selectMicrophone(String identifier) {
+        provider.selectMicrophone(identifier);
+    }
+
+    public Duration getRecordingDuration() {
+        return provider.getRecordingDuration();
     }
 
     public SpeechRecognitionProvider getProvider() {

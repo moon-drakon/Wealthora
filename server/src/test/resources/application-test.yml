@@ -34,3 +34,7 @@ wealthora:
     request-cooldown: PT1M
   mail:
     development-directory: ${java.io.tmpdir}/wealthora-test-mail
+  speech:
+    project-id: wealthora-voice
+    maximum-audio-bytes: 1000000
+    minimum-audio-bytes: 3200

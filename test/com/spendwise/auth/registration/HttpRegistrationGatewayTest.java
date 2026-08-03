@@ -2,6 +2,9 @@ package com.spendwise.auth.registration;
 
 import com.spendwise.auth.AccountSession;
 import com.spendwise.auth.UserSession;
+import com.spendwise.voice.SpeechProviderStatus;
+import com.spendwise.voice.SpeechRecognitionResult;
+import com.spendwise.voice.VoiceInputLanguage;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
@@ -29,6 +32,7 @@ public final class HttpRegistrationGatewayTest {
                 new InetSocketAddress("127.0.0.1", 0), 0);
         TestHandler handler = new TestHandler();
         server.createContext("/api/auth", handler::handle);
+        server.createContext("/api/speech", handler::handle);
         server.start();
         try {
             String baseUrl = "http://127.0.0.1:"
@@ -41,6 +45,8 @@ public final class HttpRegistrationGatewayTest {
                     passwordChange(baseUrl));
             test("set password and logout-all clear tokens", () ->
                     setPasswordAndLogoutAll(baseUrl));
+            test("authenticated speech status and result are parsed", () ->
+                    speechRecognition(baseUrl));
             System.out.println("All " + passed
                     + " online authentication gateway tests passed.");
         } finally {
@@ -95,6 +101,19 @@ public final class HttpRegistrationGatewayTest {
         assertFalse(gateway.hasActiveSession());
     }
 
+    private static void speechRecognition(String baseUrl) {
+        HttpRegistrationGateway gateway = gateway(baseUrl);
+        gateway.signIn(EMAIL, "GatewayStudent1!".toCharArray());
+        assertEquals(SpeechProviderStatus.READY,
+                gateway.getSpeechStatus().status());
+        byte[] audio = new byte[3_200];
+        java.util.Arrays.fill(audio, (byte) 3);
+        SpeechRecognitionResult result = gateway.recognizeSpeech(
+                audio, 16_000, VoiceInputLanguage.AUTOMATIC);
+        assertEquals("Paid 500 taka for lunch", result.transcript());
+        assertEquals(VoiceInputLanguage.ENGLISH, result.detectedLanguage());
+    }
+
     private static HttpRegistrationGateway gateway(String baseUrl) {
         System.setProperty("os.name", "Test OS");
         return new HttpRegistrationGateway(new ServerConfiguration(baseUrl));
@@ -134,7 +153,9 @@ public final class HttpRegistrationGatewayTest {
         void handle(HttpExchange exchange) throws IOException {
             String path = exchange.getRequestURI().getPath();
             String method = exchange.getRequestMethod();
-            exchange.getRequestBody().readAllBytes();
+            String requestBody = new String(
+                    exchange.getRequestBody().readAllBytes(),
+                    StandardCharsets.UTF_8);
             if (path.equals("/api/auth/login")) {
                 respond(exchange, 200, loginResponse());
             } else if (path.equals("/api/auth/forgot-password")) {
@@ -158,6 +179,22 @@ public final class HttpRegistrationGatewayTest {
                     || path.equals("/api/auth/logout-all")) {
                 requireAuthorization(exchange);
                 respond(exchange, 204, "");
+            } else if (path.equals("/api/speech/status")) {
+                requireAuthorization(exchange);
+                respond(exchange, 200,
+                        "{\"provider\":\"Google Cloud Speech-to-Text\","
+                        + "\"apiVersion\":\"V1\",\"ready\":true,"
+                        + "\"message\":\"Provider ready.\"}");
+            } else if (path.equals("/api/speech/recognize")) {
+                requireAuthorization(exchange);
+                assertTrue(requestBody.contains("\"sampleRateHertz\":16000"));
+                assertTrue(requestBody.contains("\"language\":\"AUTOMATIC\""));
+                respond(exchange, 200,
+                        "{\"transcript\":\"Paid 500 taka for lunch\","
+                        + "\"confidence\":0.93,"
+                        + "\"detectedLanguage\":\"ENGLISH\","
+                        + "\"detectedLocale\":\"en-US\","
+                        + "\"audioDurationMilliseconds\":100}");
             } else {
                 respond(exchange, 404,
                         "{\"message\":\"Test endpoint not found.\"}");

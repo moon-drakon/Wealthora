@@ -2,45 +2,46 @@
 
 Verified on 2026-08-03 on branch `feature/wealthora-online-auth-voice`.
 
-## Verified checkpoint
+## COMPLETE
 
-- Desktop: Java 25, Apache Ant, programmatic Swing, 237 production sources.
-- Server: Spring Boot 4.1.0, Maven Wrapper, Java 25, PostgreSQL/Flyway production boundary, H2 tests.
-- Authentication migrations: `authentication-foundation-v1` and `password-security-v2`.
-- Required desktop verification passed: `ant test-auth` and `ant clean jar`.
-- Required server verification passed: `server\mvnw.cmd clean package`, 11 tests with no failures or errors.
+- Checkpoints 1-3 remain complete: NSU registration/email verification, password authentication/recovery, opaque rotating sessions, and desktop security/session UI.
+- Checkpoint 4 implementation is complete: Java Sound captures 16 kHz mono LINEAR16 audio in memory; the authenticated Spring Boot boundary calls official Google Cloud Speech-to-Text V1 for `en-US`, `bn-BD`, or English/Bangla alternatives.
+- Voice Quick Entry includes microphone selection, Start, Stop, Cancel, 30-second timeout, recording duration, retry, provider state, confidence, editable transcript, existing multilingual parser, editable draft review, and explicit Confirm and Add.
+- Stop finishes the current recording and requests recognition. Cancel aborts capture. Audio buffers are cleared after cancellation/submission and are never saved to finance data, backups, logs, Git, or the JAR.
+- Typed English, Bangla, and Banglish entry remains available when the online session, backend, ADC, API, or microphone is unavailable.
+- Existing account-based finance features and user-scoped local workspaces remain implemented.
+- Desktop verification: `ant test-voice` passed the full prerequisite chain (23 voice tests, 5 HTTP gateway tests); `ant clean jar` passed with 244 production sources.
+- Server verification: `server\mvnw.cmd test` passed 14 tests, including authenticated speech endpoints and audio validation.
+- Runtime verification: `dist\Wealthora.jar` launched and remained running; Java Sound found three capture devices and opened the selected device successfully; the unconfigured provider reported `NOT_CONFIGURED` and disabled Start.
 
-## Implemented authentication
+## PARTIAL
 
-- Secure local first-OWNER setup, BCrypt password storage, lockout, authorization, audit, and offline sign-in fallback.
-- Exact `northsouth.edu` online registration, eight-digit email verification, resend cooldown, pending-approval policy, and SMTP/development mail boundaries.
-- Password login with generic failures, hashed login evidence, opaque access/refresh tokens, refresh rotation/replay revocation, `/me`, logout, and logout-all.
-- Generic forgot-password plus expiring single-use HMAC-hashed reset tokens and configurable request cooldown.
-- Reset, authenticated change, and authenticated set-password operations with strong policy, reuse rejection, and revoke-all-sessions behavior.
-- Authenticated active-session listing, current-session indication, owned single-session revocation, and sign-out-all.
-- Desktop recovery and security UI backed by the real HTTP gateway. All server/network work runs off the Swing EDT.
-- Local password change and local session listing/revocation remain available without the server and preserve the OWNER finance workspace.
+- None in checkpoint 4 source. Live Google transcription was not exercisable on this machine because its external configuration is absent; this is classified below rather than simulated.
 
-## Implemented finance and voice foundations
+## MISSING
 
-- Account-based income, expenses, transfers, budgets, recurring items, savings goals, debts, reports, backup/restore, imports/exports, and user-scoped local workspaces remain implemented.
-- Typed English/Bangla voice parsing, draft review, and confirm-before-save remain implemented.
-- Microphone capture and cloud speech recognition are not yet implemented; the application does not simulate them.
+- Checkpoint 5: real system-browser Google OAuth and safe PASSWORD/GOOGLE linking.
+- Checkpoint 6: remaining server-backed Admin Console functions.
+- Checkpoint 7: final PostgreSQL/Neon operational readiness.
+- Checkpoint 8: explicit LOCAL/CLOUD finance migration and sync state.
+- Checkpoints 9-10: Next.js frontend and Vercel preparation.
+
+## BROKEN
+
+- No known broken checkpoint behavior. Existing focused desktop and server suites pass.
+
+## CONFIGURATION REQUIRED
+
+- The speech server needs `GOOGLE_CLOUD_PROJECT=wealthora-voice`, valid Application Default Credentials, and the Google Cloud Speech-to-Text API enabled.
+- The desktop needs `WEALTHORA_SERVER_URL`, an active online Wealthora session, a running configured server, and a Java Sound-compatible microphone.
+- This verification host has no ADC, no `GOOGLE_CLOUD_PROJECT`, and no `gcloud`; the application must therefore expose the honest unavailable state and retain typed input.
 
 ## Data safety
 
-- Existing OWNER and finance data were not modified during this checkpoint.
+- Existing OWNER, authentication data, finance workspaces, and finance records were not modified or migrated.
 - Existing safety backup: `C:\Users\Drakon\AppData\Local\SpendWiseExpenseTracker\backups\pre-online-auth-20260803-055935-298.zip`
 - Backup SHA-256: `484BE61ABC27B2E5A06B21D5B27ACA3BEB092DDBB0E569818D50821DCEA14131`
 - Server tests use isolated H2 storage and temporary development mail files.
-- Secrets, databases, finance files, backups, tokens, reset codes, and audio remain untracked.
-
-## Remaining work
-
-1. Authenticated Java Sound capture and Google Cloud Speech-to-Text V2 provider status/recognition.
-2. Real system-browser Google OAuth and safe same-email identity linking.
-3. Server-backed Admin Console registration approval, security, settings, backup, and database health functions.
-4. Explicit LOCAL/SERVER finance migration and sync state.
-5. Provider and team setup documentation/scripts.
+- Authentication migrations remain `authentication-foundation-v1` and `password-security-v2`; voice adds no database migration.
 
 The exact next checkpoint and resume commands are maintained in `docs/NEXT_CODEX_STEPS.md`.

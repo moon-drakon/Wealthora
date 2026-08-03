@@ -20,6 +20,8 @@ import java.awt.CardLayout;
 import java.awt.Dialog;
 import java.awt.Dimension;
 import java.awt.Window;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
@@ -30,6 +32,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
+import javax.swing.Timer;
 
 public final class VoiceQuickEntryDialog extends JDialog {
 
@@ -51,6 +54,7 @@ public final class VoiceQuickEntryDialog extends JDialog {
     private List<Account> accounts = List.of();
     private List<Category> categories = List.of();
     private SwingWorker<SpeechRecognitionResult, Void> captureWorker;
+    private final Timer durationTimer;
 
     public VoiceQuickEntryDialog(
             Window owner,
@@ -71,9 +75,12 @@ public final class VoiceQuickEntryDialog extends JDialog {
                 this::stopListening, this::startListening,
                 this::showManualEntry, this::cancel);
         transcriptPanel = new VoiceTranscriptPanel(settings,
-                this::startListening, this::parseCommand, this::cancel);
+                this::startListening, this::parseCommand,
+                captureService::selectMicrophone, this::cancel);
         reviewPanel = new VoiceDraftReviewPanel(
                 this::confirm, this::showManualEntry, this::cancel);
+        durationTimer = new Timer(250, event -> listeningPanel.setDuration(
+                captureService.getRecordingDuration()));
         buildInterface();
     }
 
@@ -83,22 +90,24 @@ public final class VoiceQuickEntryDialog extends JDialog {
         categories = categoryService.listSelectableCategories();
         transcriptPanel.setTranscript("");
         SpeechRecognitionProvider provider = captureService.getProvider();
+        transcriptPanel.setRecognitionStatus(" ");
         transcriptPanel.setProviderStatus(
-                "Speech provider: " + provider.getDisplayName()
-                + " · " + provider.getStatus());
-        transcriptPanel.setListeningAvailable(
-                settings.isEnabled() && provider.isConfigured());
-        if (settings.isEnabled() && provider.isConfigured()) {
-            startListening();
-        } else {
-            showManualEntry();
-        }
+                "Speech provider: checking " + provider.getDisplayName() + "...");
+        transcriptPanel.setListeningAvailable(false);
+        showManualEntry();
+        refreshProviderStatus();
         setLocationRelativeTo(getOwner());
         setVisible(true);
     }
 
     private void buildInterface() {
-        setDefaultCloseOperation(HIDE_ON_CLOSE);
+        setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent event) {
+                cancel();
+            }
+        });
         content.add(listeningPanel, LISTENING);
         content.add(transcriptPanel, TRANSCRIPT);
         content.add(reviewPanel, REVIEW);
@@ -127,7 +136,7 @@ public final class VoiceQuickEntryDialog extends JDialog {
             showManualEntry();
             return;
         }
-        stopActiveWorker();
+        cancelActiveWorker();
         listeningPanel.showListening();
         cards.show(content, LISTENING);
         captureWorker = new SwingWorker<>() {
@@ -138,11 +147,15 @@ public final class VoiceQuickEntryDialog extends JDialog {
 
             @Override
             protected void done() {
+                durationTimer.stop();
                 if (isCancelled()) return;
                 try {
                     SpeechRecognitionResult result = get();
                     transcriptPanel.setTranscript(result.transcript());
-                    parseCommand(result.transcript());
+                    transcriptPanel.setRecognitionStatus(String.format(
+                            "Recognized as %s · confidence %.0f%%. Edit before parsing.",
+                            result.detectedLanguage(), result.confidence() * 100));
+                    showManualEntry();
                 } catch (InterruptedException exception) {
                     Thread.currentThread().interrupt();
                     listeningPanel.showStatus(
@@ -154,16 +167,19 @@ public final class VoiceQuickEntryDialog extends JDialog {
             }
         };
         captureWorker.execute();
+        durationTimer.start();
     }
 
     private void stopListening() {
         captureService.stop();
-        stopActiveWorker();
         listeningPanel.showStatus(
-                "Listening stopped", "Retry or continue with manual entry.");
+                "Processing recording", "Sending the captured audio securely...");
     }
 
     private void showManualEntry() {
+        if (captureWorker != null && !captureWorker.isDone()) {
+            cancelActiveWorker();
+        }
         cards.show(content, TRANSCRIPT);
         SwingUtilities.invokeLater(transcriptPanel::focusTranscript);
     }
@@ -192,16 +208,50 @@ public final class VoiceQuickEntryDialog extends JDialog {
     }
 
     private void cancel() {
-        captureService.stop();
-        stopActiveWorker();
+        cancelActiveWorker();
         setVisible(false);
     }
 
-    private void stopActiveWorker() {
+    private void cancelActiveWorker() {
+        captureService.cancel();
+        durationTimer.stop();
         if (captureWorker != null && !captureWorker.isDone()) {
             captureWorker.cancel(true);
         }
         captureWorker = null;
+    }
+
+    private void refreshProviderStatus() {
+        SwingWorker<Void, Void> worker = new SwingWorker<>() {
+            private List<com.spendwise.voice.MicrophoneDevice> microphones;
+
+            @Override
+            protected Void doInBackground() {
+                captureService.refreshStatus();
+                microphones = captureService.listMicrophones();
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                SpeechRecognitionProvider provider = captureService.getProvider();
+                try {
+                    get();
+                    transcriptPanel.setMicrophones(microphones,
+                            provider.getSelectedMicrophoneIdentifier());
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                } catch (ExecutionException exception) {
+                    transcriptPanel.setRecognitionStatus(
+                            safeMessage(exception.getCause()));
+                }
+                transcriptPanel.setProviderStatus("Speech provider: "
+                        + provider.getDisplayName() + " · " + provider.getStatus());
+                transcriptPanel.setListeningAvailable(
+                        settings.isEnabled() && provider.isConfigured());
+            }
+        };
+        worker.execute();
     }
 
     private static String safeMessage(Throwable exception) {

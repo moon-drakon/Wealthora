@@ -73,6 +73,12 @@ public final class VoiceTransactionParserTest {
                 VoiceTransactionParserTest::banglaSpeechRequest);
         test("missing speech provider reports honest status",
                 VoiceTransactionParserTest::missingProviderStatus);
+        test("authenticated speech clears captured audio",
+                VoiceTransactionParserTest::authenticatedSpeechClearsAudio);
+        test("speech provider exposes stop and cancel separately",
+                VoiceTransactionParserTest::speechStopAndCancel);
+        test("automatic speech uses V1-compatible language options",
+                VoiceTransactionParserTest::automaticSpeechRequest);
         System.out.println("All " + passed
                 + " voice transaction tests passed.");
     }
@@ -289,6 +295,54 @@ public final class VoiceTransactionParserTest {
                         VoiceInputLanguage.AUTOMATIC)));
     }
 
+    private static void authenticatedSpeechClearsAudio() {
+        FakeSpeechClient client = new FakeSpeechClient(true);
+        FakeMicrophone microphone = new FakeMicrophone();
+        AuthenticatedSpeechRecognitionProvider provider =
+                new AuthenticatedSpeechRecognitionProvider(client, microphone);
+        provider.refreshStatus();
+        assertTrue(provider.isConfigured());
+        SpeechRecognitionResult result = provider.recognize(
+                SpeechRecognitionRequest.forLanguage(
+                        VoiceInputLanguage.BANGLISH_MIXED));
+        assertEquals("Paid 500 taka for lunch", result.transcript());
+        assertEquals(VoiceInputLanguage.ENGLISH, result.detectedLanguage());
+        assertTrue(client.receivedNonZeroAudio);
+        for (byte value : microphone.audio) assertEquals((byte) 0, value);
+    }
+
+    private static void speechStopAndCancel() {
+        FakeMicrophone microphone = new FakeMicrophone();
+        AuthenticatedSpeechRecognitionProvider provider =
+                new AuthenticatedSpeechRecognitionProvider(
+                        new FakeSpeechClient(true), microphone);
+        provider.stop();
+        assertTrue(microphone.stopped);
+        assertFalse(microphone.cancelled);
+        provider.cancel();
+        assertTrue(microphone.cancelled);
+
+        AuthenticatedSpeechRecognitionProvider offline =
+                new AuthenticatedSpeechRecognitionProvider(
+                        new FakeSpeechClient(false), new FakeMicrophone());
+        offline.refreshStatus();
+        assertEquals(SpeechProviderStatus.NOT_CONFIGURED,
+                offline.getProviderStatus());
+    }
+
+    private static void automaticSpeechRequest() {
+        SpeechRecognitionRequest automatic =
+                SpeechRecognitionRequest.forLanguage(
+                        VoiceInputLanguage.AUTOMATIC);
+        assertEquals("en-US", automatic.localeTag());
+        assertTrue(automatic.allowLanguageDetection());
+        SpeechRecognitionRequest mixed =
+                SpeechRecognitionRequest.forLanguage(
+                        VoiceInputLanguage.BANGLISH_MIXED);
+        assertEquals("en-US", mixed.localeTag());
+        assertTrue(mixed.allowLanguageDetection());
+    }
+
     private static VoiceTransactionParser parser(List<Account> accounts) {
         return new VoiceTransactionParser(accounts,
                 List.of(Category.values()), CLOCK,
@@ -451,6 +505,64 @@ public final class VoiceTransactionParserTest {
         @Override public boolean deleteById(String id) {
             return entries.removeIf(value -> value.getId().equals(id));
         }
+    }
+
+    private static final class FakeSpeechClient implements SpeechApiClient {
+        private final boolean active;
+        private boolean receivedNonZeroAudio;
+
+        private FakeSpeechClient(boolean active) {
+            this.active = active;
+        }
+
+        @Override
+        public SpeechBackendStatus getSpeechStatus() {
+            return new SpeechBackendStatus(SpeechProviderStatus.READY,
+                    "Test provider ready.");
+        }
+
+        @Override
+        public SpeechRecognitionResult recognizeSpeech(
+                byte[] linearPcmAudio, int sampleRateHertz,
+                VoiceInputLanguage language) {
+            receivedNonZeroAudio = linearPcmAudio[0] != 0;
+            return new SpeechRecognitionResult(
+                    "Paid 500 taka for lunch", 0.92,
+                    VoiceInputLanguage.ENGLISH);
+        }
+
+        @Override
+        public boolean hasActiveSession() {
+            return active;
+        }
+    }
+
+    private static final class FakeMicrophone implements MicrophoneCapture {
+        private final byte[] audio = new byte[3_200];
+        private boolean stopped;
+        private boolean cancelled;
+
+        private FakeMicrophone() {
+            java.util.Arrays.fill(audio, (byte) 7);
+        }
+
+        @Override public List<MicrophoneDevice> listMicrophones() {
+            return List.of(new MicrophoneDevice("test", "Test microphone"));
+        }
+        @Override public void selectMicrophone(String identifier) { }
+        @Override public String getSelectedMicrophoneIdentifier() {
+            return "test";
+        }
+        @Override public String getStatus() { return "Test microphone ready."; }
+        @Override public CapturedAudio capture(java.time.Duration maximum) {
+            return new CapturedAudio(audio, java.time.Duration.ofMillis(100));
+        }
+        @Override public void stop() { stopped = true; }
+        @Override public void cancel() { cancelled = true; }
+        @Override public java.time.Duration getRecordingDuration() {
+            return java.time.Duration.ZERO;
+        }
+        @Override public boolean testMicrophone() { return true; }
     }
 
     @FunctionalInterface

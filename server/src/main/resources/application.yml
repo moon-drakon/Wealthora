@@ -53,3 +53,7 @@ wealthora:
   mail:
     from: ${SMTP_FROM:}
     development-directory: ${WEALTHORA_DEV_MAIL_DIR:./dev-mail}
+  speech:
+    project-id: ${GOOGLE_CLOUD_PROJECT:}
+    maximum-audio-bytes: ${SPEECH_MAXIMUM_AUDIO_BYTES:1000000}
+    minimum-audio-bytes: ${SPEECH_MINIMUM_AUDIO_BYTES:3200}

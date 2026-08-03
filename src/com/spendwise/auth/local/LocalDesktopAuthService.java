@@ -21,6 +21,7 @@ import com.spendwise.auth.audit.AuditRepository;
 import com.spendwise.auth.registration.RegistrationGateway;
 import com.spendwise.auth.registration.UnconfiguredRegistrationGateway;
 import com.spendwise.config.AppPaths;
+import com.spendwise.voice.SpeechApiClient;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.time.Clock;
@@ -127,6 +128,10 @@ public final class LocalDesktopAuthService
     @Override
     public boolean isOwnerSetupRequired() {
         return userRepository.findOwner().isEmpty();
+    }
+
+    public SpeechApiClient getSpeechApiClient() {
+        return registrationGateway;
     }
 
     @Override

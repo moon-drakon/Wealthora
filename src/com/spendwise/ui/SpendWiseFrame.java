@@ -175,6 +175,39 @@ public final class SpendWiseFrame extends JFrame {
             JsonBackupService jsonBackupService,
             CsvImportService csvImportService,
             PdfReportService pdfReportService) {
+        this(expenseService, analyticsService, budgetService, categoryService,
+                accountService, incomeService, transferService, financeService,
+                recurringService, quickEntryService, backupService, exportService,
+                paymentCardService, currencyService, advancedBudgetService,
+                savingsGoalService, debtService, portfolioAnalyticsService,
+                notificationService, jsonBackupService, csvImportService,
+                pdfReportService, new UnconfiguredSpeechRecognitionProvider());
+    }
+
+    public SpendWiseFrame(
+            ExpenseService expenseService,
+            ExpenseAnalyticsService analyticsService,
+            BudgetService budgetService,
+            CategoryService categoryService,
+            AccountService accountService,
+            IncomeService incomeService,
+            TransferService transferService,
+            FinanceService financeService,
+            RecurringService recurringService,
+            QuickEntryService quickEntryService,
+            BackupService backupService,
+            ExportService exportService,
+            PaymentCardService paymentCardService,
+            CurrencyService currencyService,
+            AdvancedBudgetService advancedBudgetService,
+            SavingsGoalService savingsGoalService,
+            DebtService debtService,
+            PortfolioAnalyticsService portfolioAnalyticsService,
+            FinanceNotificationService notificationService,
+            JsonBackupService jsonBackupService,
+            CsvImportService csvImportService,
+            PdfReportService pdfReportService,
+            SpeechRecognitionProvider speechProvider) {
         super(AppBrand.WINDOW_TITLE);
         requireEventDispatchThread();
         Objects.requireNonNull(expenseService, "Expense service is required.");
@@ -190,6 +223,8 @@ public final class SpendWiseFrame extends JFrame {
         Objects.requireNonNull(quickEntryService, "Quick-entry service is required.");
         Objects.requireNonNull(backupService, "Backup service is required.");
         Objects.requireNonNull(exportService, "Export service is required.");
+        Objects.requireNonNull(speechProvider,
+                "Speech recognition provider is required.");
         FinancialReportingService reportingService =
                 new FinancialReportingService(
                         expenseService,
@@ -328,8 +363,6 @@ public final class SpendWiseFrame extends JFrame {
                 refreshFinancialViews);
         recurringReference[0] = recurringPanel;
         VoiceEntrySettings voiceSettings = new VoiceEntrySettings();
-        SpeechRecognitionProvider speechProvider =
-                new UnconfiguredSpeechRecognitionProvider();
         VoiceQuickEntryDialog voiceQuickEntryDialog =
                 new VoiceQuickEntryDialog(
                         this,
