@@ -1,6 +1,6 @@
 # Wealthora current implementation status
 
-Verified on 2026-08-03 on branch
+Verified on 2026-08-04 on branch
 `feature/wealthora-online-auth-voice`.
 
 ## Release checkpoint
@@ -20,6 +20,9 @@ Verified on 2026-08-03 on branch
 - Secret-safe live Neon and disposable authentication verification tooling:
   `718e96a`.
 - Anonymized real SMTP registration verification: `6af16c5`.
+- Explicit same-email CLOUD/LOCAL sign-in routing: `614986a`.
+- Verified desktop cloud launcher: `8cf4891`.
+- Anonymized real SMTP password-recovery verification: `967d640`.
 - The commit containing this report follows those implementation commits; use
   `git rev-parse --short HEAD` for its exact hash.
 - The cloud-finance milestone commits were not pushed or merged. The remote
@@ -195,11 +198,29 @@ Flyway V1-V5 remain forward-only, and Hibernate remains configured with
   password identity, USER role, active CLOUD session, and the expected
   registration, verification, and login audit actions. No address, OTP,
   password, or token was read or printed.
-- Real SMTP password-recovery delivery and reset-token use remain pending.
+- Real SMTP password recovery passed for one verified NSU account. The
+  anonymized read-only audit proves request delivery, reset completion,
+  one-time reset-value consumption, password-identity update, pre-reset
+  session revocation, ACTIVE status, and a clear lock state.
+- The cloud-safe desktop launcher passed server health, email-provider, Google
+  OAuth, JAR, Java, and process checks against port 18080.
+- The recovered address also has a same-email local account. The prior
+  local-first routing prevented a cloud password from reaching the backend.
+  Sign-in now exposes separate **Sign In to CLOUD** and **Sign In to LOCAL**
+  actions; a regression test proves that CLOUD bypasses a same-email local
+  record while explicit LOCAL sign-in still works.
+- Repeated use of the cloud replacement password against the LOCAL OWNER
+  triggered the intended temporary local lockout. This does not affect the
+  active, unlocked CLOUD account and did not change the local password.
+- The rebuilt desktop and production-profile server completed a private
+  post-reset CLOUD sign-in successfully. The anonymized audit proves
+  a successful login attempt, clear cloud lock state, and active server
+  session. Stage 3 real SMTP authentication is complete.
 
 ## Remaining configuration and limitations
 
-- Complete one real SMTP password-recovery delivery and reset-token check.
+- Complete the Stage 4 live desktop CLOUD-mode finance and isolation smoke
+  test.
 - Google OAuth is configured server-side, but browser authorization and live
   account linking remain unverified.
 - Google Cloud Speech has a project ID but no available Application Default

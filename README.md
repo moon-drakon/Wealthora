@@ -93,9 +93,15 @@ legacy originals remain unchanged.
 For online authentication, start the server and set:
 
 ```powershell
-$env:WEALTHORA_SERVER_URL = 'http://127.0.0.1:8080'
+.\scripts\Start-WealthoraDesktop.ps1 `
+  -ServerUrl 'http://127.0.0.1:8080'
 ```
 
+The launcher verifies the health and authentication-status endpoints before
+starting the JAR, then passes the server URL only to the child desktop process.
+Password sign-in offers separate **Sign In to CLOUD** and **Sign In to LOCAL**
+actions. Use LOCAL only when intentionally opening that device's CSV-backed
+workspace; this avoids same-email account ambiguity.
 Only loopback HTTP is accepted. Remote server URLs must use HTTPS. Existing
 offline OWNER access remains available when the server is not configured.
 

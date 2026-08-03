@@ -8,6 +8,9 @@
 - Desktop CLOUD-mode commit: `9fb9c05`
 - Live verification tooling commit: `718e96a`
 - Real SMTP registration audit commit: `6af16c5`
+- Explicit CLOUD/LOCAL sign-in commit: `614986a`
+- Verified desktop launcher commit: `8cf4891`
+- Real SMTP password-recovery audit commit: `967d640`
 - The status-document commit follows that implementation commit; confirm the
   exact current hash with `git rev-parse --short HEAD`.
 - Desktop and server tests/builds pass under Java 25.
@@ -24,6 +27,26 @@
 - Real SMTP registration, OTP consumption, account activation, password
   identity, USER role assignment, CLOUD session creation, and audit events
   passed through a private manual flow plus anonymized database audit.
+- `scripts/Start-WealthoraDesktop.ps1` now validates server health, provider
+  readiness, the desktop JAR, and Java before starting a child process with
+  the configured cloud URL.
+- Real SMTP recovery passed on one verified NSU account: request, completion,
+  one-time-value consumption, password-identity update, and pre-reset session
+  revocation are proven by an anonymized read-only audit.
+- That recovered address also belongs to a local account. The previous
+  desktop logic silently preferred the local record, so the replacement cloud
+  password could not create a backend session.
+- Password sign-in now has separate **Sign In to CLOUD** and **Sign In to
+  LOCAL** actions. A regression test proves CLOUD bypasses a same-email local
+  record while LOCAL still opens the OWNER workspace.
+- Repeated attempts with the cloud replacement password were routed to the
+  LOCAL OWNER and triggered its intended 15-minute lockout. The CLOUD account
+  remains active and unlocked; the local password remains separate and
+  unchanged.
+- The rebuilt two-button UI then completed a successful post-reset CLOUD
+  sign-in. The anonymized live audit confirmed a clear cloud lock state and an
+  active server session. Real SMTP registration and password recovery are
+  complete.
 - The external configuration reports the core, SMTP, and Google OAuth groups
   as set. Google Cloud Application Default Credentials are unavailable.
 - The Next.js frontend has not been started.
@@ -39,12 +62,26 @@
 
 ## Exact next task
 
-Start the production-profile server with
-`scripts/Start-WealthoraServer.ps1`, launch the desktop with
-`WEALTHORA_SERVER_URL=http://127.0.0.1:18080`, choose **Forgot Password**, and
-complete one real password reset. The user enters the address, delivered
-one-time value, and replacement password directly in the Swing UI; none of
-those values belong in chat, logs, scripts, or Git.
+Continue Stage 4 with the verified CLOUD account and production-profile
+backend. Exercise account, category, income, expense, transfer, transaction
+edit/delete, budget, recurring, goal, debt, and dashboard/report behavior.
+Restart the desktop and backend to confirm persistence, then verify a second
+user cannot access the first user's finance records. Confirm logout and Switch
+Account clear cloud state, server stop/restart produces the documented
+transport states, and the established LOCAL OWNER finance files remain
+byte-for-byte unchanged.
+
+If processes must be restarted, start the server with
+`scripts/Start-WealthoraServer.ps1`, then launch the desktop with:
+
+```powershell
+.\scripts\Start-WealthoraDesktop.ps1 `
+  -ServerUrl 'http://127.0.0.1:18080'
+```
+
+The password-recovery audit already reports the request, reset completion,
+consumed token, password-identity update, pre-reset session revocation,
+successful post-reset login, clear account lock, and an active cloud session.
 
 After password-recovery SMTP passes, continue automatically with the desktop
 CLOUD-mode finance smoke test, Google Cloud Speech ADC authorization, Google

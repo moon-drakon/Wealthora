@@ -1,7 +1,7 @@
 # Wealthora local setup progress
 
-Verified on 2026-08-03 on branch
-`feature/wealthora-online-auth-voice` at `9fa4701`.
+Verified on 2026-08-04 on branch
+`feature/wealthora-online-auth-voice` at `967d640`.
 
 ## Completed in this boot
 
@@ -48,10 +48,21 @@ Verified on 2026-08-03 on branch
 - Real SMTP registration and OTP consumption passed. An anonymized read-only
   audit verified activation, USER role assignment, a password identity, an
   active CLOUD session, and the expected audit actions.
+- The new desktop launcher verified the production-profile backend,
+  authentication providers, Java runtime, and desktop JAR before opening the
+  Swing authentication window on port 18080.
+- A real SMTP password reset passed on a verified NSU account, including
+  request, completion, one-time-value consumption, password update, and
+  revocation of its pre-reset session.
+- The recovered address also exists locally. Explicit CLOUD/LOCAL routing now
+  prevents that local record from shadowing cloud sign-in; the full desktop
+  authentication suite and clean JAR build pass.
+- The rebuilt two-button client completed a successful post-reset CLOUD
+  sign-in. An anonymized audit verified the successful attempt, clear cloud
+  lock state, and active session.
 
 ## Still pending
 
-- Real SMTP password-recovery delivery and reset-token use
 - Live desktop CLOUD-mode GUI smoke testing
 - Docker `hello-world`, image build, and container run
 - Google Cloud ADC and browser OAuth authorization

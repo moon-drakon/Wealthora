@@ -1,15 +1,15 @@
 # Wealthora autonomous execution state
 
-Verified on 2026-08-03.
+Verified on 2026-08-04.
 
 ## Current stage
 
 - Branch: `feature/wealthora-online-auth-voice`
-- Recorded verification HEAD: `6af16c5`
-- Active stage: Stage 3, real SMTP password recovery
-- Exact resume point: start the production-profile server on port 18080,
-  launch the Swing desktop, and complete the private Forgot Password/reset
-  flow
+- Recorded verification HEAD: `967d640`
+- Active stage: Stage 4, desktop CLOUD-mode finance smoke testing
+- Exact resume point: use the verified CLOUD account and production-profile
+  backend to exercise finance CRUD, restart persistence, isolation, mode
+  boundaries, session clearing, and server-state handling
 
 ## Completed stages
 
@@ -17,6 +17,7 @@ Verified on 2026-08-03.
 - Stage 2 live Neon PostgreSQL and Flyway V1-V5 validation
 - Stage 3 disposable development-mail authentication lifecycle
 - Stage 3 real SMTP registration, OTP consumption, activation, and sign-in
+- Stage 3 real SMTP password recovery and post-reset CLOUD sign-in
 
 Stage 1 is partially complete: the Windows restart, WSL checks, and Docker
 Client/Server checks passed. `hello-world` and Docker stability did not pass
@@ -34,6 +35,19 @@ pressure. No destructive Docker recovery was attempted.
 - Two production-profile Neon starts with unchanged Flyway history
 - Disposable live authentication lifecycle and scoped cleanup
 - Real SMTP registration plus anonymized activation/session/audit verification
+- Real SMTP password-reset request, completion, one-time-value consumption,
+  password-identity update, and pre-reset session revocation
+- Desktop launcher health, authentication-provider, JAR, Java, and process
+  checks against the production-profile server on port 18080
+- An anonymized recovery diagnostic confirms the recovered account is
+  verified, ACTIVE, unlocked, and also has a same-email local account
+- Explicit CLOUD/LOCAL sign-in routing, including the same-email regression
+  test; `ant test-auth` and `ant clean jar` pass
+- Separate **Sign In to CLOUD** and **Sign In to LOCAL** actions replace the
+  ambiguous checkbox/generic-button interaction
+- Successful post-reset login, clear cloud lock state, and active CLOUD
+  session verified by the anonymized live audit
+- `server\mvnw.cmd package` passes after the recovery audit addition
 - Five local OWNER finance files match the pre-online-auth backup byte-for-byte
 - Identical database data-count fingerprint before and after live testing
 - PowerShell syntax checks and `git diff --check`
@@ -42,7 +56,10 @@ pressure. No destructive Docker recovery was attempted.
 
 - Docker `hello-world`: failed with Docker Desktop engine HTTP 500
 - Docker clean relaunch: failed with WSL VHDX attach error `0x800705aa`
-- Real SMTP password-recovery message and reset-token use: pending
+- The same-email LOCAL OWNER reached the intended temporary lockout after
+  repeated attempts with the cloud replacement password; its original local
+  password was not changed. The lock expires automatically before LOCAL-mode
+  verification.
 - Desktop CLOUD-mode GUI finance smoke test: pending
 - Google Cloud Speech: pending Application Default Credentials
 - Google OAuth: pending browser authorization
@@ -50,17 +67,13 @@ pressure. No destructive Docker recovery was attempted.
 
 ## Manual gates
 
-- Next gate: the user privately enters the existing `northsouth.edu` address,
-  delivered reset value, and replacement password in the Swing UI, then
-  replies `ready`.
-- Later gates: Google authorization/billing if requested, Render/Vercel
-  account connections and secret entry, and explicit push/merge/deploy
-  authorization.
+- No active manual gate. Later gates include Google authorization/billing if
+  requested, Render/Vercel account connections and secret entry, and explicit
+  push/merge/deploy authorization.
 
 ## Remaining stages
 
 - Finish Stage 1 Docker stability
-- Finish Stage 3 real SMTP
 - Stage 4 desktop CLOUD mode
 - Stage 5 Google Cloud Speech
 - Stage 6 Google Sign-In

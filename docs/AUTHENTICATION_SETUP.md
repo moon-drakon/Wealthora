@@ -96,13 +96,16 @@ one-time code, verifies the email, and activates the user under the default
 policy. Optional administrator approval can instead leave the user in
 `PENDING_APPROVAL`. Registration never starts a session before activation.
 
-An `ACTIVE`, verified online account can sign in from the same screen. The
+An `ACTIVE`, verified online account can sign in from the same screen. Use
+**Sign In to CLOUD** for the server account and **Sign In to LOCAL** only when
+intentionally opening the CSV-backed local workspace. These explicit actions
+also handle an address that exists in both places without silently mixing
+authentication modes. The
 desktop keeps its access and refresh tokens only in process memory, sends them
 only to the configured HTTPS/loopback server, rotates them through the refresh
 endpoint, and revokes the server session on Sign Out or Switch Account. It does
 not persist a bearer token for Remember Me yet. Local OWNER sign-in remains the
-offline fallback and is selected before online authentication for that OWNER
-email.
+offline fallback through the explicit LOCAL action.
 
 To require approval after verification, set
 `REGISTRATION_REQUIRES_ADMIN_APPROVAL=true` before starting the server or use
