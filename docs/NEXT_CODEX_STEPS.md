@@ -15,16 +15,28 @@
 - The cloud-finance milestone was not pushed, merged, or deployed. The remote
   branch is still at the earlier release-foundation checkpoint.
 - The Next.js frontend was not started.
+- Docker Desktop 4.84.0 and Docker CLI 29.6.2 were installed through the
+  official `Docker.DockerDesktop` Winget package. Windows then reported a
+  pending Component Based Servicing restart. Docker Server and `hello-world`
+  verification have not run.
+- WSL 2.7.11.0 is current and defaults to WSL 2. No Linux distribution is
+  installed; none is needed merely to populate the distribution list before
+  Docker creates its managed distributions.
 
 ## Exact next task
 
-Run Flyway V1-V5 plus the authentication, administration, and cloud-finance
-checks against a new, empty, isolated PostgreSQL or Neon database. Then run a
-bounded desktop CLOUD-mode smoke test against that disposable server. Do not
-use the desktop's local OWNER workspace or any database containing real
-finance data.
+Restart Windows manually, then follow `docs/LOCAL_SETUP_PROGRESS.md` to
+re-check WSL, start Docker Desktop, and verify both Docker Client and Server
+plus `hello-world`. Do not claim Docker complete until all three checks pass.
+After Docker is verified, validate the external environment file without
+printing values, create or verify the secret-safe launcher, and only then run
+Flyway V1-V5 plus the authentication, administration, and cloud-finance checks
+against the configured isolated PostgreSQL or Neon database. Finish with a
+bounded desktop CLOUD-mode smoke test. Do not use the desktop's local OWNER
+workspace or any database containing real finance data.
 
-The required variables are currently missing:
+The external file was reported to contain the four core values, but it was not
+read or validated during this restart-gated checkpoint. Required names are:
 
 - `DATABASE_URL`
 - `DATABASE_USERNAME`
