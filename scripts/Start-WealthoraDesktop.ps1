@@ -4,6 +4,9 @@ param(
 
     [string] $JarPath,
 
+    [ValidateRange(96, 1024)]
+    [int] $MaximumHeapMegabytes = 160,
+
     [switch] $ValidateOnly
 )
 
@@ -73,8 +76,11 @@ $startInfo.UseShellExecute = $false
 $startInfo.Environment['WEALTHORA_SERVER_URL'] = $baseUrl
 foreach ($argument in @(
         '-Xms32m',
-        '-Xmx256m',
+        "-Xmx${MaximumHeapMegabytes}m",
         '-Xss256k',
+        '-XX:MaxMetaspaceSize=128m',
+        '-XX:CompressedClassSpaceSize=32m',
+        '-XX:ReservedCodeCacheSize=48m',
         '-XX:ActiveProcessorCount=2',
         '-XX:+UseSerialGC',
         '-jar',

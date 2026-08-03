@@ -46,6 +46,8 @@ public final class CloudFinanceRepositoryTest {
                 CloudFinanceRepositoryTest::ownerComesOnlyFromSession);
         test("planning repositories use authenticated finance routes",
                 CloudFinanceRepositoryTest::planningRoutes);
+        test("workspace startup coalesces identical cloud reads",
+                CloudFinanceRepositoryTest::startupReadSnapshot);
         test("migration preview is read-only",
                 CloudFinanceRepositoryTest::migrationPreviewIsReadOnly);
         System.out.println("All " + passed
@@ -144,6 +146,22 @@ public final class CloudFinanceRepositoryTest {
         assertTrue(gateway.hasPath("POST", "/api/finance/debts"));
         assertTrue(gateway.hasPath("POST",
                 "/api/finance/debts/DEBT_BOOKS/repayments"));
+    }
+
+    private static void startupReadSnapshot() {
+        RecordingGateway gateway = new RecordingGateway();
+        CloudFinanceClient client = new CloudFinanceClient(gateway);
+        client.beginReadSnapshot();
+        client.getAll("/api/finance/accounts");
+        int firstReadCount = gateway.requestCount(
+                "GET", "/api/finance/accounts");
+        client.getAll("/api/finance/accounts");
+        assertEquals(firstReadCount, gateway.requestCount(
+                "GET", "/api/finance/accounts"));
+        client.endReadSnapshot();
+        client.getAll("/api/finance/accounts");
+        assertTrue(gateway.requestCount(
+                "GET", "/api/finance/accounts") > firstReadCount);
     }
 
     private static void migrationPreviewIsReadOnly() throws Exception {
@@ -265,6 +283,12 @@ public final class CloudFinanceRepositoryTest {
         private boolean hasPath(String method, String path) {
             return requests.stream().anyMatch(value -> value.method().equals(method)
                     && value.path().equals(path));
+        }
+
+        private int requestCount(String method, String pathPrefix) {
+            return (int) requests.stream().filter(value ->
+                    value.method().equals(method)
+                            && value.path().startsWith(pathPrefix)).count();
         }
 
         private Request last(String method, String path) {

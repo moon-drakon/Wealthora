@@ -58,6 +58,7 @@ public final class SpendWiseFrame extends JFrame {
 
     private AppShellPanel appShell;
     private DataManagementActions dataManagementActions;
+    private OverviewPanel overviewPanel;
 
     public SpendWiseFrame(
             ExpenseService expenseService,
@@ -328,6 +329,7 @@ public final class SpendWiseFrame extends JFrame {
                 recurringService,
                 currencyService,
                 openVoiceEntry);
+        this.overviewPanel = overviewPanel;
         overviewReference[0] = overviewPanel;
         TransactionsPanel transactionsPanel = new TransactionsPanel(
                 expenseService,
@@ -538,6 +540,9 @@ public final class SpendWiseFrame extends JFrame {
                     "The professional application shell is not active.");
         }
         appShell.configureFinanceMode(mode, connectionState);
+        if (overviewPanel != null) {
+            overviewPanel.configureFinanceMode(mode, connectionState);
+        }
         setTitle(AppBrand.WINDOW_TITLE + " [" + mode.name() + "]");
         if (mode == FinanceMode.CLOUD) {
             JMenu cloudData = new JMenu("Cloud Data");

@@ -14,6 +14,9 @@ param(
 
     [string] $DevelopmentMailDirectory,
 
+    [ValidateRange(128, 2048)]
+    [int] $MaximumHeapMegabytes = 256,
+
     [ValidateRange(10, 600)]
     [int] $StartupTimeoutSeconds = 180
 )
@@ -154,9 +157,12 @@ try {
 
     $process = Start-Process -FilePath $javaExecutable `
         -ArgumentList @(
-            '-Xms64m',
-            '-Xmx384m',
+            '-Xms32m',
+            "-Xmx${MaximumHeapMegabytes}m",
             '-Xss256k',
+            '-XX:MaxMetaspaceSize=192m',
+            '-XX:CompressedClassSpaceSize=64m',
+            '-XX:ReservedCodeCacheSize=96m',
             '-XX:ActiveProcessorCount=2',
             '-XX:+UseSerialGC',
             '-jar',

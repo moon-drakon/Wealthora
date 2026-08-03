@@ -1,5 +1,7 @@
 package com.spendwise.ui;
 
+import com.spendwise.auth.CloudConnectionState;
+import com.spendwise.auth.FinanceMode;
 import com.spendwise.config.AppBrand;
 import com.spendwise.model.RecurringEntry;
 import com.spendwise.service.BudgetService;
@@ -32,6 +34,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Supplier;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -84,7 +87,14 @@ public final class OverviewPanel extends JPanel {
     private final CategoryDonutChartPanel categoryChart =
             new CategoryDonutChartPanel();
     private final JLabel updatedLabel = new JLabel(" ");
+    private final JLabel workspaceTitle =
+            new JLabel("Private LOCAL workspace");
+    private final JLabel workspaceDetail = new JLabel(
+            "Stored only on this device; CLOUD data stays separate.");
     private final JScrollPane scrollPane = new JScrollPane();
+    private FinanceMode financeMode = FinanceMode.LOCAL;
+    private Supplier<CloudConnectionState> connectionState =
+            () -> CloudConnectionState.OFFLINE;
 
     public OverviewPanel(
             FinanceService financeService,
@@ -163,12 +173,24 @@ public final class OverviewPanel extends JPanel {
                 analytics.getSelectedMonthSummary().getTotalsByCategory());
         updateRecentActivity();
         updateUpcomingItems();
-        updatedLabel.setText("Showing live local data for "
-                + month.format(MONTH_LABEL));
+        updateWorkspaceStatus();
+        updatedLabel.setText(financeMode == FinanceMode.LOCAL
+                ? "Showing LOCAL data for " + month.format(MONTH_LABEL)
+                : "Showing CLOUD data for " + month.format(MONTH_LABEL)
+                        + " · " + connectionState.get().getDisplayName());
         revalidate();
         repaint();
         SwingUtilities.invokeLater(() ->
                 scrollPane.getVerticalScrollBar().setValue(0));
+    }
+
+    public void configureFinanceMode(FinanceMode mode,
+            Supplier<CloudConnectionState> stateSupplier) {
+        financeMode = Objects.requireNonNull(mode,
+                "Finance mode is required.");
+        connectionState = Objects.requireNonNull(stateSupplier,
+                "Connection-state supplier is required.");
+        updateWorkspaceStatus();
     }
 
     private void buildInterface() {
@@ -240,17 +262,46 @@ public final class OverviewPanel extends JPanel {
         JPanel helper = new JPanel(new BorderLayout());
         AppTheme.mark(helper, AppTheme.CARD_ROLE);
         helper.setBorder(BorderFactory.createEmptyBorder(14, 16, 14, 16));
-        JLabel title = new JLabel("Your private workspace");
-        title.setFont(AppFonts.sectionTitle());
-        AppTheme.mark(title, AppTheme.PRIMARY_TEXT_ROLE);
-        JLabel detail = new JLabel(
-                "Stored locally. No account or cloud connection is active.");
-        detail.setFont(AppFonts.caption());
-        AppTheme.mark(detail, AppTheme.SECONDARY_TEXT_ROLE);
-        helper.add(title, BorderLayout.NORTH);
-        helper.add(detail, BorderLayout.CENTER);
+        workspaceTitle.setFont(AppFonts.sectionTitle());
+        AppTheme.mark(workspaceTitle, AppTheme.PRIMARY_TEXT_ROLE);
+        workspaceDetail.setFont(AppFonts.caption());
+        AppTheme.mark(workspaceDetail, AppTheme.SECONDARY_TEXT_ROLE);
+        helper.add(workspaceTitle, BorderLayout.NORTH);
+        helper.add(workspaceDetail, BorderLayout.CENTER);
         cards.add(helper);
         return cards;
+    }
+
+    private void updateWorkspaceStatus() {
+        if (financeMode == FinanceMode.LOCAL) {
+            workspaceTitle.setText("Private LOCAL workspace");
+            workspaceDetail.setText(
+                    "Stored only on this device; CLOUD data stays separate.");
+            return;
+        }
+        CloudConnectionState state = connectionState.get();
+        switch (state) {
+            case CONNECTED -> {
+                workspaceTitle.setText("Private CLOUD workspace");
+                workspaceDetail.setText(
+                        "Synced to your authenticated Wealthora account.");
+            }
+            case UNAUTHORIZED -> {
+                workspaceTitle.setText("CLOUD session expired");
+                workspaceDetail.setText(
+                        "Sign in again to continue using CLOUD finance.");
+            }
+            case SERVER_UNAVAILABLE -> {
+                workspaceTitle.setText("CLOUD server unavailable");
+                workspaceDetail.setText(
+                        "Your local workspace remains separate and unchanged.");
+            }
+            case OFFLINE -> {
+                workspaceTitle.setText("CLOUD workspace offline");
+                workspaceDetail.setText(
+                        "Reconnect before loading or changing CLOUD data.");
+            }
+        }
     }
 
     private JPanel buildActivityRow() {

@@ -116,7 +116,7 @@ public final class SpendWiseApplication {
         authFrame.setVisible(true);
     }
 
-    private static void openFinanceWorkspace(
+    static void openFinanceWorkspace(
             UserSession session,
             LocalDesktopAuthService authService,
             SessionManager sessionManager,
@@ -342,17 +342,23 @@ public final class SpendWiseApplication {
                 new PortfolioAnalyticsService(reportingService,
                         financeService, recurringService,
                         advancedBudgetService, debtService);
-        SpendWiseFrame frame = new SpendWiseFrame(
-                expenseService, analyticsService, budgetService,
-                categoryService, accountService, incomeService,
-                transferService, financeService, recurringService,
-                quickEntryService, null, null, null, null,
-                advancedBudgetService, savingsGoalService, debtService,
-                portfolioService, null, null, null,
-                new PdfReportService(),
-                new AuthenticatedSpeechRecognitionProvider(
-                        authService.getSpeechApiClient(),
-                        new JavaSoundMicrophoneCapture()));
+        SpendWiseFrame frame;
+        client.beginReadSnapshot();
+        try {
+            frame = new SpendWiseFrame(
+                    expenseService, analyticsService, budgetService,
+                    categoryService, accountService, incomeService,
+                    transferService, financeService, recurringService,
+                    quickEntryService, null, null, null, null,
+                    advancedBudgetService, savingsGoalService, debtService,
+                    portfolioService, null, null, null,
+                    new PdfReportService(),
+                    new AuthenticatedSpeechRecognitionProvider(
+                            authService.getSpeechApiClient(),
+                            new JavaSoundMicrophoneCapture()));
+        } finally {
+            client.endReadSnapshot();
+        }
         frame.configureFinanceMode(FinanceMode.CLOUD,
                 client::getConnectionState,
                 new MigrationPreviewService(authService.getUserRepository()

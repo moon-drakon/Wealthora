@@ -9,11 +9,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class CloudFinanceClient {
 
     private static final int PAGE_SIZE = 100;
     private final FinanceApiGateway gateway;
+    private final Map<String, String> readSnapshot =
+            new ConcurrentHashMap<>();
+    private volatile boolean readSnapshotActive;
 
     public CloudFinanceClient(FinanceApiGateway gateway) {
         this.gateway = Objects.requireNonNull(
@@ -55,6 +59,21 @@ public final class CloudFinanceClient {
 
     public CloudConnectionState getConnectionState() {
         return gateway.getCloudConnectionState();
+    }
+
+    /**
+     * Coalesces identical reads while the Swing workspace builds its initial
+     * panels. The snapshot is explicitly bounded to startup, so ordinary
+     * refreshes still observe changes from other signed-in devices.
+     */
+    public void beginReadSnapshot() {
+        readSnapshot.clear();
+        readSnapshotActive = true;
+    }
+
+    public void endReadSnapshot() {
+        readSnapshotActive = false;
+        readSnapshot.clear();
     }
 
     public static String segment(String value) {
@@ -120,8 +139,22 @@ public final class CloudFinanceClient {
     }
 
     private Object request(String method, String path, Map<String, ?> body) {
-        String response = gateway.requestFinance(method, path,
-                body == null ? "" : JsonSupport.stringify(body));
+        String requestBody = body == null ? "" : JsonSupport.stringify(body);
+        String response;
+        if ("GET".equals(method) && readSnapshotActive) {
+            response = readSnapshot.get(path);
+            if (response == null) {
+                response = gateway.requestFinance(method, path, requestBody);
+                if (readSnapshotActive) {
+                    readSnapshot.putIfAbsent(path, response);
+                }
+            }
+        } else {
+            response = gateway.requestFinance(method, path, requestBody);
+            if (!"GET".equals(method)) {
+                readSnapshot.clear();
+            }
+        }
         return JsonSupport.parse(response);
     }
 
