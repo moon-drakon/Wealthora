@@ -9,6 +9,8 @@ import com.spendwise.auth.audit.CsvAuditRepository;
 import com.spendwise.auth.local.CsvLocalUserRepository;
 import com.spendwise.auth.local.LegacyDataMigrationService;
 import com.spendwise.auth.local.LocalDesktopAuthService;
+import com.spendwise.auth.registration.HttpRegistrationGateway;
+import com.spendwise.auth.registration.ServerConfiguration;
 import com.spendwise.auth.ui.AccountProfileDialog;
 import com.spendwise.auth.ui.AdminConsoleDialog;
 import com.spendwise.auth.ui.AuthFrame;
@@ -86,7 +88,9 @@ public final class SpendWiseApplication {
                             new LegacyDataMigrationService(
                                     AppPaths.getLegacyDataDirectory(),
                                     AppPaths.getBackupDirectory(),
-                                    auditRepository));
+                                    auditRepository),
+                            new HttpRegistrationGateway(
+                                    ServerConfiguration.fromEnvironment()));
             AdminService adminService = new AdminService(
                     authService.getUserRepository(), auditRepository,
                     authService);

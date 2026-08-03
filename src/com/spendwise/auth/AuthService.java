@@ -9,6 +9,19 @@ public interface AuthService {
     AuthenticatedUser registerWithNsuEmail(
             String fullName, String email, char[] password);
 
+    default AuthenticatedUser registerWithNsuEmail(
+            String fullName,
+            String email,
+            String studentIdentifier,
+            char[] password,
+            boolean termsAccepted) {
+        if (!termsAccepted) {
+            throw new AuthException(
+                    "Accept the terms and privacy notice to create an account.");
+        }
+        return registerWithNsuEmail(fullName, email, password);
+    }
+
     AuthenticatedUser verifyNsuEmail(
             String email, String verificationCode);
 

@@ -17,6 +17,8 @@ import com.spendwise.auth.UserSession;
 import com.spendwise.auth.audit.AuditAction;
 import com.spendwise.auth.audit.AuditEvent;
 import com.spendwise.auth.audit.AuditRepository;
+import com.spendwise.auth.registration.RegistrationGateway;
+import com.spendwise.auth.registration.UnconfiguredRegistrationGateway;
 import com.spendwise.config.AppPaths;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -48,6 +50,7 @@ public final class LocalDesktopAuthService
     private final Clock clock;
     private final Function<String, java.nio.file.Path> workspaceResolver;
     private final String dummyPasswordHash;
+    private final RegistrationGateway registrationGateway;
 
     public LocalDesktopAuthService(
             LocalUserRepository userRepository,
@@ -58,7 +61,21 @@ public final class LocalDesktopAuthService
             LegacyDataMigrationService migrationService) {
         this(userRepository, passwordService, ownerConfiguration,
                 sessionManager, auditRepository, migrationService,
-                Clock.systemUTC(), AppPaths::getUserDataDirectory);
+                new UnconfiguredRegistrationGateway());
+    }
+
+    public LocalDesktopAuthService(
+            LocalUserRepository userRepository,
+            PasswordService passwordService,
+            OwnerConfiguration ownerConfiguration,
+            SessionManager sessionManager,
+            AuditRepository auditRepository,
+            LegacyDataMigrationService migrationService,
+            RegistrationGateway registrationGateway) {
+        this(userRepository, passwordService, ownerConfiguration,
+                sessionManager, auditRepository, migrationService,
+                Clock.systemUTC(), AppPaths::getUserDataDirectory,
+                registrationGateway);
     }
 
     LocalDesktopAuthService(
@@ -70,6 +87,21 @@ public final class LocalDesktopAuthService
             LegacyDataMigrationService migrationService,
             Clock clock,
             Function<String, java.nio.file.Path> workspaceResolver) {
+        this(userRepository, passwordService, ownerConfiguration,
+                sessionManager, auditRepository, migrationService, clock,
+                workspaceResolver, new UnconfiguredRegistrationGateway());
+    }
+
+    LocalDesktopAuthService(
+            LocalUserRepository userRepository,
+            PasswordService passwordService,
+            OwnerConfiguration ownerConfiguration,
+            SessionManager sessionManager,
+            AuditRepository auditRepository,
+            LegacyDataMigrationService migrationService,
+            Clock clock,
+            Function<String, java.nio.file.Path> workspaceResolver,
+            RegistrationGateway registrationGateway) {
         this.userRepository = Objects.requireNonNull(
                 userRepository, "User repository is required.");
         this.passwordService = Objects.requireNonNull(
@@ -85,6 +117,8 @@ public final class LocalDesktopAuthService
         this.clock = Objects.requireNonNull(clock, "Clock is required.");
         this.workspaceResolver = Objects.requireNonNull(
                 workspaceResolver, "Workspace resolver is required.");
+        this.registrationGateway = Objects.requireNonNull(
+                registrationGateway, "Registration gateway is required.");
         this.dummyPasswordHash = passwordService.hash(DUMMY_PASSWORD);
     }
 
@@ -198,18 +232,31 @@ public final class LocalDesktopAuthService
     @Override
     public AuthenticatedUser registerWithNsuEmail(
             String fullName, String email, char[] password) {
-        throw unavailable("Self-service account creation");
+        return registerWithNsuEmail(
+                fullName, email, "", password, true);
+    }
+
+    @Override
+    public AuthenticatedUser registerWithNsuEmail(
+            String fullName,
+            String email,
+            String studentIdentifier,
+            char[] password,
+            boolean termsAccepted) {
+        return registrationGateway.register(fullName, email,
+                studentIdentifier, password, password,
+                termsAccepted);
     }
 
     @Override
     public AuthenticatedUser verifyNsuEmail(
             String email, String verificationCode) {
-        throw unavailable("Email verification");
+        return registrationGateway.verifyEmail(email, verificationCode);
     }
 
     @Override
     public void resendVerification(String email) {
-        throw unavailable("Email verification");
+        registrationGateway.resendVerification(email);
     }
 
     @Override

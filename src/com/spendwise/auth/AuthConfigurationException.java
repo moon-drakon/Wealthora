@@ -9,4 +9,8 @@ public final class AuthConfigurationException extends AuthException {
     public AuthConfigurationException(String message) {
         super(message);
     }
+
+    public AuthConfigurationException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

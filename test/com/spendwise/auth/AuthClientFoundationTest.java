@@ -7,6 +7,7 @@ import com.spendwise.auth.ui.ResetPasswordPanel;
 import com.spendwise.auth.ui.SignInPanel;
 import com.spendwise.auth.ui.SignUpPanel;
 import com.spendwise.auth.ui.VerificationPanel;
+import com.spendwise.auth.registration.ServerConfiguration;
 import com.spendwise.config.AppBrand;
 import java.awt.Component;
 import java.awt.Container;
@@ -52,6 +53,8 @@ public final class AuthClientFoundationTest {
                 AuthClientFoundationTest::sessionLifecycle);
         test("authentication panels express correct policy",
                 AuthClientFoundationTest::panelsConstruct);
+        test("server URL requires HTTPS except localhost",
+                AuthClientFoundationTest::serverUrlPolicy);
         System.out.println("All " + passed
                 + " authentication policy tests passed.");
     }
@@ -228,6 +231,20 @@ public final class AuthClientFoundationTest {
             throw new AssertionError("Authentication panel test failed.",
                     failure.get());
         }
+    }
+
+    private static void serverUrlPolicy() {
+        assertEquals("http://localhost:8080",
+                new ServerConfiguration("http://localhost:8080/")
+                        .requireBaseUri().toString());
+        assertEquals("https://auth.example.com",
+                new ServerConfiguration("https://auth.example.com")
+                        .requireBaseUri().toString());
+        expect(AuthConfigurationException.class, () ->
+                new ServerConfiguration("http://auth.example.com")
+                        .requireBaseUri());
+        expect(AuthConfigurationException.class, () ->
+                new ServerConfiguration("").requireBaseUri());
     }
 
     private static GoogleAuthorization authorization() {

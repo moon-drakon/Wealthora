@@ -80,9 +80,11 @@ public final class BackendAuthService implements AuthService {
                 required(verificationCode, "Verification code")));
         if (!user.getEmail().equals(normalizedEmail)
                 || !user.isEmailVerified()
-                || user.getAccountStatus() != AccountStatus.ACTIVE) {
+                || (user.getAccountStatus() != AccountStatus.ACTIVE
+                    && user.getAccountStatus()
+                            != AccountStatus.PENDING_APPROVAL)) {
             throw new AuthException(
-                    "The backend did not confirm an active verified NSU account.");
+                    "The backend did not confirm a verified NSU account.");
         }
         return user;
     }

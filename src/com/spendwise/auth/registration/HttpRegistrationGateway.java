@@ -1,0 +1,222 @@
+package com.spendwise.auth.registration;
+
+import com.spendwise.auth.AccountStatus;
+import com.spendwise.auth.AuthException;
+import com.spendwise.auth.AuthProvider;
+import com.spendwise.auth.AuthenticatedUser;
+import com.spendwise.auth.NsuEmailPolicy;
+import com.spendwise.auth.PasswordService;
+import com.spendwise.auth.UserRole;
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Arrays;
+import java.util.EnumSet;
+import java.util.Objects;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+public final class HttpRegistrationGateway implements RegistrationGateway {
+
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(15);
+    private final ServerConfiguration configuration;
+    private final HttpClient client;
+    private final PasswordService passwordService = new PasswordService();
+
+    public HttpRegistrationGateway(ServerConfiguration configuration) {
+        this(configuration, HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(5))
+                .followRedirects(HttpClient.Redirect.NEVER).build());
+    }
+
+    HttpRegistrationGateway(
+            ServerConfiguration configuration, HttpClient client) {
+        this.configuration = Objects.requireNonNull(configuration);
+        this.client = Objects.requireNonNull(client);
+    }
+
+    @Override
+    public AuthenticatedUser register(
+            String fullName,
+            String email,
+            String studentIdentifier,
+            char[] password,
+            char[] passwordConfirmation,
+            boolean termsAccepted) {
+        String normalizedEmail = NsuEmailPolicy.requireInstitutionalEmail(email);
+        passwordService.requireStrong(password);
+        if (!Arrays.equals(password, passwordConfirmation)) {
+            throw new AuthException("Password confirmation does not match.");
+        }
+        if (!termsAccepted) {
+            throw new AuthException(
+                    "Accept the terms and privacy notice to create an account.");
+        }
+        String body = "{" + field("fullName", fullName) + ","
+                + field("email", normalizedEmail) + ","
+                + field("studentId", studentIdentifier) + ","
+                + field("password", new String(password)) + ","
+                + field("passwordConfirmation",
+                        new String(passwordConfirmation)) + ","
+                + "\"termsAccepted\":true}";
+        return user(post("/api/auth/register", body));
+    }
+
+    @Override
+    public AuthenticatedUser verifyEmail(
+            String email, String verificationCode) {
+        String body = "{" + field("email",
+                NsuEmailPolicy.requireInstitutionalEmail(email)) + ","
+                + field("code", required(
+                        verificationCode, "Verification code")) + "}";
+        return user(post("/api/auth/verify-email", body));
+    }
+
+    @Override
+    public void resendVerification(String email) {
+        post("/api/auth/resend-verification", "{" + field("email",
+                NsuEmailPolicy.requireInstitutionalEmail(email)) + "}");
+    }
+
+    @Override
+    public boolean isConfigured() {
+        return configuration.isConfigured();
+    }
+
+    private String post(String path, String body) {
+        URI target = URI.create(configuration.requireBaseUri() + path);
+        HttpRequest request = HttpRequest.newBuilder(target)
+                .timeout(REQUEST_TIMEOUT)
+                .header("Accept", "application/json")
+                .header("Content-Type", "application/json; charset=UTF-8")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+        try {
+            HttpResponse<String> response = client.send(request,
+                    HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                String message = string(response.body(), "message");
+                throw new AuthException(message == null || message.isBlank()
+                        ? "The authentication server rejected the request."
+                        : message);
+            }
+            return response.body() == null ? "" : response.body();
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new AuthException(
+                    "The authentication request was interrupted.", exception);
+        } catch (IOException exception) {
+            throw new AuthException(
+                    "The authentication server is unavailable.", exception);
+        }
+    }
+
+    private static AuthenticatedUser user(String json) {
+        String identifier = required(string(json, "userIdentifier"), "User ID");
+        String fullName = required(string(json, "fullName"), "Full name");
+        String email = required(string(json, "email"), "Email");
+        boolean verified = bool(json, "emailVerified");
+        AccountStatus status = AccountStatus.valueOf(required(
+                string(json, "accountStatus"), "Account status"));
+        Instant created = instant(json, "createdAt", Instant.now());
+        Instant updated = instant(json, "updatedAt", created);
+        Instant lastLogin = instant(json, "lastLoginAt", null);
+        Set<UserRole> roles = roleSet(json);
+        return new AuthenticatedUser(identifier, fullName, email, verified,
+                AuthProvider.LOCAL, "", status, created, updated, lastLogin,
+                roles, optional(string(json, "studentId")), "System", "BDT");
+    }
+
+    private static Set<UserRole> roleSet(String json) {
+        Matcher matcher = Pattern.compile(
+                "\\\"roles\\\"\\s*:\\s*\\[(.*?)]", Pattern.DOTALL)
+                .matcher(json);
+        EnumSet<UserRole> roles = EnumSet.noneOf(UserRole.class);
+        if (matcher.find()) {
+            Matcher values = Pattern.compile("\\\"((?:\\\\.|[^\\\"])*)\\\"")
+                    .matcher(matcher.group(1));
+            while (values.find()) roles.add(UserRole.valueOf(
+                    unescape(values.group(1))));
+        }
+        if (roles.isEmpty()) roles.add(UserRole.USER);
+        return Set.copyOf(roles);
+    }
+
+    private static String string(String json, String name) {
+        if (json == null) return null;
+        Matcher matcher = Pattern.compile("\\\"" + Pattern.quote(name)
+                + "\\\"\\s*:\\s*\\\"((?:\\\\.|[^\\\"])*)\\\"")
+                .matcher(json);
+        return matcher.find() ? unescape(matcher.group(1)) : null;
+    }
+
+    private static boolean bool(String json, String name) {
+        Matcher matcher = Pattern.compile("\\\"" + Pattern.quote(name)
+                + "\\\"\\s*:\\s*(true|false)")
+                .matcher(json == null ? "" : json);
+        return matcher.find() && Boolean.parseBoolean(matcher.group(1));
+    }
+
+    private static Instant instant(
+            String json, String name, Instant fallback) {
+        String value = string(json, name);
+        return value == null || value.isBlank() ? fallback : Instant.parse(value);
+    }
+
+    private static String field(String name, String value) {
+        return "\"" + escape(name) + "\":\""
+                + escape(value == null ? "" : value) + "\"";
+    }
+
+    private static String escape(String value) {
+        StringBuilder escaped = new StringBuilder();
+        for (int index = 0; index < value.length(); index++) {
+            char character = value.charAt(index);
+            switch (character) {
+                case '\\' -> escaped.append("\\\\");
+                case '"' -> escaped.append("\\\"");
+                case '\n' -> escaped.append("\\n");
+                case '\r' -> escaped.append("\\r");
+                case '\t' -> escaped.append("\\t");
+                default -> escaped.append(character);
+            }
+        }
+        return escaped.toString();
+    }
+
+    private static String unescape(String value) {
+        StringBuilder result = new StringBuilder();
+        boolean escaped = false;
+        for (int index = 0; index < value.length(); index++) {
+            char character = value.charAt(index);
+            if (!escaped && character == '\\') {
+                escaped = true;
+            } else if (escaped) {
+                result.append(switch (character) {
+                    case 'n' -> '\n'; case 'r' -> '\r'; case 't' -> '\t';
+                    default -> character;
+                });
+                escaped = false;
+            } else {
+                result.append(character);
+            }
+        }
+        return result.toString();
+    }
+
+    private static String required(String value, String name) {
+        if (value == null || value.isBlank()) {
+            throw new AuthException(name + " is required.");
+        }
+        return value.strip();
+    }
+
+    private static String optional(String value) {
+        return value == null ? "" : value.strip();
+    }
+}

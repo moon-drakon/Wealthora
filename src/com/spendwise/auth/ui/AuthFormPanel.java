@@ -194,6 +194,11 @@ abstract class AuthFormPanel extends JPanel {
         statusLabel.setText(message);
     }
 
+    protected final void showStatus(String message) {
+        statusLabel.setForeground(AppColors.secondaryText());
+        statusLabel.setText(message);
+    }
+
     protected final void showFailure(RuntimeException exception) {
         statusLabel.setForeground(AppColors.expense());
         String message = exception.getMessage();
