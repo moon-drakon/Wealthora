@@ -12,15 +12,14 @@ the desktop process has `WEALTHORA_SERVER_URL` configured.
 - SMTP credentials for production email verification
 - A random `TOKEN_PEPPER` of at least 32 characters stored outside source control
 
-Set the variables named in `server/.env.example` through PowerShell, the IDE,
-or a secret manager. Do not rename `.env.example` to a tracked file containing
-real credentials.
+Set the variables named in the root `.env.example` through the current process,
+the IDE, or a secret manager. Do not rename `.env.example` to a tracked file
+containing real credentials.
 
 Build and test:
 
 ```powershell
-$env:JAVA_HOME = 'C:\DevelopmentTools\jdk-25\jdk-25.0.2'
-cd G:\Projects\SpendWiseExpenseTracker\server
+cd server
 .\mvnw.cmd clean package
 ```
 
@@ -74,7 +73,7 @@ in production, attached to issues, or copied into backups.
 
 ```powershell
 $env:SPRING_PROFILES_ACTIVE = 'dev-mail-sink'
-$env:WEALTHORA_DEV_MAIL_DIR = 'G:\Projects\SpendWiseExpenseTracker\server\dev-mail'
+$env:WEALTHORA_DEV_MAIL_DIR = Join-Path $env:TEMP 'wealthora-dev-mail'
 .\mvnw.cmd spring-boot:run
 ```
 
@@ -86,10 +85,9 @@ tests use isolated H2 storage and a temporary mail directory.
 Start the server first, then use a new PowerShell window:
 
 ```powershell
-cd G:\Projects\SpendWiseExpenseTracker
-$env:APP_OWNER_EMAIL = 'shibli.moon.253@northsouth.edu'
+$env:APP_OWNER_EMAIL = 'owner@northsouth.edu'
 $env:WEALTHORA_SERVER_URL = 'http://localhost:8080'
-& 'C:\DevelopmentTools\jdk-25\jdk-25.0.2\bin\java.exe' -jar '.\dist\Wealthora.jar'
+java -jar '.\dist\Wealthora.jar'
 ```
 
 HTTP is accepted only for loopback development. A non-loopback server URL must

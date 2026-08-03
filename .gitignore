@@ -1,27 +1,93 @@
-# Java and Ant generated output
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+!**/.env.example
+**/credentials.json
+**/credentials/
+**/client_secret*.json
+**/oauth*.json
+**/oauth-secret*.json
+**/service-account*.json
+**/service_account*.json
+**/*-service-account.json
+**/token.json
+**/tokens.json
+**/id_rsa
+**/id_dsa
+**/id_ecdsa
+**/id_ed25519
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Java, Ant, and Maven output
 /build/
 /dist/
+/server/target/
 *.class
 *.jar
+!/lib/*.jar
 !/server/.mvn/wrapper/maven-wrapper.jar
 
-# NetBeans user-specific state
-/nbproject/private/
+# Local databases, dumps, and backups
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.dump
+*.dump.sql
+*.backup.sql
+*.sql.gz
+*.bak
+*.backup
 
-# Maven server build output and reports
-/server/target/
-/server/.idea/
-/server/.settings/
+# Audio and private test output
+*.wav
+*.mp3
+*.m4a
+*.flac
+*.ogg
+*.aac
+*.wma
+**/surefire-reports/
+**/test-results/
+**/private-test-reports/
+
+# Generated runtime storage
+/runtime-storage/
+/data/
+/storage/
 /server/dev-mail/
+/server/data/
+/server/runtime-storage/
 
-# VS Code workspace state
+# Web output reserved for the future web client
+/web/node_modules/
+/web/.next/
+
+# IDE-local state; keep the shared NetBeans project files
+/nbproject/private/
+/.idea/
 /.vscode/
+/.settings/
+/.classpath
+/.project
+/.factorypath
+/.github/modernize/
 
-# Windows-generated files and temporary files
+# Operating-system and editor temporary files
+.DS_Store
 Thumbs.db
 ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 *.tmp
 *.temp
+hs_err_pid*.log
+replay_pid*.log
+*.swp
+*.swo
+*~
 ~$*

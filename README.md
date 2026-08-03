@@ -1,10 +1,167 @@
 # Wealthora
 
-**Take Control of Every Taka.**
+Wealthora is a local-first personal finance application built for a CSE215
+Java object-oriented programming semester project. Its primary interface is a
+programmatic Swing desktop application. A separate Spring Boot server provides
+online NSU account registration, authentication, administration, Google OAuth
+integration, and Google Cloud Speech integration.
 
-**A Smart Personal Finance Management System**
+The project was previously named SpendWise. Existing application-data paths
+retain that name so upgrades do not silently abandon local finance records.
 
-Wealthora is built as a Java Swing desktop application for a CSE215 Object-Oriented Programming semester project.
+## Features
+
+The desktop application provides:
+
+- income, expense, transfer, account, category, and payment-card management;
+- monthly and category budgets, savings goals, debts, recurring entries, and
+  explicit due-entry generation;
+- dashboard charts, calendar activity, account statements, portfolio views,
+  and filtered reports;
+- English, Bangla, and Banglish Quick Entry with editable voice transcripts;
+- CSV import/export, validated ZIP and JSON backup/restore, and PDF summaries;
+- per-user local finance workspaces with offline OWNER authentication; and
+- server-backed registration, login, password recovery, session management,
+  Google Sign-In, and role-aware administration.
+
+The server provides:
+
+- exact `northsouth.edu` registration and six-digit email verification;
+- an 8-128 character password policy requiring an English letter and number;
+- opaque access and refresh sessions, rotation, revocation, and lockout;
+- USER, ADMIN, and OWNER authorization with protected audit records;
+- Flyway V1-V4 for authentication and user-owned finance tables; and
+- provider status that distinguishes unavailable SMTP, OAuth, and speech
+  configuration from basic server connectivity.
+
+Cloud synchronization of desktop finance data is not implemented. The server
+finance schema currently establishes database ownership constraints for later
+work.
+
+## Architecture
+
+The repository contains two builds:
+
+```text
+src/ and test/       Java 25 Swing desktop, Ant, NetBeans project metadata
+server/              Java 25 Spring Boot server, Maven Wrapper, Flyway
+docs/                Architecture, authentication, development, and deployment
+lib/                 Reviewed desktop runtime libraries and license notices
+.github/workflows/   Desktop, server, and repository checks
+```
+
+Desktop finance data stays in isolated local CSV workspaces. The server uses
+PostgreSQL for online users, identities, roles, one-time verification/recovery
+records, sessions, audit events, and server-owned finance tables. See
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for component and trust
+boundaries.
+
+## Requirements
+
+Desktop:
+
+- JDK 25
+- Apache Ant or Apache NetBeans with Java support
+
+Server:
+
+- JDK 25
+- PostgreSQL or an isolated Neon database for real runs
+- SMTP credentials for production registration and recovery
+- Maven is not required separately; use the committed wrapper
+
+Docker is optional for validating the server deployment image.
+
+## Run the desktop
+
+Set the OWNER identifier before first launch, build, and run:
+
+```powershell
+$env:APP_OWNER_EMAIL = 'owner@northsouth.edu'
+ant clean jar
+java -jar .\dist\Wealthora.jar
+```
+
+The first launch opens OWNER setup. Existing legacy finance CSV files are
+backed up and copied byte-for-byte into that OWNER's private workspace; the
+legacy originals remain unchanged.
+
+For online authentication, start the server and set:
+
+```powershell
+$env:WEALTHORA_SERVER_URL = 'http://127.0.0.1:8080'
+```
+
+Only loopback HTTP is accepted. Remote server URLs must use HTTPS. Existing
+offline OWNER access remains available when the server is not configured.
+
+## Run the server locally
+
+Provide the required values from [`.env.example`](.env.example) through the
+current process environment or a secret manager. Do not commit a populated
+`.env` file. The minimum server variables are:
+
+- `DATABASE_URL`
+- `DATABASE_USERNAME`
+- `DATABASE_PASSWORD`
+- `TOKEN_PEPPER` with at least 32 characters
+
+For Neon, use a JDBC PostgreSQL URL with TLS enabled. From `server/`:
+
+```powershell
+.\mvnw.cmd spring-boot:run
+```
+
+On macOS or Linux, use `./mvnw`. Production registration and password recovery
+also require the six `SMTP_*` variables in the example file. Local end-to-end
+testing can use the explicit `dev-mail-sink` profile described in
+[`docs/LOCAL_DEVELOPMENT.md`](docs/LOCAL_DEVELOPMENT.md).
+
+## Test and build
+
+Run the complete desktop authentication dependency chain and package the JAR:
+
+```powershell
+ant test-auth
+ant clean jar
+```
+
+Run and package the server from `server/`:
+
+```powershell
+.\mvnw.cmd test
+.\mvnw.cmd package
+```
+
+The generated artifacts are `dist/Wealthora.jar` and
+`server/target/wealthora-auth-server-1.0.0-SNAPSHOT.jar`. Generated artifacts
+are ignored by Git; CI uploads the desktop JAR for successful workflow runs.
+
+More focused Ant targets remain available in `build.xml`, including
+`test-core`, `test-persistence`, `test-finance`, `test-reports`, `test-data`,
+`test-accounts`, `test-voice`, and `test-quality`.
+
+## Data and security notes
+
+On Windows, local data remains under
+`%LOCALAPPDATA%\SpendWiseExpenseTracker`. macOS uses Application Support, and
+Linux uses `XDG_DATA_HOME` or its standard fallback. Reads and ordinary view
+refreshes do not create or rewrite CSV files; successful mutations create only
+the files they own.
+
+Never commit database credentials, SMTP credentials, OAuth secrets, Google
+service-account files, token peppers, local finance data, backups, mail-sink
+output, recordings, or private test reports. Review
+[`SECURITY.md`](SECURITY.md) before reporting a vulnerability.
+
+## Deployment overview
+
+The Spring Boot server is the only deployable backend component. It is prepared
+for a Docker-based Render web service using the `server/` directory, the
+production Spring profile, PostgreSQL/Neon, and environment-managed secrets.
+Deployment is intentionally not performed from this repository run. The Swing
+desktop is distributed as a CI artifact or release asset, not as a committed
+binary.
 
 ## Team
 
@@ -12,509 +169,13 @@ Wealthora is built as a Java Swing desktop application for a CSE215 Object-Orien
 - Nafij
 - Monimul
 
-## Current status
-
-The project is complete through Step 19. It includes validated financial and recurring-entry models, storage-independent repositories, safe UTF-8 CSV persistence, and a seven-tab programmatic Swing interface. Users can manage entries and categories, configure budgets, inspect calendar activity, run filtered reports, maintain recurring definitions, use Quick Entry, and manage persisted default accounts with read-only account statements. The Data menu adds validated ZIP backup/restore and read-only CSV exports. Restore validates every included CSV before mutation, creates a safety backup when current managed data exists, and rolls back staged replacement failures. The complete automated suite remains dependency-free and includes isolated restart/persistence and full-frame smoke tests.
-
-Feature status in this document will be updated only after the corresponding behavior has been implemented and verified.
-
-## Purpose
-
-Wealthora helps an individual record income and expenses, organize transactions, monitor a budget, and understand personal spending patterns through a straightforward desktop interface.
-
-## Core features
-
-- Add, edit, and delete income and expense transactions (implemented)
-- Assign dates, categories, amounts, and notes to transactions
-- Add, rename, archive, and restore custom spending categories (implemented)
-- Set and monitor monthly overall and optional category budgets (implemented)
-- Create, rename, archive, and restore local financial accounts (implemented)
-- Transfer funds between active accounts (implemented)
-- View exact calculated account balances (implemented)
-- Save and reload application data using local CSV files (implemented)
-- Validate input and present clear error messages
-
-## Advanced features
-
-- Search, filter, and sort income records (implemented)
-- Calendar activity and advanced financial reports (implemented)
-- Recurring expense, income, and transfer definitions (implemented)
-- Keyboard-accessible Quick Entry (implemented)
-- Exportable financial data and filtered reports (implemented)
-- Local ZIP backup and validated restore (implemented)
-- Advanced account controls and account statements (implemented)
-
-## Technology stack
-
-- Java 25
-- Java Swing and Java2D for the graphical interface and charts
-- Java standard libraries, including `java.time`, `java.math`, and `java.nio`
-- Apache Ant
-- Apache NetBeans project structure
-- UTF-8 CSV files for local expense, income, account, account-preference, transfer, budget, custom-category, and recurring-definition persistence
-
-No external libraries are currently required.
-
-## Prerequisites
-
-- JDK 25 with both `java` and `javac` available
-- Apache NetBeans with Java support, or Apache Ant for command-line builds
-
-## Build with Apache NetBeans
-
-1. Open the project root as an existing Apache NetBeans project.
-2. Confirm that the project uses JDK 25.
-3. Select **Run > Clean and Build Project**.
-4. Select **Run > Run Project**, or press **F6**, to start the application.
-
-The generated JAR is `dist/Wealthora.jar`.
-
-## Build from the command line
-
-Run the following from the project root when Ant is available on `PATH`:
-
-```powershell
-ant clean jar
-```
-
-On the verified development machine, use this fallback when `ant` is unavailable by name:
-
-```powershell
-C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat clean jar
-```
-
-Run the generated application JAR with:
-
-```powershell
-$env:APP_OWNER_EMAIL = "shibli.moon.253@northsouth.edu"
-& "C:\DevelopmentTools\jdk-25\jdk-25.0.2\bin\java.exe" -jar "dist\Wealthora.jar"
-```
-
-On the first launch, Wealthora opens the secure OWNER setup screen. The
-OWNER email is locked to `APP_OWNER_EMAIL`; enter the owner's full name and a
-password of 8-128 characters containing at least one English letter and one
-number, with no leading or trailing spaces. Existing finance CSV files are backed up and copied
-byte-for-byte into the first owner's private workspace; the legacy originals
-remain unchanged.
-
-After the OWNER exists, use the same command whenever you run the app. Sign
-Out and Switch Account are available from the account menu in the top-right
-corner. Online registration, password sign-in, and Google Sign-In require
-`WEALTHORA_SERVER_URL` and the Spring Boot authentication server.
-The sign-in screen reports `Connected`, `Server unavailable`, or
-`Server URL missing` separately from `Email provider unavailable` and
-`Google OAuth unavailable`; it does not simulate an online capability.
-
-Google Sign-In uses the system browser and keeps its OAuth client secret on the
-server. Configure `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, and
-`GOOGLE_OAUTH_REDIRECT_URI` on the server, and register that redirect URI
-exactly in the Google OAuth web client. Local development uses
-`http://127.0.0.1:8080/api/auth/google/callback`; a deployment uses its HTTPS
-API origin with `/api/auth/google/callback`. Only verified
-`northsouth.edu` Google identities are accepted. Existing password accounts
-link by exact validated email, while Google-first accounts can add a password
-from Security settings. With missing configuration, the UI reports Google
-Sign-In as unavailable.
-
-## Run the core-model tests
-
-The core-model tests use a plain Java runner and require no external testing library. Run:
-
-```powershell
-C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-core
-```
-
-## Run the persistence tests
-
-The persistence target runs the existing core tests before the CSV repository tests:
-
-```powershell
-C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-persistence
-```
-
-## Run the service tests
-
-The service target runs the core and persistence suites before the expense-service tests:
-
-```powershell
-C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-service
-```
-
-## Run the GUI-foundation tests
-
-The GUI target runs all earlier suites, the path-resolution tests, and the Swing tests in headless mode:
-
-```powershell
-C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-gui
-```
-
-## Run the analytics and dashboard tests
-
-The analytics target runs all earlier suites before the analytics-service and headless dashboard/chart tests:
-
-```powershell
-C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-analytics
-```
-
-## Run the budget tests
-
-The budget target reruns the complete earlier chain before the budget model, repository, service, and headless Swing suites:
-
-```powershell
-C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-budget
-```
-
-## Run the category-management tests
-
-The category target reruns every earlier suite before the category model, persistence, service, and headless Swing integration suites:
-
-```powershell
-C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-category
-```
-
-## Run the finance tests
-
-The finance target reruns every earlier suite before the account, income, transfer, persistence, service, path, and headless Swing suites:
-
-```powershell
-C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-finance
-```
-
-On a graphical desktop, run the complete chain plus the isolated full-frame smoke test with:
-
-```powershell
-C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-finance-gui-smoke
-```
-
-The smoke test uses a temporary data directory and verifies that opening and navigating the frame creates no CSV files.
-
-## Run the calendar and report tests
-
-The reports target reruns every earlier suite before the calendar/report service and headless Swing tests:
-
-```powershell
-C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-reports
-```
-
-On a graphical desktop, run the complete chain plus the updated full-frame smoke test with:
-
-```powershell
-C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-reports-gui-smoke
-```
-
-## Run the recurring and Quick Entry tests
-
-The recurring target chains after all report tests and adds recurring model, CSV, service, Quick Entry integration, and headless Swing checks:
-
-```powershell
-C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-recurring
-```
-
-The graphical variant also checks the seven-tab frame and Quick Entry menu wiring:
-
-```powershell
-C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-recurring-gui-smoke
-```
-
-## Run the backup, restore, and export tests
-
-The data target chains after all recurring tests and adds isolated backup, restore, corruption, traversal, safety-backup, CSV escaping, exact-money, and filtered-export checks:
-
-```powershell
-C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-data
-```
-
-The graphical variant also validates the Data menu wiring:
-
-```powershell
-C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-data-gui-smoke
-```
-
-## Run the advanced account tests
-
-The accounts target chains after all data-management tests and adds account-preference persistence, account lifecycle, exact statement totals, CSV compatibility, production-isolation, and headless Swing checks:
-
-```powershell
-C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-accounts
-```
-
-The graphical variant validates the complete frame with advanced account controls wired:
-
-```powershell
-C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-accounts-gui-smoke
-```
-
-## Run the final quality suite
-
-The final chained target runs every dependency-free suite and then performs a complete isolated create, restart, reload, exact-balance, read-only-restart, and production-integrity smoke test:
-
-```powershell
-C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-quality
-```
-
-On a graphical desktop, run the final chain plus the isolated seven-tab frame and menu smoke test with:
-
-```powershell
-C:\DevelopmentTools\apache-ant-1.10.17\bin\ant.bat test-quality-gui-smoke
-```
-
-## Application data location
-
-On Windows, expense data is stored at:
-
-```text
-%LOCALAPPDATA%\SpendWiseExpenseTracker\data\expenses.csv
-```
-
-Budget settings are stored beside it at:
-
-```text
-%LOCALAPPDATA%\SpendWiseExpenseTracker\data\budgets.csv
-```
-
-Custom category definitions are stored beside both files at:
-
-```text
-%LOCALAPPDATA%\SpendWiseExpenseTracker\data\categories.csv
-```
-
-Account, income, and transfer records use these sibling files:
-
-```text
-%LOCALAPPDATA%\SpendWiseExpenseTracker\data\accounts.csv
-%LOCALAPPDATA%\SpendWiseExpenseTracker\data\account-settings.csv
-%LOCALAPPDATA%\SpendWiseExpenseTracker\data\income.csv
-%LOCALAPPDATA%\SpendWiseExpenseTracker\data\transfers.csv
-%LOCALAPPDATA%\SpendWiseExpenseTracker\data\recurring.csv
-```
-
-For compatibility with existing installations, Wealthora continues to use the `SpendWiseExpenseTracker` application-data directory. If `LOCALAPPDATA` is unavailable, it uses the equivalent location below `user.home\AppData\Local`. macOS uses `~/Library/Application Support`, while Linux and other Unix-like systems use `XDG_DATA_HOME` or the `~/.local/share` fallback.
-
-Resolving these paths and starting the application are read-only operations. Each CSV file is created only by the first successful mutation for its own data area. Repository writes use complete UTF-8 snapshots and safe same-directory temporary-file replacement.
-
-Opening or refreshing Expenses, Dashboard, Budgets, Manage Categories, Finance, Calendar, Reports, or Recurring is also read-only. These views do not create or rewrite any production CSV file. `recurring.csv` is created only after the first recurring-definition mutation, and `account-settings.csv` is created only when the user explicitly selects a default account.
-
-## Accounts, income, and transfers
-
-The Finance tab provides account, income, and transfer workflows. The protected Cash account represents legacy expenses and cannot be edited or archived. Custom accounts have stable IDs, exact two-decimal opening balances, editable names and types, and active or archived status. The Accounts view filters active or archived accounts, marks the persisted active default, chooses a safe replacement if that default is archived, and shows read-only activity plus exact income, expense, transfer-in, transfer-out, and calculated-balance totals. Opening balances remain immutable after account creation, and arbitrary balance editing is not supported.
-
-The default account is preselected for new expenses, income, transfers, recurring definitions, and Quick Entry. Archived accounts remain resolvable and visible in historical records and statements but are excluded from all new-entry choices.
-
-Income supports add, edit, delete, text search, account and inclusive date filtering, and stable sorting through `IncomeService`. Transfers are stored once as a movement between two different active accounts. A transfer reduces the source balance and increases the destination balance by the same exact amount, so it does not inflate the overall balance.
-
-Legacy six-column `expenses.csv` files remain readable without migration and resolve to the protected Cash account. Account-aware expense mutations use the additive header `id,description,amount,date,category,account,notes`. Startup and ordinary viewing never rewrite a legacy file.
-
-## Custom category management
-
-**Manage Categories** in the Expenses workspace lists every built-in and custom category with its current status. Built-in categories, including Other, keep their original identifiers, names, and ordering and cannot be renamed or archived. Custom categories can be added, renamed, archived, and restored; hard deletion is not supported.
-
-Each custom category has a stable identifier stored in expenses and budgets. Renaming changes only its display name. Archiving removes it from new expense and budget choices, while historical expenses, filters, analytics, reports, and existing budget limits continue to resolve and display it. Archiving a referenced category requires confirmation. Legacy expense and budget files using the original built-in identifiers remain compatible.
-
-## Expense analytics dashboard
-
-The Dashboard tab analyzes a selected calendar month and shows:
-
-- Expense count, total, two-decimal average, previous-month total, and signed change
-- A six-month Java2D bar chart ending in the selected month
-- A Java2D donut chart using the selected month's category totals
-- Overall budget limit, spent, remaining, usage percentage, and warning status
-- A read-only monthly report with category spending, limit, remaining, status, and expense tables
-
-Months without expenses remain in the trend with `0.00`, so gaps do not disappear. The Dashboard refreshes when its main tab is selected and can also be refreshed with its own button. The charts use only the Java standard library; no external chart library is required.
-
-## Monthly budgets
-
-The Budgets tab supports one optional overall limit and optional per-category limits for each calendar month. Blank fields mean that a limit is not configured, and category limits are independent of the overall limit. Status shows exact two-decimal spent, limit, remaining, and percentage values.
-
-Warnings are informational: below 80% is within the limit, 80% through below 100% is near the limit, exactly 100% is limit reached, and above 100% is over the limit. These warnings never block adding, editing, or deleting expenses.
-
-## Calendar and advanced reports
-
-The Calendar tab displays a Sunday-based monthly grid with previous, next, and current-month navigation. Activity days show exact expense, income, and net totals. Selecting a day opens its expense, income, and transfer details; transfers remain visible without being counted as income or expense. Empty months and empty days have explicit status messages.
-
-The Reports tab accepts an inclusive date range plus optional account and expense-category filters. It shows total income, expenses, net cash flow, ranked expense categories, income sources, account activity (including transfer directions), month-by-month trends, and budget-versus-actual rows where limits exist. Reports load repository snapshots without writing data, and refreshes preserve the entered range and available filters.
-
-## Recurring entries and Quick Entry
-
-The Recurring tab supports expense, income, and transfer definitions with daily, weekly, monthly, or yearly schedules, positive intervals, optional end dates, visible next-due dates, and active/inactive status. Nothing is posted at startup. **Generate Due Entries** is the explicit posting action, and monthly/yearly schedules retain their original day anchor across shorter months and leap years.
-
-Each occurrence has a deterministic ID derived from its definition and due date. Repeating the generation action cannot create the same occurrence twice, including recovery after a transaction was written before schedule advancement completed. Definitions are deactivated rather than deleted so posted history remains explainable.
-
-Quick Entry is available from **Entry > Quick Entry**, the Recurring tab, or `Ctrl+Q`. It delegates expense, income, and transfer creation to the existing services, keeps safe account/category choices for the current session, preserves failed input, and disables repeat submission while saving.
-
-Voice Quick Entry is available on the Dashboard, Transactions screen, Quick Entry dialog, **Entry > Voice Quick Entry**, and `Ctrl+Shift+V`. English, বাংলা, and common Banglish commands are normalized into an editable draft containing type, exact `BigDecimal` amount, currency, accounts, category, date/time, payment method, notes, tags, and recurrence. Bangla digits and safe written scales are converted to canonical English numeric values; for example, `৫০০ টাকা` becomes `500 BDT` and `৩০ হাজার টাকা` becomes `30000 BDT`. The original transcript remains visible for review, while structured transaction fields use the application's English model values. Missing or ambiguous repository references are highlighted and never invented. A transaction is written through the existing services only after **Confirm and Add**.
-
-Real microphone recognition uses Java Sound in the desktop and authenticated Google Cloud Speech-to-Text V1 calls in the Spring Boot server. The desktop includes microphone selection, Start/Stop/Cancel, a 30-second bound, duration, provider status, confidence, and an editable transcript before parsing; recognition and microphone work run outside the Swing EDT. Audio remains in memory only, is cleared after use, and is never placed in finance data or backups. The server requires `GOOGLE_CLOUD_PROJECT=wealthora-voice`, Application Default Credentials, and the Speech-to-Text API; no Google credential is bundled in the desktop JAR. When any prerequisite is unavailable, Start Listening is safely disabled while typed English, বাংলা, and Banglish commands remain fully usable.
-
-## Backup, restore, and export
-
-Use **Data > Create Backup** to choose a ZIP destination outside the application data directory. A backup contains a versioned manifest and every managed CSV file that currently exists; source, Git, build, credential, and unrelated files are never included. Existing destinations require explicit replacement confirmation.
-
-Use **Data > Restore Backup** to inspect the archive timestamp and included filenames before confirming. Wealthora rejects unsupported versions, malformed manifests or CSV data, duplicate or unknown entries, corrupt ZIPs, and path traversal before modifying application data. Backups created before the rebrand remain supported. If managed data currently exists, a timestamped safety backup is written beside the selected archive. Restore applies the validated snapshot as one managed data set, removes managed files that were absent from that snapshot, never deletes unrelated files, and refreshes the application only after success.
-
-The **Data > Export** submenu writes expenses, income, transfers, account summaries, or the currently selected filtered report to user-selected CSV files. Exports use clear headers, standard CSV escaping, and exact decimal text. They never mutate repositories and require confirmation before replacing a file.
-
-## Project structure
-
-The following tree shows the main package layout and representative production and test files:
-
-```text
-SpendWiseExpenseTracker/
-|-- build.xml
-|-- manifest.mf
-|-- nbproject/
-|   |-- build-impl.xml
-|   |-- genfiles.properties
-|   |-- project.properties
-|   `-- project.xml
-|-- src/
-|   `-- com/spendwise/
-|       |-- app/SpendWiseApplication.java
-|       |-- config/AppPaths.java
-|       |-- model/
-|       |   |-- Account.java
-|       |   |-- AccountType.java
-|       |   |-- Category.java
-|       |   |-- Expense.java
-|       |   |-- Income.java
-|       |   |-- MonthlyBudget.java
-|       |   |-- RecurrenceFrequency.java
-|       |   |-- RecurringEntry.java
-|       |   |-- RecurringEntryType.java
-|       |   `-- Transfer.java
-|       |-- repository/
-|       |   |-- AccountPreferenceRepository.java
-|       |   |-- AccountRepository.java
-|       |   |-- BudgetRepository.java
-|       |   |-- CategoryRepository.java
-|       |   |-- CsvAccountPreferenceRepository.java
-|       |   |-- CsvAccountRepository.java
-|       |   |-- CsvBudgetRepository.java
-|       |   |-- CsvCategoryRepository.java
-|       |   |-- CsvExpenseCodec.java
-|       |   |-- CsvExpenseRepository.java
-|       |   |-- CsvFileSupport.java
-|       |   |-- CsvIncomeRepository.java
-|       |   |-- CsvRecurringEntryRepository.java
-|       |   |-- CsvTransferRepository.java
-|       |   |-- ExpenseRepository.java
-|       |   |-- IncomeRepository.java
-|       |   |-- RecurringEntryRepository.java
-|       |   |-- TransferRepository.java
-|       |   `-- RepositoryException.java
-|       |-- service/
-|       |   |-- AccountArchiveResult.java
-|       |   |-- AccountBalanceSnapshot.java
-|       |   |-- AccountService.java
-|       |   |-- AccountStatementService.java
-|       |   |-- AccountStatementSnapshot.java
-|       |   |-- BackupService.java
-|       |   |-- BudgetAlertLevel.java
-|       |   |-- BudgetService.java
-|       |   |-- BudgetStatusSnapshot.java
-|       |   |-- BudgetUsage.java
-|       |   |-- CategoryService.java
-|       |   |-- FinanceNotFoundException.java
-|       |   |-- FinanceService.java
-|       |   |-- IncomeService.java
-|       |   |-- IncomeSortOrder.java
-|       |   |-- TransferService.java
-|       |   |-- ExpenseAnalyticsService.java
-|       |   |-- ExpenseAnalyticsSnapshot.java
-|       |   |-- ExpenseNotFoundException.java
-|       |   |-- ExpenseService.java
-|       |   |-- ExpenseSortOrder.java
-|       |   |-- ExportService.java
-|       |   |-- FinancialReportingService.java
-|       |   |-- ManagedDataFiles.java
-|       |   |-- QuickEntryResult.java
-|       |   |-- QuickEntryService.java
-|       |   |-- RecurringGenerationResult.java
-|       |   |-- RecurringService.java
-|       |   |-- SafeFileSupport.java
-|       |   `-- ExpenseSummary.java
-|       |-- ui/
-|       |   |-- AccountTableModel.java
-|       |   |-- BudgetLimitTableModel.java
-|       |   |-- BudgetPanel.java
-|       |   |-- CalendarPanel.java
-|       |   |-- CategoryDonutChartPanel.java
-|       |   |-- CategoryManagerDialog.java
-|       |   |-- CategoryTableModel.java
-|       |   |-- DashboardPanel.java
-|       |   |-- DataManagementActions.java
-|       |   |-- ExpenseFormDialog.java
-|       |   |-- ExpensePanel.java
-|       |   |-- ExpenseTableModel.java
-|       |   |-- FinancePanel.java
-|       |   |-- AdvancedReportsPanel.java
-|       |   |-- FinancialActivityTableModel.java
-|       |   |-- QuickEntryDialog.java
-|       |   |-- RecurringEntryTableModel.java
-|       |   |-- RecurringPanel.java
-|       |   |-- IncomeTableModel.java
-|       |   |-- MonthlyBarChartPanel.java
-|       |   |-- SpendWiseFrame.java
-|       |   `-- TransferTableModel.java
-|       `-- validation/
-|           |-- ExpenseValidator.java
-|           |-- FinanceValidator.java
-|           `-- ValidationException.java
-|-- test/
-|   `-- com/spendwise/
-|       |-- config/
-|       |   |-- AppPathsTest.java
-|       |   `-- FinanceAppPathsTest.java
-|       |-- model/
-|       |   |-- CategoryTest.java
-|       |   |-- ExpenseTest.java
-|       |   |-- FinanceModelTest.java
-|       |   |-- MonthlyBudgetTest.java
-|       |   `-- RecurringEntryTest.java
-|       |-- repository/
-|       |   |-- AccountPreferenceRepositoryTest.java
-|       |   |-- CsvBudgetRepositoryTest.java
-|       |   |-- CsvCategoryRepositoryTest.java
-|       |   |-- CsvExpenseRepositoryTest.java
-|       |   |-- FinanceRepositoryTest.java
-|       |   `-- RecurringRepositoryTest.java
-|       |-- service/
-|       |   |-- AdvancedAccountServiceTest.java
-|       |   |-- ApplicationPersistenceSmokeTest.java
-|       |   |-- BudgetServiceTest.java
-|       |   |-- BackupServiceTest.java
-|       |   |-- CategoryServiceTest.java
-|       |   |-- ExpenseAnalyticsServiceTest.java
-|       |   |-- ExpenseServiceTest.java
-|       |   |-- ExportServiceTest.java
-|       |   |-- FinancialReportingServiceTest.java
-|       |   |-- FinanceServiceTest.java
-|       |   `-- RecurringQuickEntryServiceTest.java
-|       `-- ui/
-|           |-- BudgetFoundationTest.java
-|           |-- CategoryManagementTest.java
-|           |-- DashboardFoundationTest.java
-|           |-- FinanceFoundationTest.java
-|           |-- FinanceFrameSmokeTest.java
-|           |-- CalendarReportsFoundationTest.java
-|           |-- RecurringFoundationTest.java
-|           `-- SwingFoundationTest.java
-|-- docs/
-|   `-- PROJECT_PLAN.md
-|-- .gitattributes
-|-- .gitignore
-|-- AGENTS.md
-`-- README.md
-```
-
-The generated `build/` and `dist/` directories and the machine-specific `nbproject/private/` directory are intentionally excluded from version control.
-
-The CSV repositories support commas, doubled quotes, Unicode, and quoted line breaks. Account rows use `id,name,type,openingBalance,status`, income rows use `id,date,amount,source,account,note`, and transfer rows use `id,date,amount,sourceAccount,destinationAccount,note`. Mutations write a complete temporary file in the destination directory and replace the previous file only after the temporary content is closed, flushed, and forced to storage. Corrupt data is never silently reset or overwritten.
-
-## Safe development notes
-
-Automated tests and smoke workflows use temporary directories and fingerprint the production data paths where relevant. Startup, path resolution, viewing, refresh, reporting, and restart checks are read-only. Do not edit generated `build/` or `dist/` files, commit machine-specific paths or credentials, or replace malformed CSV data silently. Use `ant clean jar` after meaningful changes and review `git diff` before a normal commit.
-
-## Known limitations
-
-Wealthora remains a local-first desktop finance application. Its Spring Boot authentication backend supports NSU registration, password security, opaque sessions, and verified system-browser Google OAuth with safe account linking, but deployment credentials and a desktop server URL are not included. Finance cloud synchronization and production deployment are not implemented. Dark mode, validated CSV import, ZIP/JSON backup, CSV export, and dependency-free PDF summaries are available. Multi-process file locking, mobile clients, and website functionality are not implemented.
+## Documentation
+
+- [`docs/LOCAL_DEVELOPMENT.md`](docs/LOCAL_DEVELOPMENT.md)
+- [`docs/AUTHENTICATION_SETUP.md`](docs/AUTHENTICATION_SETUP.md)
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+- [`CONTRIBUTING.md`](CONTRIBUTING.md)
+- [`SECURITY.md`](SECURITY.md)
+
+No project license has been granted. Third-party component notices are recorded
+in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
