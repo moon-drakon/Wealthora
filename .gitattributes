@@ -7,12 +7,14 @@
 *.yml text eol=lf
 *.yaml text eol=lf
 *.properties text eol=lf
+*.config text eol=lf
 *.md text eol=lf
 *.mf text eol=lf
 *.form text eol=lf
 *.csv text eol=lf
 *.example text eol=lf
 Dockerfile text eol=lf
+.dockerignore text eol=lf
 mvnw text eol=lf
 
 *.jar binary
