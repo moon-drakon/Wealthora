@@ -4,7 +4,10 @@ param(
     [string] $EnvironmentFile,
 
     [Parameter(Mandatory)]
-    [DateTimeOffset] $GateStartedAt
+    [DateTimeOffset] $GateStartedAt,
+
+    [ValidateSet('Registration', 'PasswordRecovery')]
+    [string] $AuditMode = 'Registration'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -63,6 +66,15 @@ foreach ($name in @(
 }
 $variables['WEALTHORA_MANUAL_GATE_STARTED_AT'] = `
     $GateStartedAt.ToUniversalTime().ToString('o')
+if ($AuditMode -eq 'PasswordRecovery') {
+    $localAuthFile = Join-Path $env:LOCALAPPDATA `
+        'SpendWiseExpenseTracker\auth\users.csv'
+    if (Test-Path -LiteralPath $localAuthFile) {
+        $variables['WEALTHORA_LOCAL_ACCOUNT_EMAILS'] = (
+            Import-Csv -LiteralPath $localAuthFile |
+                ForEach-Object { $_.email }) -join "`n"
+    }
+}
 
 $previousValues = @{}
 try {
@@ -87,6 +99,11 @@ try {
         $dependencyClasspath
     ) -join [System.IO.Path]::PathSeparator
     $javaExecutable = (Get-Command java -ErrorAction Stop).Source
+    $auditClass = if ($AuditMode -eq 'PasswordRecovery') {
+        'com.wealthora.server.api.ManualPasswordRecoveryAudit'
+    } else {
+        'com.wealthora.server.api.ManualSmtpVerificationAudit'
+    }
 
     & $javaExecutable `
         '-Xms16m' `
@@ -95,9 +112,9 @@ try {
         '-XX:ActiveProcessorCount=2' `
         '-XX:+UseSerialGC' `
         '-cp' $classpath `
-        'com.wealthora.server.api.ManualSmtpVerificationAudit'
+        $auditClass
     if ($LASTEXITCODE -ne 0) {
-        throw 'Manual SMTP audit failed. Category=VERIFICATION'
+        throw "Manual $AuditMode audit failed. Category=VERIFICATION"
     }
 } finally {
     foreach ($entry in $previousValues.GetEnumerator()) {
