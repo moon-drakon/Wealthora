@@ -20,6 +20,7 @@ import com.spendwise.auth.audit.AuditAction;
 import com.spendwise.auth.audit.AuditEvent;
 import com.spendwise.auth.audit.AuditRepository;
 import com.spendwise.auth.registration.RegistrationGateway;
+import com.spendwise.auth.registration.FinanceApiGateway;
 import com.spendwise.auth.admin.AdministrationGateway;
 import com.spendwise.auth.registration.UnconfiguredRegistrationGateway;
 import com.spendwise.config.AppPaths;
@@ -136,6 +137,10 @@ public final class LocalDesktopAuthService
         return registrationGateway;
     }
 
+    public FinanceApiGateway getFinanceApiGateway() {
+        return registrationGateway;
+    }
+
     @Override
     public AuthenticationAvailability getAuthenticationAvailability() {
         return registrationGateway.getAuthenticationAvailability();
@@ -206,7 +211,6 @@ public final class LocalDesktopAuthService
         if (record == null && registrationGateway.isConfigured()) {
             UserSession onlineSession = registrationGateway.signIn(
                     email, password);
-            prepareWorkspace(onlineSession.getUser());
             auditRepository.append(new AuditEvent(now,
                     onlineSession.getUserIdentifier(),
                     AuditAction.LOGIN_SUCCESS,
@@ -259,7 +263,6 @@ public final class LocalDesktopAuthService
             throw unavailable("Google Sign-In");
         }
         UserSession session = registrationGateway.continueWithGoogle();
-        prepareWorkspace(session.getUser());
         auditRepository.append(new AuditEvent(clock.instant(),
                 session.getUserIdentifier(), AuditAction.LOGIN_SUCCESS,
                 session.getUserIdentifier(), "SUCCESS",

@@ -1,6 +1,8 @@
 package com.spendwise.ui.shell;
 
 import com.spendwise.auth.UserSession;
+import com.spendwise.auth.CloudConnectionState;
+import com.spendwise.auth.FinanceMode;
 import com.spendwise.ui.component.AppIcons;
 import com.spendwise.ui.component.PrimaryButton;
 import com.spendwise.ui.component.SearchField;
@@ -13,12 +15,14 @@ import java.awt.FlowLayout;
 import java.awt.Color;
 import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
+import javax.swing.Timer;
 
 public final class TopBar extends JPanel {
 
@@ -28,6 +32,7 @@ public final class TopBar extends JPanel {
     private final SecondaryButton themeButton = new SecondaryButton("Dark");
     private final JLabel avatar = new JLabel("?", JLabel.CENTER);
     private final JButton profileButton = new SecondaryButton("Account");
+    private final JLabel financeModeLabel = new JLabel("LOCAL · Offline");
     private final JPopupMenu profileMenu = new JPopupMenu();
     private final Consumer<String> searchListener;
     private final Runnable themeListener;
@@ -83,6 +88,9 @@ public final class TopBar extends JPanel {
                 profileButton, 0, profileButton.getHeight()));
         profile.add(profileButton);
         actions.add(quickButton);
+        financeModeLabel.setFont(AppFonts.caption());
+        financeModeLabel.setBorder(BorderFactory.createEmptyBorder(0, 6, 0, 6));
+        actions.add(financeModeLabel);
         actions.add(themeButton);
         actions.add(profile);
         add(actions, BorderLayout.EAST);
@@ -123,6 +131,28 @@ public final class TopBar extends JPanel {
 
     public void setPageTitle(String pageTitle) {
         titleLabel.setText(pageTitle);
+    }
+
+    public void configureFinanceMode(FinanceMode mode,
+            Supplier<CloudConnectionState> connectionState) {
+        Objects.requireNonNull(mode, "Finance mode is required.");
+        Objects.requireNonNull(connectionState,
+                "Connection-state supplier is required.");
+        Runnable refresh = () -> {
+            CloudConnectionState state = mode == FinanceMode.LOCAL
+                    ? CloudConnectionState.OFFLINE : connectionState.get();
+            financeModeLabel.setText(mode.name() + " · "
+                    + state.getDisplayName());
+            financeModeLabel.setToolTipText(mode == FinanceMode.LOCAL
+                    ? "Local finance data only; cloud data is not loaded."
+                    : "Cloud finance data only; local data is not loaded.");
+        };
+        refresh.run();
+        if (mode == FinanceMode.CLOUD) {
+            Timer timer = new Timer(2500, event -> refresh.run());
+            timer.setRepeats(true);
+            timer.start();
+        }
     }
 
     public void focusSearch() {

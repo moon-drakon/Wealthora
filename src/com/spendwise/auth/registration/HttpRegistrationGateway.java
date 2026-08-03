@@ -11,6 +11,8 @@ import com.spendwise.auth.PasswordService;
 import com.spendwise.auth.UserRole;
 import com.spendwise.auth.UserSession;
 import com.spendwise.auth.GoogleOAuthStatus;
+import com.spendwise.auth.CloudConnectionState;
+import com.spendwise.auth.FinanceMode;
 import com.spendwise.auth.admin.AdminApplicationSettings;
 import com.spendwise.auth.admin.AdminOverview;
 import com.spendwise.auth.admin.AdminSecurityStatus;
@@ -50,6 +52,8 @@ public final class HttpRegistrationGateway
     private final BrowserLauncher browserLauncher;
     private String accessToken;
     private String refreshToken;
+    private CloudConnectionState cloudConnectionState =
+            CloudConnectionState.OFFLINE;
 
     public HttpRegistrationGateway(ServerConfiguration configuration) {
         this(configuration, HttpClient.newBuilder()
@@ -352,6 +356,46 @@ public final class HttpRegistrationGateway
     }
 
     @Override
+    public synchronized String requestFinance(
+            String method, String path, String body) {
+        if (path == null || !path.startsWith("/api/finance/")) {
+            throw new AuthException("Invalid cloud finance request path.");
+        }
+        String normalizedMethod = method == null ? "" : method.toUpperCase();
+        if (!Set.of("GET", "POST", "PUT", "DELETE")
+                .contains(normalizedMethod)) {
+            throw new AuthException("Invalid cloud finance request method.");
+        }
+        try {
+            String response = send(normalizedMethod, path,
+                    body == null ? "" : body,
+                    requireToken(accessToken,
+                            "No online session is active."));
+            cloudConnectionState = CloudConnectionState.CONNECTED;
+            return response;
+        } catch (RemoteRequestException exception) {
+            cloudConnectionState = exception.statusCode == 401
+                    || exception.statusCode == 403
+                            ? CloudConnectionState.UNAUTHORIZED
+                            : CloudConnectionState.CONNECTED;
+            throw exception;
+        } catch (ServerUnavailableException exception) {
+            cloudConnectionState = CloudConnectionState.SERVER_UNAVAILABLE;
+            throw exception;
+        } catch (AuthException exception) {
+            if (!hasActiveSession()) {
+                cloudConnectionState = CloudConnectionState.UNAUTHORIZED;
+            }
+            throw exception;
+        }
+    }
+
+    @Override
+    public synchronized CloudConnectionState getCloudConnectionState() {
+        return cloudConnectionState;
+    }
+
+    @Override
     public synchronized SpeechBackendStatus getSpeechStatus() {
         if (!hasActiveSession()) {
             return new SpeechBackendStatus(SpeechProviderStatus.NOT_CONFIGURED,
@@ -618,7 +662,8 @@ public final class HttpRegistrationGateway
                     HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 String message = string(response.body(), "message");
-                throw new AuthException(message == null || message.isBlank()
+                throw new RemoteRequestException(response.statusCode(),
+                        message == null || message.isBlank()
                         ? "The authentication server rejected the request."
                         : message);
             }
@@ -628,7 +673,7 @@ public final class HttpRegistrationGateway
             throw new AuthException(
                     "The authentication request was interrupted.", exception);
         } catch (IOException exception) {
-            throw new AuthException(
+            throw new ServerUnavailableException(
                     "The authentication server is unavailable.", exception);
         }
     }
@@ -639,19 +684,37 @@ public final class HttpRegistrationGateway
                 instant(json, "authenticatedAt",
                         authenticatedUser.getLastLoginAt() == null
                                 ? Instant.now()
-                                : authenticatedUser.getLastLoginAt()));
+                                : authenticatedUser.getLastLoginAt()),
+                FinanceMode.CLOUD);
         String receivedAccess = required(
                 string(json, "accessToken"), "Access token");
         String receivedRefresh = required(
                 string(json, "refreshToken"), "Refresh token");
         accessToken = receivedAccess;
         refreshToken = receivedRefresh;
+        cloudConnectionState = CloudConnectionState.CONNECTED;
         return session;
     }
 
     private void clearSessionTokens() {
         accessToken = null;
         refreshToken = null;
+        cloudConnectionState = CloudConnectionState.OFFLINE;
+    }
+
+    private static final class RemoteRequestException extends AuthException {
+        private final int statusCode;
+
+        private RemoteRequestException(int statusCode, String message) {
+            super(message);
+            this.statusCode = statusCode;
+        }
+    }
+
+    private static final class ServerUnavailableException extends AuthException {
+        private ServerUnavailableException(String message, Throwable cause) {
+            super(message, cause);
+        }
     }
 
     private static AuthenticatedUser user(String json) {

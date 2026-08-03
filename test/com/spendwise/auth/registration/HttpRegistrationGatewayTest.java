@@ -3,6 +3,8 @@ package com.spendwise.auth.registration;
 import com.spendwise.auth.AccountSession;
 import com.spendwise.auth.AuthenticationAvailability;
 import com.spendwise.auth.UserSession;
+import com.spendwise.auth.CloudConnectionState;
+import com.spendwise.auth.FinanceMode;
 import com.spendwise.auth.admin.AdminApplicationSettings;
 import com.spendwise.auth.admin.AdminOverview;
 import com.spendwise.auth.admin.AdminSecurityStatus;
@@ -43,6 +45,7 @@ public final class HttpRegistrationGatewayTest {
         server.createContext("/api/auth", handler::handle);
         server.createContext("/api/speech", handler::handle);
         server.createContext("/api/admin", handler::handle);
+        server.createContext("/api/finance", handler::handle);
         server.createContext("/actuator", handler::handle);
         server.start();
         try {
@@ -54,6 +57,8 @@ public final class HttpRegistrationGatewayTest {
                     recoveryRequests(baseUrl, handler));
             test("online sessions are parsed and revoked", () ->
                     sessionManagement(baseUrl, handler));
+            test("finance requests reuse the protected online session", () ->
+                    financeSession(baseUrl, handler));
             test("password change clears in-memory tokens", () ->
                     passwordChange(baseUrl));
             test("set password and logout-all clear tokens", () ->
@@ -107,6 +112,7 @@ public final class HttpRegistrationGatewayTest {
         UserSession signedIn = gateway.signIn(
                 EMAIL, "GatewayStudent1!".toCharArray());
         assertEquals(EMAIL, signedIn.getEmail());
+        assertEquals(FinanceMode.CLOUD, signedIn.getFinanceMode());
         List<AccountSession> sessions = gateway.listSessions();
         assertEquals(2, sessions.size());
         assertTrue(sessions.get(0).currentSession());
@@ -118,6 +124,26 @@ public final class HttpRegistrationGatewayTest {
                 handler.revokedIdentifier);
         gateway.revokeSession(sessions.get(0));
         assertFalse(gateway.hasActiveSession());
+    }
+
+    private static void financeSession(
+            String baseUrl, TestHandler handler) {
+        HttpRegistrationGateway gateway = gateway(baseUrl);
+        assertEquals(CloudConnectionState.OFFLINE,
+                gateway.getCloudConnectionState());
+        gateway.signIn(EMAIL, "GatewayStudent1!".toCharArray());
+        assertEquals(CloudConnectionState.CONNECTED,
+                gateway.getCloudConnectionState());
+        String response = gateway.requestFinance("GET",
+                "/api/finance/accounts?page=0&size=100", "");
+        assertTrue(response.contains("\"content\""));
+        assertEquals("GET", handler.lastFinanceMethod);
+        assertEquals("Bearer " + ACCESS, handler.lastFinanceAuthorization);
+        expect(com.spendwise.auth.AuthException.class, () ->
+                gateway.requestFinance("GET",
+                        "/api/finance/unauthorized", ""));
+        assertEquals(CloudConnectionState.UNAUTHORIZED,
+                gateway.getCloudConnectionState());
     }
 
     private static void passwordChange(String baseUrl) {
@@ -228,12 +254,25 @@ public final class HttpRegistrationGatewayTest {
         }
     }
 
+    private static void expect(
+            Class<? extends Throwable> expected, ThrowingRunnable action) {
+        try {
+            action.run();
+        } catch (Throwable failure) {
+            if (expected.isInstance(failure)) return;
+            throw new AssertionError("Unexpected exception", failure);
+        }
+        throw new AssertionError("Expected " + expected.getSimpleName());
+    }
+
     private static final class TestHandler {
 
         private int forgotRequests;
         private int resetRequests;
         private String revokedIdentifier;
         private String lastAdminRequest = "";
+        private String lastFinanceMethod = "";
+        private String lastFinanceAuthorization = "";
 
         void handle(HttpExchange exchange) throws IOException {
             String path = exchange.getRequestURI().getPath();
@@ -301,6 +340,18 @@ public final class HttpRegistrationGatewayTest {
                         + "\"detectedLanguage\":\"ENGLISH\","
                         + "\"detectedLocale\":\"en-US\","
                         + "\"audioDurationMilliseconds\":100}");
+            } else if (path.equals("/api/finance/accounts")) {
+                requireAuthorization(exchange);
+                lastFinanceMethod = method;
+                lastFinanceAuthorization = exchange.getRequestHeaders()
+                        .getFirst("Authorization");
+                respond(exchange, 200,
+                        "{\"content\":[],\"page\":0,\"size\":100,"
+                        + "\"totalElements\":0,\"totalPages\":0}");
+            } else if (path.equals("/api/finance/unauthorized")) {
+                respond(exchange, 401,
+                        "{\"code\":\"AUTHENTICATION_REQUIRED\","
+                        + "\"message\":\"Authentication is required.\"}");
             } else if (path.equals("/api/admin/overview")) {
                 requireAuthorization(exchange);
                 respond(exchange, 200, "{\"totalUsers\":4,"

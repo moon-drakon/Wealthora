@@ -12,6 +12,7 @@ import com.spendwise.auth.PasswordService;
 import com.spendwise.auth.SessionManager;
 import com.spendwise.auth.UserRole;
 import com.spendwise.auth.UserSession;
+import com.spendwise.auth.FinanceMode;
 import com.spendwise.auth.admin.AdminService;
 import com.spendwise.auth.audit.CsvAuditRepository;
 import com.spendwise.auth.registration.RegistrationGateway;
@@ -167,7 +168,8 @@ public final class LocalAuthenticationTest {
                     "RemoteStudent1!".toCharArray());
             onlineSessions.startSession(remote);
             assertTrue(gateway.active);
-            assertTrue(Files.isDirectory(workspaces.resolve(
+            assertEquals(FinanceMode.CLOUD, remote.getFinanceMode());
+            assertFalse(Files.exists(workspaces.resolve(
                     gateway.user.getUserIdentifier())));
             assertEquals(gateway.user.getUserIdentifier(),
                     hybrid.refreshSession().getUserIdentifier());
@@ -450,13 +452,13 @@ public final class LocalAuthenticationTest {
         public UserSession signIn(String email, char[] password) {
             active = true;
             loggedOut = false;
-            return new UserSession(user, NOW);
+            return new UserSession(user, NOW, FinanceMode.CLOUD);
         }
 
         @Override
         public UserSession refreshSession() {
             if (!active) throw new AuthException("No active session.");
-            return new UserSession(user, NOW);
+            return new UserSession(user, NOW, FinanceMode.CLOUD);
         }
 
         @Override

@@ -25,10 +25,13 @@ import com.spendwise.service.FinanceNotificationService;
 import com.spendwise.service.JsonBackupService;
 import com.spendwise.service.CsvImportService;
 import com.spendwise.service.PdfReportService;
+import com.spendwise.service.MigrationPreviewService;
 import com.spendwise.ui.component.AppIcons;
 import com.spendwise.ui.component.EmptyStatePanel;
 import com.spendwise.ui.shell.AppShellPanel;
 import com.spendwise.auth.UserSession;
+import com.spendwise.auth.CloudConnectionState;
+import com.spendwise.auth.FinanceMode;
 import com.spendwise.ui.shell.ProfileMenuActions;
 import com.spendwise.ui.theme.AppTheme;
 import com.spendwise.ui.voice.VoiceQuickEntryDialog;
@@ -40,6 +43,7 @@ import java.awt.Dimension;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.util.Objects;
+import java.util.function.Supplier;
 import javax.swing.JFrame;
 import javax.swing.JComponent;
 import javax.swing.JMenu;
@@ -48,6 +52,7 @@ import javax.swing.JMenuItem;
 import javax.swing.JTabbedPane;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import javax.swing.JOptionPane;
 
 public final class SpendWiseFrame extends JFrame {
 
@@ -222,8 +227,6 @@ public final class SpendWiseFrame extends JFrame {
         Objects.requireNonNull(financeService, "Finance service is required.");
         Objects.requireNonNull(recurringService, "Recurring service is required.");
         Objects.requireNonNull(quickEntryService, "Quick-entry service is required.");
-        Objects.requireNonNull(backupService, "Backup service is required.");
-        Objects.requireNonNull(exportService, "Export service is required.");
         Objects.requireNonNull(speechProvider,
                 "Speech recognition provider is required.");
         FinancialReportingService reportingService =
@@ -490,13 +493,16 @@ public final class SpendWiseFrame extends JFrame {
         searchItem.addActionListener(event -> shell.focusGlobalSearch());
         entryMenu.add(searchItem);
         menuBar.add(entryMenu);
-        dataManagementActions = new DataManagementActions(this,
-                backupService, exportService, reportsPanel::getLatestSnapshot,
-                refreshFinancialViews, jsonBackupService, csvImportService,
-                pdfReportService, reportsPanel::getLatestPortfolioSnapshot,
-                () -> currencyService == null ? "BDT"
-                        : currencyService.getCurrency().getCurrencyCode());
-        menuBar.add(dataManagementActions.createMenu());
+        if (backupService != null && exportService != null) {
+            dataManagementActions = new DataManagementActions(this,
+                    backupService, exportService,
+                    reportsPanel::getLatestSnapshot,
+                    refreshFinancialViews, jsonBackupService, csvImportService,
+                    pdfReportService, reportsPanel::getLatestPortfolioSnapshot,
+                    () -> currencyService == null ? "BDT"
+                            : currencyService.getCurrency().getCurrencyCode());
+            menuBar.add(dataManagementActions.createMenu());
+        }
         setJMenuBar(menuBar);
         setContentPane(shell);
         setSize(1320, 820);
@@ -522,6 +528,36 @@ public final class SpendWiseFrame extends JFrame {
                     "The professional application shell is not active.");
         }
         appShell.configureProfile(session, actions);
+    }
+
+    public void configureFinanceMode(FinanceMode mode,
+            Supplier<CloudConnectionState> connectionState,
+            MigrationPreviewService migrationPreviewService) {
+        if (appShell == null) {
+            throw new IllegalStateException(
+                    "The professional application shell is not active.");
+        }
+        appShell.configureFinanceMode(mode, connectionState);
+        setTitle(AppBrand.WINDOW_TITLE + " [" + mode.name() + "]");
+        if (mode == FinanceMode.CLOUD) {
+            JMenu cloudData = new JMenu("Cloud Data");
+            JMenuItem state = new JMenuItem("Connection: "
+                    + connectionState.get().getDisplayName());
+            state.setEnabled(false);
+            cloudData.add(state);
+            JMenuItem preview = new JMenuItem("Review local migration preview");
+            preview.addActionListener(event -> JOptionPane.showMessageDialog(
+                    this, migrationPreviewService.preview().displayText(),
+                    "Local-to-cloud migration preview",
+                    JOptionPane.INFORMATION_MESSAGE));
+            cloudData.add(preview);
+            JMenuItem synchronization = new JMenuItem(
+                    "Synchronization is not enabled");
+            synchronization.setEnabled(false);
+            cloudData.add(synchronization);
+            getJMenuBar().add(cloudData);
+            getJMenuBar().revalidate();
+        }
     }
 
     public void openMyFinance() {

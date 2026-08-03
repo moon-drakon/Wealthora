@@ -8,7 +8,7 @@ import com.spendwise.auth.GoogleOAuthStatus;
 import com.spendwise.voice.SpeechApiClient;
 import java.util.List;
 
-public interface RegistrationGateway extends SpeechApiClient {
+public interface RegistrationGateway extends SpeechApiClient, FinanceApiGateway {
 
     default AuthenticationAvailability getAuthenticationAvailability() {
         return isConfigured()
