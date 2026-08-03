@@ -77,14 +77,16 @@ Verified on 2026-08-04 on branch
   interrupt handling, and success/failure audio-buffer wiping tests.
 - `ant clean jar test-voice` passes with 24 voice tests. The full server package
   passes 39 tests with no failures or errors and two intended live-only skips.
-- The official Google Cloud CLI 578.0.0 is installed. The configured speech
-  project is present, while Application Default Credentials remain absent
-  until the required browser authorization is completed.
+- The official Google Cloud CLI 578.0.0 and Application Default Credentials
+  are ready. Token-safe live calls prove Speech-to-Text is disabled and the
+  current identity cannot enable it or set the quota project. No token or
+  account detail was printed.
 
 ## Still pending
 
 - Docker `hello-world`, image build, and container run
-- Google Cloud ADC browser authorization and live speech recognition
+- Project-admin Speech-to-Text enablement, Service Usage Consumer access, and
+  live speech recognition
 - Google browser OAuth linking verification
 - Administration console live verification
 - Next.js web application and deployments

@@ -57,16 +57,17 @@
 - The five established OWNER finance files match the pre-online-auth backup
   byte-for-byte. No automatic migration or synchronization ran.
 - The external configuration reports the core, SMTP, and Google OAuth groups
-  as set. Google Cloud Application Default Credentials are unavailable.
+  as set. Google Application Default Credentials are now valid.
 - The desktop exposes the complete safe Voice Quick Entry workflow, including
   explicit microphone status and timeout guidance. Cancellation honours thread
   interruption, and both desktop and server tests prove audio-buffer wiping on
   successful and failed recognition.
 - `ant clean jar test-voice` passes with 24 voice tests. The server package
   passes 39 tests with no failures or errors and two intended live-only skips.
-- The official Google Cloud CLI 578.0.0 is installed and executable. The
-  configured project is present, but no Application Default Credentials file
-  or credential setting exists yet.
+- The official Google Cloud CLI 578.0.0 is installed and executable. A
+  token-safe live recognition call reports `speech.googleapis.com` disabled.
+  Quota-project setup and API enablement both return `PERMISSION_DENIED`, so a
+  project administrator action is required.
 - The Next.js frontend has not been started.
 - Docker Desktop 4.84.0 and Docker CLI/Server 29.6.2 responded after the
   required Windows restart, but `hello-world` failed with an engine HTTP 500.
@@ -80,12 +81,13 @@
 
 ## Exact next task
 
-Wait for the required Google ADC browser authorization. After the user replies
-`ready`, verify ADC without printing an access token or account detail, set the
-quota project to `wealthora-voice` if needed, enable/check
-`speech.googleapis.com`, and run the production provider plus real-microphone
-English, Bangla, and Banglish confirmation flow. Keep all captured audio
-memory-only and do not create a transaction before explicit confirmation.
+Wait for a `wealthora-voice` project administrator to enable the Cloud
+Speech-to-Text API, link billing if prompted, and grant the already authorized
+ADC account `roles/serviceusage.serviceUsageConsumer`. After the user replies
+`ready`, re-run token-safe API and quota-project checks, then run the production
+provider plus real-microphone English, Bangla, and Banglish confirmation flow.
+Keep all captured audio memory-only and do not create a transaction before
+explicit confirmation.
 
 Then continue through Google OAuth, live administration, Docker/container
 recovery, and the Next.js web application in dependency order.

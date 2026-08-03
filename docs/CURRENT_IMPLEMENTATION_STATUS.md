@@ -265,9 +265,12 @@ Flyway V1-V5 remain forward-only, and Hibernate remains configured with
 
 - Google OAuth is configured server-side, but browser authorization and live
   account linking remain unverified.
-- Google Cloud Speech has its project ID and the official Google Cloud CLI
-  578.0.0 is installed. Application Default Credentials are not yet authorized,
-  so live provider and real-microphone recognition remain pending.
+- Google Cloud Speech has its project ID, Google Cloud CLI 578.0.0, and valid
+  Application Default Credentials. Token-safe Service Usage and recognition
+  checks prove `speech.googleapis.com` is disabled, while quota-project setup
+  and API enablement both return project IAM permission denied. A project
+  administrator must complete that external gate before live microphone
+  recognition can pass.
 - Docker and GitHub-hosted workflow execution remain unverified in this
   environment.
 - Flyway emitted a non-failing warning that test-only H2 2.4.240 is newer than

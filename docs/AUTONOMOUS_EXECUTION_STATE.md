@@ -6,12 +6,12 @@ Verified on 2026-08-04.
 
 - Branch: `feature/wealthora-online-auth-voice`
 - Recorded implementation HEAD: `febb7b5`
-- Active stage: Stage 5, live Google Cloud Speech authorization and verification
-- Exact resume point: after the user completes Google Application Default
-  Credentials authorization and replies `ready`, verify ADC without printing
-  tokens, set the quota project if required, enable/check Speech-to-Text V1,
-  run the production provider and real-microphone flow, then continue through
-  OAuth, administration, container, web, CI, and final acceptance
+- Active stage: Stage 5, Google Cloud Speech project enablement and verification
+- Exact resume point: after a project administrator enables Speech-to-Text V1,
+  links billing if Google requests it, and grants the authorized ADC account
+  Service Usage Consumer access, verify the API with token-safe calls, set the
+  quota project, run the production provider and real-microphone flow, then
+  continue through OAuth, administration, container, web, CI, and acceptance
 
 ## Completed stages
 
@@ -62,14 +62,15 @@ pressure. No destructive Docker recovery was attempted.
   success/failure buffer wiping, manual fallback, explicit confirm-before-add,
   microphone status, 30-second timeout, and cancellation interrupt handling
 - Official Google Cloud CLI 578.0.0 installed and executable; project
-  configuration is present and ADC is intentionally still absent
+  configuration and Application Default Credentials are ready
 
 ## Tests failed or pending
 
 - Docker `hello-world`: failed with Docker Desktop engine HTTP 500
 - Docker clean relaunch: failed with WSL VHDX attach error `0x800705aa`
-- Google Cloud Speech: non-manual work complete; live recognition awaits ADC
-  account authorization and any required Cloud billing/API approval
+- Google Cloud Speech: ADC authorization passed, but an authoritative live
+  recognition request reports the API disabled; both API enablement and quota
+  project configuration are denied by current project IAM permissions
 - Google OAuth: pending browser authorization and live linking verification
 - Administration console live verification: pending
 - Docker image/container, Render, Next.js web, Vercel, and GitHub-hosted CI:
@@ -77,11 +78,12 @@ pressure. No destructive Docker recovery was attempted.
 
 ## Manual gates
 
-Active gate: Google account browser authorization must create Application
-Default Credentials for the configured project. No account credential, token,
-or generated ADC file is requested or stored in the repository. Later gates
-may include Cloud billing/API approval, OAuth console changes, Render/Vercel
-connections, and explicit push, merge, or deployment authorization.
+Active gate: a `wealthora-voice` project administrator must enable Cloud
+Speech-to-Text, link billing if prompted, and grant the authorized ADC account
+`roles/serviceusage.serviceUsageConsumer`. No account credential, token, or
+generated ADC file is requested or stored in the repository. Later gates may
+include OAuth console changes, Render/Vercel connections, and explicit push,
+merge, or deployment authorization.
 
 ## Remaining stages
 
