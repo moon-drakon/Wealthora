@@ -14,6 +14,15 @@ public interface AuthService {
 
     UserSession signInWithNsuEmail(String email, char[] password);
 
+    default UserSession signInWithNsuEmail(
+            String email, char[] password, FinanceMode destination) {
+        if (destination != FinanceMode.CLOUD) {
+            throw new AuthConfigurationException(
+                    "Local sign-in is unavailable in this authentication service.");
+        }
+        return signInWithNsuEmail(email, password);
+    }
+
     UserSession continueWithGoogle();
 
     AuthenticatedUser registerWithNsuEmail(

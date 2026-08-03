@@ -178,6 +178,26 @@ public final class LocalAuthenticationTest {
             assertTrue(onlineSessions.getCurrentSession().isEmpty());
             assertTrue(users.findOwner().isPresent());
         });
+        test("explicit CLOUD sign-in bypasses a same-email local account", () -> {
+            RecordingGateway gateway = new RecordingGateway(OWNER_EMAIL);
+            LocalDesktopAuthService hybrid = new LocalDesktopAuthService(
+                    users, passwords, new OwnerConfiguration(OWNER_EMAIL),
+                    new SessionManager(), audit,
+                    new LegacyDataMigrationService(
+                            legacy, backups, audit, clock),
+                    clock, identifier -> workspaces.resolve(identifier),
+                    gateway);
+            UserSession cloud = hybrid.signInWithNsuEmail(
+                    OWNER_EMAIL, "CloudPassword1!".toCharArray(),
+                    FinanceMode.CLOUD);
+            assertEquals(FinanceMode.CLOUD, cloud.getFinanceMode());
+            assertTrue(gateway.active);
+
+            UserSession local = hybrid.signInWithNsuEmail(
+                    OWNER_EMAIL, OWNER_PASSWORD, FinanceMode.LOCAL);
+            assertEquals(FinanceMode.LOCAL, local.getFinanceMode());
+            assertTrue(local.isOwner());
+        });
 
         AppPaths.activateUserDataDirectory(ownerId);
         service.logout();
@@ -380,14 +400,21 @@ public final class LocalAuthenticationTest {
     private static final class RecordingGateway
             implements RegistrationGateway {
 
-        private final AuthenticatedUser user = new AuthenticatedUser(
-                "usr_remote_1", "Remote Student",
-                "remote.student@northsouth.edu", true,
-                AuthProvider.LOCAL, "", AccountStatus.ACTIVE,
-                NOW, NOW, NOW, Set.of(UserRole.USER), "2530000003",
-                "System", "BDT");
+        private final AuthenticatedUser user;
         private boolean active;
         private boolean loggedOut;
+
+        private RecordingGateway() {
+            this("remote.student@northsouth.edu");
+        }
+
+        private RecordingGateway(String email) {
+            user = new AuthenticatedUser(
+                    "usr_remote_1", "Remote Student", email, true,
+                    AuthProvider.LOCAL, "", AccountStatus.ACTIVE,
+                    NOW, NOW, NOW, Set.of(UserRole.USER), "2530000003",
+                    "System", "BDT");
+        }
 
         @Override
         public AuthenticatedUser register(

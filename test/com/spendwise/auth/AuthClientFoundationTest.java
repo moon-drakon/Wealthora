@@ -225,6 +225,10 @@ public final class AuthClientFoundationTest {
                 assertContains(signInText, "NSU Email Access");
                 assertContains(signInText, AppBrand.NSU_EMAIL_SUBTITLE);
                 assertContains(signInText, "Remember Me");
+                assertContains(signInText, "Sign In to CLOUD");
+                assertContains(signInText, "Sign In to LOCAL");
+                assertContainsPart(signInText,
+                        "Choose CLOUD for server data");
                 assertFalse(signInText.stream().anyMatch(value ->
                         value.contains("Google") && value.contains("NSU only")));
                 assertContains(componentText(panels.get(1)),

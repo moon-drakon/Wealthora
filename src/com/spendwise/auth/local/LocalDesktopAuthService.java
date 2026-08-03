@@ -9,6 +9,7 @@ import com.spendwise.auth.AuthProvider;
 import com.spendwise.auth.AuthService;
 import com.spendwise.auth.AuthenticatedUser;
 import com.spendwise.auth.EmailAddressPolicy;
+import com.spendwise.auth.FinanceMode;
 import com.spendwise.auth.NsuEmailPolicy;
 import com.spendwise.auth.OwnerConfiguration;
 import com.spendwise.auth.OwnerSetupService;
@@ -201,23 +202,51 @@ public final class LocalDesktopAuthService
     public synchronized UserSession signInWithNsuEmail(
             String email, char[] password) {
         Instant now = clock.instant();
-        LocalUserRecord record;
+        LocalUserRecord record = findLocalRecord(email);
+        if (record == null && registrationGateway.isConfigured()) {
+            return signInOnline(email, password, now);
+        }
+        return signInLocally(password, record, now);
+    }
+
+    @Override
+    public synchronized UserSession signInWithNsuEmail(
+            String email, char[] password, FinanceMode destination) {
+        FinanceMode requiredDestination = Objects.requireNonNull(
+                destination, "A sign-in destination is required.");
+        Instant now = clock.instant();
+        if (requiredDestination == FinanceMode.CLOUD) {
+            if (!registrationGateway.isConfigured()) {
+                throw unavailable("Cloud password sign-in");
+            }
+            return signInOnline(email, password, now);
+        }
+        return signInLocally(password, findLocalRecord(email), now);
+    }
+
+    private LocalUserRecord findLocalRecord(String email) {
         try {
             String normalized = NsuEmailPolicy.requireInstitutionalEmail(email);
-            record = userRepository.findByEmail(normalized).orElse(null);
+            return userRepository.findByEmail(normalized).orElse(null);
         } catch (RuntimeException exception) {
-            record = null;
+            return null;
         }
-        if (record == null && registrationGateway.isConfigured()) {
-            UserSession onlineSession = registrationGateway.signIn(
-                    email, password);
-            auditRepository.append(new AuditEvent(now,
-                    onlineSession.getUserIdentifier(),
-                    AuditAction.LOGIN_SUCCESS,
-                    onlineSession.getUserIdentifier(), "SUCCESS",
-                    "Online password sign-in."));
-            return onlineSession;
-        }
+    }
+
+    private UserSession signInOnline(
+            String email, char[] password, Instant now) {
+        UserSession onlineSession = registrationGateway.signIn(
+                email, password);
+        auditRepository.append(new AuditEvent(now,
+                onlineSession.getUserIdentifier(),
+                AuditAction.LOGIN_SUCCESS,
+                onlineSession.getUserIdentifier(), "SUCCESS",
+                "Online password sign-in."));
+        return onlineSession;
+    }
+
+    private UserSession signInLocally(
+            char[] password, LocalUserRecord record, Instant now) {
         if (record == null) {
             passwordService.matches(password, dummyPasswordHash);
             auditRepository.append(new AuditEvent(now, "",
