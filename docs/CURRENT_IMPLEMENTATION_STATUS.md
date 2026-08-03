@@ -10,7 +10,8 @@ Verified on 2026-08-03 on branch
   implementation were not repeated or redesigned.
 - Repository hygiene and documentation: `076535a`.
 - GitHub desktop, server, and repository checks: `4523ad0`, followed by the
-  transparent whitespace correction `5fa6996`.
+  transparent whitespace correction `5fa6996` and change-range correction
+  `779360a`.
 - Render Docker readiness: `d747f8f`, followed by the Linux line-ending
   contract `334376f`.
 - The commit containing this report follows those implementation commits; use
@@ -54,7 +55,8 @@ Flyway V1-V4 remain forward-only, and Hibernate remains configured with
 - Server CI sets up Java 25, uses the Maven Wrapper, runs tests, and packages
   without production secrets.
 - Repository checks reject sensitive/generated tracked files, unexpected
-  JARs, high-confidence secret signatures, and whitespace errors.
+  JARs, high-confidence secret signatures, and whitespace errors introduced
+  by the current push or pull request.
 - The pull-request template covers summary, changes, testing, migration,
   security, screenshots, and a concise checklist.
 - Workflow action majors were checked against their official repositories.

@@ -4,7 +4,7 @@
 
 - Branch: `feature/wealthora-online-auth-voice`
 - Verified authentication baseline: `f02fef4`
-- Latest release-foundation implementation commit: `334376f`
+- Latest release-foundation implementation commit: `779360a`
 - The report update is committed after that implementation commit; confirm the
   exact current hash with `git rev-parse --short HEAD`.
 - Desktop and server tests/builds pass under Java 25.
