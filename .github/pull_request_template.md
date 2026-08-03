@@ -4,7 +4,7 @@ Describe the problem and the result.
 
 ## Changes
 
-- 
+- Describe the main change.
 
 ## Testing
 
