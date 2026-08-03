@@ -5,7 +5,6 @@ import com.wealthora.server.api.GoogleOAuthPollResponse;
 import com.wealthora.server.api.GoogleOAuthStartResponse;
 import com.wealthora.server.api.GoogleOAuthStatusResponse;
 import com.wealthora.server.config.GoogleOAuthProperties;
-import com.wealthora.server.config.RegistrationProperties;
 import com.wealthora.server.domain.AccountStatus;
 import com.wealthora.server.domain.AuditLogEntry;
 import com.wealthora.server.domain.AuthProvider;
@@ -41,7 +40,7 @@ public class GoogleOAuthService {
     private static final int RANDOM_BYTES = 32;
     private static final String DOMAIN = "northsouth.edu";
     private final GoogleOAuthProperties properties;
-    private final RegistrationProperties registrationProperties;
+    private final ApplicationSettingsService applicationSettings;
     private final GoogleIdentityGateway gateway;
     private final GoogleOAuthFlowRepository flows;
     private final UserAccountRepository users;
@@ -55,7 +54,7 @@ public class GoogleOAuthService {
 
     public GoogleOAuthService(
             GoogleOAuthProperties properties,
-            RegistrationProperties registrationProperties,
+            ApplicationSettingsService applicationSettings,
             GoogleIdentityGateway gateway,
             GoogleOAuthFlowRepository flows,
             UserAccountRepository users,
@@ -67,7 +66,7 @@ public class GoogleOAuthService {
             SecureRandom secureRandom,
             Clock clock) {
         this.properties = properties;
-        this.registrationProperties = registrationProperties;
+        this.applicationSettings = applicationSettings;
         this.gateway = gateway;
         this.flows = flows;
         this.users = users;
@@ -263,7 +262,7 @@ public class GoogleOAuthService {
             user = new UserAccount(userId, safeName(identity.fullName(), email),
                     email, studentId(email),
                     AccountStatus.PENDING_EMAIL_VERIFICATION, now);
-            AccountStatus next = registrationProperties.requiresAdminApproval()
+            AccountStatus next = applicationSettings.requiresAdminApproval()
                     ? AccountStatus.PENDING_APPROVAL : AccountStatus.ACTIVE;
             user.verifyEmail(next, now);
             users.save(user);
@@ -271,7 +270,7 @@ public class GoogleOAuthService {
         } else if (!user.isEmailVerified()
                 && user.getAccountStatus()
                         == AccountStatus.PENDING_EMAIL_VERIFICATION) {
-            AccountStatus next = registrationProperties.requiresAdminApproval()
+            AccountStatus next = applicationSettings.requiresAdminApproval()
                     ? AccountStatus.PENDING_APPROVAL : AccountStatus.ACTIVE;
             user.verifyEmail(next, now);
             users.save(user);

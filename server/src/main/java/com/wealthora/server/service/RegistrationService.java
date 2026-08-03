@@ -46,6 +46,7 @@ public class RegistrationService {
     private final TokenHasher tokenHasher;
     private final VerificationMailDelivery mailDelivery;
     private final RegistrationProperties properties;
+    private final ApplicationSettingsService applicationSettings;
     private final SecureRandom secureRandom;
     private final Clock clock;
 
@@ -60,6 +61,7 @@ public class RegistrationService {
             TokenHasher tokenHasher,
             VerificationMailDelivery mailDelivery,
             RegistrationProperties properties,
+            ApplicationSettingsService applicationSettings,
             SecureRandom secureRandom,
             Clock clock) {
         this.users = users;
@@ -72,6 +74,7 @@ public class RegistrationService {
         this.tokenHasher = tokenHasher;
         this.mailDelivery = mailDelivery;
         this.properties = properties;
+        this.applicationSettings = applicationSettings;
         this.secureRandom = secureRandom;
         this.clock = clock;
     }
@@ -143,7 +146,7 @@ public class RegistrationService {
             throw verificationFailed();
         }
         verification.consume(now);
-        AccountStatus next = properties.requiresAdminApproval()
+        AccountStatus next = applicationSettings.requiresAdminApproval()
                 ? AccountStatus.PENDING_APPROVAL : AccountStatus.ACTIVE;
         user.verifyEmail(next, now);
         verifications.save(verification);

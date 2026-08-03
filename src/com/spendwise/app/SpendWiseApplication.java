@@ -265,7 +265,9 @@ public final class SpendWiseApplication {
                             adminService, true),
                     session.canAccessAdminConsole()
                             ? () -> new AdminConsoleDialog(
-                                    frame, adminService, session)
+                                    frame, adminService, session,
+                                    frame::createFinanceBackup,
+                                    frame::restoreFinanceBackup)
                                     .setVisible(true)
                             : null,
                     () -> leaveWorkspace(frame, authService, sessionManager,

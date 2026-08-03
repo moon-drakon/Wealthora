@@ -53,6 +53,8 @@ public class SecurityConfiguration {
                         .authenticated()
                         .requestMatchers("/api/speech/**")
                         .authenticated()
+                        .requestMatchers("/api/admin/**")
+                        .authenticated()
                         .anyRequest().denyAll())
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint((request, response, failure) -> {

@@ -12,6 +12,30 @@ public enum AuditAction {
     USER_SUSPENDED,
     ADMIN_GRANTED,
     ADMIN_REVOKED,
+    REGISTRATION_CREATED,
+    EMAIL_VERIFIED,
+    VERIFICATION_RESENT,
+    REGISTRATION_APPROVED,
+    REGISTRATION_REJECTED,
+    USER_DISABLED,
+    APPLICATION_SETTINGS_CHANGED,
+    PASSWORD_RESET_REQUESTED,
+    PASSWORD_RESET_COMPLETED,
+    PASSWORD_SET,
+    SESSION_REFRESHED,
+    GOOGLE_LOGIN_SUCCESS,
+    GOOGLE_REGISTRATION_CREATED,
+    GOOGLE_IDENTITY_LINKED,
+    LOGOUT_ALL,
+    SERVER_EVENT,
     SAFETY_BACKUP_CREATED,
-    LEGACY_DATA_ASSIGNED
+    LEGACY_DATA_ASSIGNED;
+
+    public static AuditAction fromExternal(String value) {
+        try {
+            return valueOf(value);
+        } catch (IllegalArgumentException | NullPointerException exception) {
+            return SERVER_EVENT;
+        }
+    }
 }

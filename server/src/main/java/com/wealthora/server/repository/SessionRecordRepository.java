@@ -12,4 +12,6 @@ public interface SessionRecordRepository
     Optional<SessionRecord> findByAccessTokenHash(String accessTokenHash);
 
     List<SessionRecord> findByUserIdAndRevokedAtIsNull(UUID userId);
+
+    long countByRevokedAtIsNull();
 }

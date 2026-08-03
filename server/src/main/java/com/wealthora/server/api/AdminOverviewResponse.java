@@ -1,6 +1,6 @@
-package com.spendwise.auth.admin;
+package com.wealthora.server.api;
 
-public record AdminOverview(
+public record AdminOverviewResponse(
         int totalUsers,
         int activeUsers,
         int pendingApproval,
@@ -11,6 +11,5 @@ public record AdminOverview(
         int administrators,
         int standardUsers,
         int failedLoginAttempts,
-        String lastBackup,
-        String storageStatus) {
+        long auditEvents) {
 }

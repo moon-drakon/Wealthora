@@ -19,6 +19,7 @@ import com.spendwise.auth.audit.AuditAction;
 import com.spendwise.auth.audit.AuditEvent;
 import com.spendwise.auth.audit.AuditRepository;
 import com.spendwise.auth.registration.RegistrationGateway;
+import com.spendwise.auth.admin.AdministrationGateway;
 import com.spendwise.auth.registration.UnconfiguredRegistrationGateway;
 import com.spendwise.config.AppPaths;
 import com.spendwise.voice.SpeechApiClient;
@@ -132,6 +133,11 @@ public final class LocalDesktopAuthService
 
     public SpeechApiClient getSpeechApiClient() {
         return registrationGateway;
+    }
+
+    public AdministrationGateway getAdministrationGateway() {
+        return registrationGateway instanceof AdministrationGateway gateway
+                ? gateway : AdministrationGateway.unavailable();
     }
 
     @Override

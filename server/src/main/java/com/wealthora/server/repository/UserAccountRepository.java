@@ -11,4 +11,9 @@ public interface UserAccountRepository
     Optional<UserAccount> findByEmail(String email);
 
     boolean existsByEmail(String email);
+
+    java.util.List<UserAccount> findAllByOrderByCreatedAtAsc();
+
+    java.util.List<UserAccount> findByAccountStatusOrderByCreatedAtAsc(
+            com.wealthora.server.domain.AccountStatus status);
 }

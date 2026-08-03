@@ -2,6 +2,10 @@ package com.spendwise.auth.registration;
 
 import com.spendwise.auth.AccountSession;
 import com.spendwise.auth.UserSession;
+import com.spendwise.auth.admin.AdminApplicationSettings;
+import com.spendwise.auth.admin.AdminOverview;
+import com.spendwise.auth.admin.AdminSecurityStatus;
+import com.spendwise.auth.admin.DatabaseHealthStatus;
 import com.spendwise.voice.SpeechProviderStatus;
 import com.spendwise.voice.SpeechRecognitionResult;
 import com.spendwise.voice.VoiceInputLanguage;
@@ -13,6 +17,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -36,6 +41,7 @@ public final class HttpRegistrationGatewayTest {
         TestHandler handler = new TestHandler();
         server.createContext("/api/auth", handler::handle);
         server.createContext("/api/speech", handler::handle);
+        server.createContext("/api/admin", handler::handle);
         server.start();
         try {
             String baseUrl = "http://127.0.0.1:"
@@ -52,6 +58,8 @@ public final class HttpRegistrationGatewayTest {
                     speechRecognition(baseUrl));
             test("Google browser flow returns linked online session", () ->
                     googleBrowserFlow(baseUrl));
+            test("administration views and actions use authenticated server contract",
+                    () -> administration(baseUrl, handler));
             System.out.println("All " + passed
                     + " online authentication gateway tests passed.");
         } finally {
@@ -133,6 +141,39 @@ public final class HttpRegistrationGatewayTest {
         assertTrue(gateway.hasActiveSession());
     }
 
+    private static void administration(String baseUrl, TestHandler handler) {
+        HttpRegistrationGateway gateway = gateway(baseUrl);
+        gateway.signIn(EMAIL, "GatewayStudent1!".toCharArray());
+        AdminOverview overview = gateway.getAdminOverview();
+        assertEquals(4, overview.totalUsers());
+        assertEquals(1, overview.pendingApproval());
+        assertEquals(1, gateway.listAdminUsers().size());
+        assertEquals(1, gateway.listPendingRegistrations().size());
+        assertEquals(1, gateway.listPendingVerifications().size());
+        assertEquals(1, gateway.listAdminAuditEvents().size());
+        AdminSecurityStatus security = gateway.getAdminSecurityStatus();
+        assertEquals(5, security.maximumFailedLoginAttempts());
+        AdminApplicationSettings settings =
+                gateway.getAdminApplicationSettings();
+        assertTrue(settings.registrationRequiresAdminApproval());
+        DatabaseHealthStatus database = gateway.getDatabaseHealth();
+        assertEquals("PostgreSQL", database.databaseProduct());
+        assertEquals("pending-user", gateway.approveRegistration(
+                "pending-user", "NSU identity reviewed").getUserIdentifier());
+        char[] password = "OwnerPassword1!".toCharArray();
+        try {
+            settings = gateway.updateAdminApplicationSettings(
+                    false, password, "Open registration window");
+        } finally {
+            Arrays.fill(password, '\0');
+        }
+        assertFalse(settings.registrationRequiresAdminApproval());
+        assertTrue(handler.lastAdminRequest.contains(
+                "\"reason\":\"Open registration window\""));
+        assertTrue(handler.lastAdminRequest.contains(
+                "\"currentPassword\":\"OwnerPassword1!\""));
+    }
+
     private static HttpRegistrationGateway gateway(String baseUrl) {
         System.setProperty("os.name", "Test OS");
         return new HttpRegistrationGateway(new ServerConfiguration(baseUrl));
@@ -168,6 +209,7 @@ public final class HttpRegistrationGatewayTest {
         private int forgotRequests;
         private int resetRequests;
         private String revokedIdentifier;
+        private String lastAdminRequest = "";
 
         void handle(HttpExchange exchange) throws IOException {
             String path = exchange.getRequestURI().getPath();
@@ -229,6 +271,64 @@ public final class HttpRegistrationGatewayTest {
                         + "\"detectedLanguage\":\"ENGLISH\","
                         + "\"detectedLocale\":\"en-US\","
                         + "\"audioDurationMilliseconds\":100}");
+            } else if (path.equals("/api/admin/overview")) {
+                requireAuthorization(exchange);
+                respond(exchange, 200, "{\"totalUsers\":4,"
+                        + "\"activeUsers\":1,\"pendingApproval\":1,"
+                        + "\"pendingVerification\":1,\"suspendedUsers\":1,"
+                        + "\"disabledUsers\":0,\"owners\":1,"
+                        + "\"administrators\":1,\"standardUsers\":2,"
+                        + "\"failedLoginAttempts\":0}");
+            } else if (path.equals("/api/admin/users")
+                    && method.equals("GET")) {
+                requireAuthorization(exchange);
+                respond(exchange, 200, "[" + userResponse(
+                        "active-user", "ACTIVE", true) + "]");
+            } else if (path.equals("/api/admin/pending-registrations")) {
+                requireAuthorization(exchange);
+                respond(exchange, 200, "[" + userResponse(
+                        "pending-user", "PENDING_APPROVAL", true) + "]");
+            } else if (path.equals("/api/admin/verifications")) {
+                requireAuthorization(exchange);
+                respond(exchange, 200, "[" + userResponse(
+                        "verify-user", "PENDING_EMAIL_VERIFICATION", false)
+                        + "]");
+            } else if (path.equals("/api/admin/audit-logs")) {
+                requireAuthorization(exchange);
+                respond(exchange, 200, "[{\"occurredAt\":"
+                        + "\"2026-08-03T12:00:00Z\","
+                        + "\"actorUserIdentifier\":\"admin-user\","
+                        + "\"action\":\"REGISTRATION_APPROVED\","
+                        + "\"targetUserIdentifier\":\"pending-user\","
+                        + "\"outcome\":\"SUCCESS\","
+                        + "\"reason\":\"NSU identity reviewed\"}]");
+            } else if (path.equals("/api/admin/security")) {
+                requireAuthorization(exchange);
+                respond(exchange, 200, "{\"passwordPolicy\":\"Strong\","
+                        + "\"accessTokenExpiry\":\"15 minutes\","
+                        + "\"refreshTokenExpiry\":\"30 days\","
+                        + "\"lockDuration\":\"15 minutes\","
+                        + "\"maximumFailedLoginAttempts\":5,"
+                        + "\"verificationExpiry\":\"10 minutes\","
+                        + "\"maximumVerificationAttempts\":5,"
+                        + "\"passwordResetExpiry\":\"15 minutes\"}");
+            } else if (path.equals("/api/admin/settings")) {
+                requireAuthorization(exchange);
+                lastAdminRequest = requestBody;
+                respond(exchange, 200,
+                        "{\"registrationRequiresAdminApproval\":"
+                        + (method.equals("PUT") ? "false" : "true") + "}");
+            } else if (path.equals("/api/admin/database-health")) {
+                requireAuthorization(exchange);
+                respond(exchange, 200, "{\"status\":\"UP\","
+                        + "\"databaseProduct\":\"PostgreSQL\","
+                        + "\"appliedMigrations\":3,\"users\":4,"
+                        + "\"activeSessions\":2}");
+            } else if (path.equals("/api/admin/users/pending-user/approve")) {
+                requireAuthorization(exchange);
+                lastAdminRequest = requestBody;
+                respond(exchange, 200,
+                        userResponse("pending-user", "ACTIVE", true));
             } else {
                 respond(exchange, 404,
                         "{\"message\":\"Test endpoint not found.\"}");
@@ -300,6 +400,20 @@ public final class HttpRegistrationGatewayTest {
                     + "\"createdAt\":\"" + created.minusSeconds(60) + "\","
                     + "\"accessExpiresAt\":\"" + expires + "\","
                     + "\"currentSession\":false}]";
+        }
+
+        private static String userResponse(
+                String identifier, String status, boolean verified) {
+            return "{\"userIdentifier\":\"" + identifier + "\","
+                    + "\"fullName\":\"Admin Test User\","
+                    + "\"email\":\"admin.test@northsouth.edu\","
+                    + "\"emailVerified\":" + verified + ","
+                    + "\"accountStatus\":\"" + status + "\","
+                    + "\"primaryAuthProvider\":\"LOCAL\","
+                    + "\"googleSubjectId\":\"\","
+                    + "\"createdAt\":\"2026-08-01T12:00:00Z\","
+                    + "\"updatedAt\":\"2026-08-03T12:00:00Z\","
+                    + "\"lastLoginAt\":null,\"roles\":[\"USER\"]}";
         }
     }
 

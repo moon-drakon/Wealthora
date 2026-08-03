@@ -52,6 +52,7 @@ import javax.swing.SwingUtilities;
 public final class SpendWiseFrame extends JFrame {
 
     private AppShellPanel appShell;
+    private DataManagementActions dataManagementActions;
 
     public SpendWiseFrame(
             ExpenseService expenseService,
@@ -489,13 +490,13 @@ public final class SpendWiseFrame extends JFrame {
         searchItem.addActionListener(event -> shell.focusGlobalSearch());
         entryMenu.add(searchItem);
         menuBar.add(entryMenu);
-        DataManagementActions dataActions = new DataManagementActions(this,
+        dataManagementActions = new DataManagementActions(this,
                 backupService, exportService, reportsPanel::getLatestSnapshot,
                 refreshFinancialViews, jsonBackupService, csvImportService,
                 pdfReportService, reportsPanel::getLatestPortfolioSnapshot,
                 () -> currencyService == null ? "BDT"
                         : currencyService.getCurrency().getCurrencyCode());
-        menuBar.add(dataActions.createMenu());
+        menuBar.add(dataManagementActions.createMenu());
         setJMenuBar(menuBar);
         setContentPane(shell);
         setSize(1320, 820);
@@ -525,6 +526,20 @@ public final class SpendWiseFrame extends JFrame {
 
     public void openMyFinance() {
         if (appShell != null) appShell.showPage("dashboard");
+    }
+
+    public void createFinanceBackup() {
+        if (dataManagementActions == null) {
+            throw new IllegalStateException("Backup is unavailable in this view.");
+        }
+        dataManagementActions.createBackup();
+    }
+
+    public void restoreFinanceBackup() {
+        if (dataManagementActions == null) {
+            throw new IllegalStateException("Restore is unavailable in this view.");
+        }
+        dataManagementActions.restoreBackup();
     }
 
     private static void requireEventDispatchThread() {

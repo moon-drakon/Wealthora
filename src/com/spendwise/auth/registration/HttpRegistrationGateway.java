@@ -10,6 +10,13 @@ import com.spendwise.auth.PasswordService;
 import com.spendwise.auth.UserRole;
 import com.spendwise.auth.UserSession;
 import com.spendwise.auth.GoogleOAuthStatus;
+import com.spendwise.auth.admin.AdminApplicationSettings;
+import com.spendwise.auth.admin.AdminOverview;
+import com.spendwise.auth.admin.AdminSecurityStatus;
+import com.spendwise.auth.admin.AdministrationGateway;
+import com.spendwise.auth.admin.DatabaseHealthStatus;
+import com.spendwise.auth.audit.AuditAction;
+import com.spendwise.auth.audit.AuditEvent;
 import com.spendwise.voice.SpeechBackendStatus;
 import com.spendwise.voice.SpeechProviderStatus;
 import com.spendwise.voice.SpeechRecognitionResult;
@@ -31,7 +38,8 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public final class HttpRegistrationGateway implements RegistrationGateway {
+public final class HttpRegistrationGateway
+        implements RegistrationGateway, AdministrationGateway {
 
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(15);
     private static final Duration SPEECH_TIMEOUT = Duration.ofSeconds(45);
@@ -357,8 +365,195 @@ public final class HttpRegistrationGateway implements RegistrationGateway {
     }
 
     @Override
+    public synchronized boolean hasOnlineSession() {
+        return hasActiveSession();
+    }
+
+    @Override
+    public synchronized AdminOverview getAdminOverview() {
+        String json = adminGet("/api/admin/overview");
+        return new AdminOverview(integer(json, "totalUsers"),
+                integer(json, "activeUsers"),
+                integer(json, "pendingApproval"),
+                integer(json, "pendingVerification"),
+                integer(json, "suspendedUsers"),
+                integer(json, "disabledUsers"),
+                integer(json, "owners"),
+                integer(json, "administrators"),
+                integer(json, "standardUsers"),
+                integer(json, "failedLoginAttempts"),
+                "Use Backup tab", "Server database");
+    }
+
+    @Override
+    public synchronized List<AuthenticatedUser> listAdminUsers() {
+        return users(adminGet("/api/admin/users"));
+    }
+
+    @Override
+    public synchronized List<AuthenticatedUser> listPendingRegistrations() {
+        return users(adminGet("/api/admin/pending-registrations"));
+    }
+
+    @Override
+    public synchronized List<AuthenticatedUser> listPendingVerifications() {
+        return users(adminGet("/api/admin/verifications"));
+    }
+
+    @Override
+    public synchronized List<AuditEvent> listAdminAuditEvents() {
+        String json = adminGet("/api/admin/audit-logs");
+        List<AuditEvent> events = new ArrayList<>();
+        for (String object : objects(json)) {
+            events.add(new AuditEvent(instant(object, "occurredAt", Instant.EPOCH),
+                    optional(string(object, "actorUserIdentifier")),
+                    AuditAction.fromExternal(string(object, "action")),
+                    optional(string(object, "targetUserIdentifier")),
+                    optional(string(object, "outcome")),
+                    optional(string(object, "reason"))));
+        }
+        return List.copyOf(events);
+    }
+
+    @Override
+    public synchronized AdminSecurityStatus getAdminSecurityStatus() {
+        String json = adminGet("/api/admin/security");
+        return new AdminSecurityStatus(
+                required(string(json, "passwordPolicy"), "Password policy"),
+                required(string(json, "accessTokenExpiry"), "Access expiry"),
+                required(string(json, "refreshTokenExpiry"), "Refresh expiry"),
+                required(string(json, "lockDuration"), "Lock duration"),
+                integer(json, "maximumFailedLoginAttempts"),
+                required(string(json, "verificationExpiry"),
+                        "Verification expiry"),
+                integer(json, "maximumVerificationAttempts"),
+                required(string(json, "passwordResetExpiry"),
+                        "Password reset expiry"));
+    }
+
+    @Override
+    public synchronized AdminApplicationSettings getAdminApplicationSettings() {
+        String json = adminGet("/api/admin/settings");
+        return new AdminApplicationSettings(bool(json,
+                "registrationRequiresAdminApproval"), true);
+    }
+
+    @Override
+    public synchronized DatabaseHealthStatus getDatabaseHealth() {
+        String json = adminGet("/api/admin/database-health");
+        return new DatabaseHealthStatus(
+                required(string(json, "status"), "Database status"),
+                required(string(json, "databaseProduct"), "Database product"),
+                (long) number(json, "appliedMigrations"),
+                (long) number(json, "users"),
+                (long) number(json, "activeSessions"));
+    }
+
+    @Override
+    public synchronized AuthenticatedUser approveRegistration(
+            String userIdentifier, String reason) {
+        return adminAction(userIdentifier, "approve", reason, null);
+    }
+
+    @Override
+    public synchronized AuthenticatedUser rejectRegistration(
+            String userIdentifier, String reason) {
+        return adminAction(userIdentifier, "reject", reason, null);
+    }
+
+    @Override
+    public synchronized AuthenticatedUser activateAdminUser(
+            String userIdentifier, String reason) {
+        return adminAction(userIdentifier, "activate", reason, null);
+    }
+
+    @Override
+    public synchronized AuthenticatedUser suspendAdminUser(
+            String userIdentifier, String reason) {
+        return adminAction(userIdentifier, "suspend", reason, null);
+    }
+
+    @Override
+    public synchronized AuthenticatedUser disableAdminUser(
+            String userIdentifier, String reason) {
+        return adminAction(userIdentifier, "disable", reason, null);
+    }
+
+    @Override
+    public synchronized AuthenticatedUser grantAdminRole(
+            String userIdentifier, char[] ownerPassword, String reason) {
+        return adminAction(userIdentifier, "grant-admin", reason,
+                ownerPassword);
+    }
+
+    @Override
+    public synchronized AuthenticatedUser revokeAdminRole(
+            String userIdentifier, char[] ownerPassword, String reason) {
+        return adminAction(userIdentifier, "revoke-admin", reason,
+                ownerPassword);
+    }
+
+    @Override
+    public synchronized AdminApplicationSettings updateAdminApplicationSettings(
+            boolean approvalRequired, char[] ownerPassword, String reason) {
+        String password = ownerPassword == null ? ""
+                : new String(ownerPassword);
+        try {
+            String json = send("PUT", "/api/admin/settings", "{"
+                    + "\"registrationRequiresAdminApproval\":"
+                    + approvalRequired + ","
+                    + field("currentPassword", password) + ","
+                    + field("reason", required(reason, "Reason")) + "}",
+                    adminToken());
+            return new AdminApplicationSettings(bool(json,
+                    "registrationRequiresAdminApproval"), true);
+        } finally {
+            password = null;
+        }
+    }
+
+    @Override
     public boolean isConfigured() {
         return configuration.isConfigured();
+    }
+
+    private String adminGet(String path) {
+        return send("GET", path, "", adminToken());
+    }
+
+    private AuthenticatedUser adminAction(
+            String userIdentifier, String action,
+            String reason, char[] currentPassword) {
+        String password = currentPassword == null ? ""
+                : new String(currentPassword);
+        try {
+            String body = "{" + field("reason", required(reason, "Reason"))
+                    + (currentPassword == null ? "" : ","
+                    + field("currentPassword", password)) + "}";
+            return user(send("POST", "/api/admin/users/"
+                    + required(userIdentifier, "User ID") + "/" + action,
+                    body, adminToken()));
+        } finally {
+            password = null;
+        }
+    }
+
+    private String adminToken() {
+        return requireToken(accessToken,
+                "No online administrator session is active.");
+    }
+
+    private static List<AuthenticatedUser> users(String json) {
+        return objects(json).stream().map(HttpRegistrationGateway::user)
+                .toList();
+    }
+
+    private static List<String> objects(String json) {
+        List<String> result = new ArrayList<>();
+        Matcher matcher = Pattern.compile("\\{([^{}]*)}").matcher(
+                json == null ? "" : json);
+        while (matcher.find()) result.add(matcher.group());
+        return List.copyOf(result);
     }
 
     private String post(String path, String body) {
@@ -384,6 +579,8 @@ public final class HttpRegistrationGateway implements RegistrationGateway {
         HttpRequest request = switch (method) {
             case "GET" -> builder.GET().build();
             case "DELETE" -> builder.DELETE().build();
+            case "PUT" -> builder.PUT(
+                    HttpRequest.BodyPublishers.ofString(body)).build();
             default -> builder.POST(HttpRequest.BodyPublishers.ofString(body))
                     .build();
         };
@@ -487,6 +684,10 @@ public final class HttpRegistrationGateway implements RegistrationGateway {
             throw new AuthException(name + " is missing from the server response.");
         }
         return Double.parseDouble(matcher.group(1));
+    }
+
+    private static int integer(String json, String name) {
+        return (int) number(json, name);
     }
 
     private static Instant instant(

@@ -200,7 +200,7 @@ final class DataManagementActions {
         }
     }
 
-    private void createBackup() {
+    void createBackup() {
         JFileChooser chooser = chooser(
                 "Create " + AppBrand.APP_NAME + " Backup",
                 AppBrand.BACKUP_FILE_NAME, "ZIP backup", "zip");
@@ -223,7 +223,7 @@ final class DataManagementActions {
         }
     }
 
-    private void restoreBackup() {
+    void restoreBackup() {
         JFileChooser chooser = chooser(
                 "Select " + AppBrand.APP_NAME + " Backup",
                 null, "ZIP backup", "zip");

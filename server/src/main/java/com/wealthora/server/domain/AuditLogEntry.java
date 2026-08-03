@@ -40,4 +40,11 @@ public class AuditLogEntry {
         this.outcome = outcome;
         this.reason = reason;
     }
+
+    public Instant getOccurredAt() { return occurredAt; }
+    public UUID getActorUserId() { return actorUserId; }
+    public String getAction() { return action; }
+    public UUID getTargetUserId() { return targetUserId; }
+    public String getOutcome() { return outcome; }
+    public String getReason() { return reason; }
 }
