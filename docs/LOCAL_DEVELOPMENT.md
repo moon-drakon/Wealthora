@@ -5,6 +5,7 @@
 - JDK 25
 - Apache Ant for the desktop build
 - PostgreSQL for a real server run
+- Google Cloud CLI only for live Speech-to-Text verification
 - Docker only when testing the deployment image
 
 The Maven Wrapper is committed under `server/`; a separate Maven installation
@@ -21,8 +22,7 @@ ant -version
 From the repository root:
 
 ```text
-ant test-auth
-ant clean jar
+ant clean jar test-voice
 java -jar dist/Wealthora.jar
 ```
 
@@ -68,6 +68,23 @@ server from `server/`:
 
 Production email additionally requires all six `SMTP_*` values shown in the
 example. Without them, the server reports email delivery as unavailable.
+
+## Google Cloud Speech
+
+Live Voice Quick Entry uses server-side Google Cloud Speech-to-Text V1. Set
+`GOOGLE_CLOUD_PROJECT` and authorize developer Application Default Credentials
+outside the repository:
+
+```text
+gcloud auth application-default login
+gcloud auth application-default set-quota-project wealthora-voice
+gcloud services enable speech.googleapis.com --project wealthora-voice
+```
+
+The Google account must already be allowed to use the configured project.
+Never commit the generated ADC file, print its access token, or copy it into
+desktop configuration. The server reports unavailable status when ADC, API
+access, or project configuration is missing; typed parsing remains available.
 
 ## Explicit development mail sink
 

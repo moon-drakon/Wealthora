@@ -24,6 +24,7 @@ Verified on 2026-08-04 on branch
 - Verified desktop cloud launcher: `8cf4891`.
 - Anonymized real SMTP password-recovery verification: `967d640`.
 - Verified desktop CLOUD workflows and low-memory launchers: `9252ee1`.
+- Google Cloud Speech robustness and privacy verification: `febb7b5`.
 - The commit containing this report follows those implementation commits; use
   `git rev-parse --short HEAD` for its exact hash.
 - The cloud-finance milestone commits were not pushed or merged. The remote
@@ -84,6 +85,20 @@ Flyway V1-V5 remain forward-only, and Hibernate remains configured with
   workspace. It lists candidate files and bytes but has no upload, automatic
   migration, or synchronization action.
 
+### Google Cloud Speech foundation
+
+- Authenticated CLOUD sessions use the server-side Google Cloud
+  Speech-to-Text V1 gateway. English uses `en-US`, Bangla uses `bn-BD`, and
+  automatic/Banglish recognition permits both before the multilingual parser.
+- The Swing flow exposes microphone selection and health, provider state,
+  language, Start/Stop/Cancel, a 30-second timeout and duration, editable
+  transcript and structured fields, confidence, validation warnings, manual
+  typed fallback, and explicit **Confirm and Add**. Recognition and status
+  checks execute outside the Swing event thread.
+- Microphone buffers are never persisted and are wiped after successful or
+  failed recognition. Cancellation now also honours worker interruption during
+  an active Java Sound capture.
+
 ### Repository hygiene and documentation
 
 - `.gitignore` now excludes environment files other than examples,
@@ -134,14 +149,15 @@ Flyway V1-V5 remain forward-only, and Hibernate remains configured with
 
 ## Verification results
 
-- **Desktop tests:** `ant test-auth` passed the full dependency chain,
+- **Desktop tests:** `ant clean jar test-voice` passed the full dependency chain,
   including authentication-policy, local authentication/authorization,
-  online-gateway, and five cloud-finance repository/migration-preview tests.
+  online-gateway, five cloud-finance repository/migration-preview tests, and
+  24 multilingual voice/privacy tests.
 - **Desktop build:** `ant clean jar` passed under Microsoft OpenJDK 25.0.2 and
   produced `dist/Wealthora.jar`.
 - **Desktop runtime:** the JAR opened `Wealthora Authentication` using a new
   temporary `LOCALAPPDATA`; the spawned process was then stopped.
-- **Server tests:** `server\mvnw.cmd package` passed 35 tests with no failures
+- **Server tests:** `server\mvnw.cmd package` passed 39 tests with no failures
   or errors. The two tests that require explicit live-environment flags were
   skipped during the ordinary package build. The isolated
   H2/PostgreSQL-compatibility suite applied Flyway V1-V5 and exercised
@@ -249,8 +265,9 @@ Flyway V1-V5 remain forward-only, and Hibernate remains configured with
 
 - Google OAuth is configured server-side, but browser authorization and live
   account linking remain unverified.
-- Google Cloud Speech has a project ID but no available Application Default
-  Credentials on this host.
+- Google Cloud Speech has its project ID and the official Google Cloud CLI
+  578.0.0 is installed. Application Default Credentials are not yet authorized,
+  so live provider and real-microphone recognition remain pending.
 - Docker and GitHub-hosted workflow execution remain unverified in this
   environment.
 - Flyway emitted a non-failing warning that test-only H2 2.4.240 is newer than

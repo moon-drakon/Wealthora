@@ -1,7 +1,7 @@
 # Wealthora local setup progress
 
 Verified on 2026-08-04 on branch
-`feature/wealthora-online-auth-voice` with implementation baseline `9252ee1`.
+`feature/wealthora-online-auth-voice` with implementation baseline `febb7b5`.
 
 ## Completed in this boot
 
@@ -72,11 +72,20 @@ Verified on 2026-08-04 on branch
 - All five current OWNER finance files match the pre-online-auth backup
   byte-for-byte. Authentication/audit files changed only through documented
   authentication activity.
+- The Voice Quick Entry audit confirmed every non-manual Stage 5 control and
+  added explicit microphone health, visible timeout guidance, cancellation
+  interrupt handling, and success/failure audio-buffer wiping tests.
+- `ant clean jar test-voice` passes with 24 voice tests. The full server package
+  passes 39 tests with no failures or errors and two intended live-only skips.
+- The official Google Cloud CLI 578.0.0 is installed. The configured speech
+  project is present, while Application Default Credentials remain absent
+  until the required browser authorization is completed.
 
 ## Still pending
 
 - Docker `hello-world`, image build, and container run
-- Google Cloud ADC and browser OAuth authorization
+- Google Cloud ADC browser authorization and live speech recognition
+- Google browser OAuth linking verification
 - Administration console live verification
 - Next.js web application and deployments
 

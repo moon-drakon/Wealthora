@@ -12,6 +12,7 @@
 - Verified desktop launcher commit: `8cf4891`
 - Real SMTP password-recovery audit commit: `967d640`
 - Verified desktop CLOUD workflow commit: `9252ee1`
+- Google Cloud Speech hardening commit: `febb7b5`
 - The status-document commit follows that implementation commit; confirm the
   exact current hash with `git rev-parse --short HEAD`.
 - Desktop and server tests/builds pass under Java 25.
@@ -57,6 +58,15 @@
   byte-for-byte. No automatic migration or synchronization ran.
 - The external configuration reports the core, SMTP, and Google OAuth groups
   as set. Google Cloud Application Default Credentials are unavailable.
+- The desktop exposes the complete safe Voice Quick Entry workflow, including
+  explicit microphone status and timeout guidance. Cancellation honours thread
+  interruption, and both desktop and server tests prove audio-buffer wiping on
+  successful and failed recognition.
+- `ant clean jar test-voice` passes with 24 voice tests. The server package
+  passes 39 tests with no failures or errors and two intended live-only skips.
+- The official Google Cloud CLI 578.0.0 is installed and executable. The
+  configured project is present, but no Application Default Credentials file
+  or credential setting exists yet.
 - The Next.js frontend has not been started.
 - Docker Desktop 4.84.0 and Docker CLI/Server 29.6.2 responded after the
   required Windows restart, but `hello-world` failed with an engine HTTP 500.
@@ -70,16 +80,15 @@
 
 ## Exact next task
 
-Inspect the existing Google Cloud Speech provider, desktop voice boundary,
-configuration status, and tests. Complete and verify every non-manual Stage 5
-item without exposing configuration values. If live Google authorization,
-billing, or API enablement is genuinely required after local and provider
-tests pass, record the exact external gate instead of fabricating success.
+Wait for the required Google ADC browser authorization. After the user replies
+`ready`, verify ADC without printing an access token or account detail, set the
+quota project to `wealthora-voice` if needed, enable/check
+`speech.googleapis.com`, and run the production provider plus real-microphone
+English, Bangla, and Banglish confirmation flow. Keep all captured audio
+memory-only and do not create a transaction before explicit confirmation.
 
-Continue next through Google OAuth, live administration, Docker/container
-recovery, and the Next.js web application in dependency order. The completed
-desktop CLOUD fixture may be rerun only with freshly generated users and its
-scoped cleanup; no private account credential is required for Stage 4.
+Then continue through Google OAuth, live administration, Docker/container
+recovery, and the Next.js web application in dependency order.
 
 ## Completed live database sequence
 

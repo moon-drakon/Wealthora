@@ -5,12 +5,13 @@ Verified on 2026-08-04.
 ## Current stage
 
 - Branch: `feature/wealthora-online-auth-voice`
-- Recorded implementation HEAD: `9252ee1`
-- Active stage: Stage 5, Google Cloud Speech readiness and verification
-- Exact resume point: inspect the existing speech provider, tests, and
-  Application Default Credentials status; complete every non-manual speech
-  implementation and test before continuing through OAuth, administration,
-  container, web, CI, and final acceptance in dependency order
+- Recorded implementation HEAD: `febb7b5`
+- Active stage: Stage 5, live Google Cloud Speech authorization and verification
+- Exact resume point: after the user completes Google Application Default
+  Credentials authorization and replies `ready`, verify ADC without printing
+  tokens, set the quota project if required, enable/check Speech-to-Text V1,
+  run the production provider and real-microphone flow, then continue through
+  OAuth, administration, container, web, CI, and final acceptance
 
 ## Completed stages
 
@@ -21,6 +22,8 @@ Verified on 2026-08-04.
 - Stage 3 real SMTP password recovery and post-reset CLOUD sign-in
 - Stage 4 desktop CLOUD finance, isolation, persistence, session, transport,
   Swing construction, cleanup, and LOCAL-data-preservation verification
+- Stage 5 non-manual Speech V1 implementation, desktop workflow, privacy
+  hardening, cancellation behavior, provider tests, and Google Cloud CLI setup
 
 Stage 1 is partially complete: the Windows restart, WSL checks, and Docker
 Client/Server checks passed. `hello-world` and Docker stability did not pass
@@ -29,9 +32,8 @@ pressure. No destructive Docker recovery was attempted.
 
 ## Tests passed
 
-- `ant test-auth`
-- `ant clean jar`
-- `server\mvnw.cmd package`: 35 tests, 0 failures, 0 errors, 2 live-only
+- `ant clean jar test-voice`: 24 voice tests and the full dependency chain
+- `server\mvnw.cmd package`: 39 tests, 0 failures, 0 errors, 2 live-only
   tests skipped by default
 - Live PostgreSQL product, TLS, five-migration history/checksum, exact
   26-table inventory, and composite ownership-constraint audit
@@ -56,12 +58,18 @@ pressure. No destructive Docker recovery was attempted.
 - Five local OWNER finance files match the pre-online-auth backup byte-for-byte
 - Desktop and server low-memory launchers, PowerShell syntax checks, and
   `git diff --check`
+- Authenticated Speech V1 status/recognition endpoints, invalid-audio safety,
+  success/failure buffer wiping, manual fallback, explicit confirm-before-add,
+  microphone status, 30-second timeout, and cancellation interrupt handling
+- Official Google Cloud CLI 578.0.0 installed and executable; project
+  configuration is present and ADC is intentionally still absent
 
 ## Tests failed or pending
 
 - Docker `hello-world`: failed with Docker Desktop engine HTTP 500
 - Docker clean relaunch: failed with WSL VHDX attach error `0x800705aa`
-- Google Cloud Speech: pending provider/ADC completion and live verification
+- Google Cloud Speech: non-manual work complete; live recognition awaits ADC
+  account authorization and any required Cloud billing/API approval
 - Google OAuth: pending browser authorization and live linking verification
 - Administration console live verification: pending
 - Docker image/container, Render, Next.js web, Vercel, and GitHub-hosted CI:
@@ -69,10 +77,11 @@ pressure. No destructive Docker recovery was attempted.
 
 ## Manual gates
 
-There is no active manual gate. Future external gates may include Google
-authorization or billing, Render/Vercel account connections and secret entry,
-and explicit push, merge, or deployment authorization. Stop at the exact gate
-only after all safe non-manual work leading to it is complete.
+Active gate: Google account browser authorization must create Application
+Default Credentials for the configured project. No account credential, token,
+or generated ADC file is requested or stored in the repository. Later gates
+may include Cloud billing/API approval, OAuth console changes, Render/Vercel
+connections, and explicit push, merge, or deployment authorization.
 
 ## Remaining stages
 

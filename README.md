@@ -72,6 +72,7 @@ Server:
 - JDK 25
 - PostgreSQL or an isolated Neon database for real runs
 - SMTP credentials for production registration and recovery
+- Google Cloud CLI plus Application Default Credentials for live Speech V1
 - Maven is not required separately; use the committed wrapper
 
 Docker is optional for validating the server deployment image.
@@ -129,11 +130,10 @@ testing can use the explicit `dev-mail-sink` profile described in
 
 ## Test and build
 
-Run the complete desktop authentication dependency chain and package the JAR:
+Package the desktop and run the complete dependency chain through voice entry:
 
 ```powershell
-ant test-auth
-ant clean jar
+ant clean jar test-voice
 ```
 
 Run and package the server from `server/`:
