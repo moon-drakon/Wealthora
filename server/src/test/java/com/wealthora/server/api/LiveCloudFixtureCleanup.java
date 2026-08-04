@@ -56,7 +56,10 @@ public final class LiveCloudFixtureCleanup {
                 throw failure;
             }
         }
-        require(deleted == emails.size(),
+        int absent = emails.size() - deleted;
+        boolean allowAbsent = Boolean.parseBoolean(System.getenv(
+                "WEALTHORA_ALLOW_ABSENT_LIVE_FIXTURE"));
+        require(allowAbsent || deleted == emails.size(),
                 "Not every disposable fixture user was removed.");
 
         Path mailDirectory = optionalExternalDirectory(
@@ -72,6 +75,7 @@ public final class LiveCloudFixtureCleanup {
         }
         clearAndDelete(fixtureFile);
         System.out.println("DisposableCloudUsersRemoved: " + deleted);
+        System.out.println("DisposableCloudUsersAbsent: " + absent);
         System.out.println("LiveCloudFixtureCleanup: PASS");
     }
 

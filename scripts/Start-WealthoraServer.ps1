@@ -17,6 +17,17 @@ param(
     [ValidateRange(128, 2048)]
     [int] $MaximumHeapMegabytes = 256,
 
+    [ValidateRange(96, 512)]
+    [int] $MaximumMetaspaceMegabytes = 192,
+
+    [ValidateRange(32, 128)]
+    [int] $CompressedClassSpaceMegabytes = 64,
+
+    [ValidateRange(32, 256)]
+    [int] $ReservedCodeCacheMegabytes = 96,
+
+    [switch] $ConstrainedMemory,
+
     [ValidateRange(10, 600)]
     [int] $StartupTimeoutSeconds = 180
 )
@@ -155,20 +166,27 @@ try {
             $entry.Key, $entry.Value, 'Process')
     }
 
-    $process = Start-Process -FilePath $javaExecutable `
-        -ArgumentList @(
+    $javaArguments = @(
             '-Xms32m',
             "-Xmx${MaximumHeapMegabytes}m",
             '-Xss256k',
-            '-XX:MaxMetaspaceSize=192m',
-            '-XX:CompressedClassSpaceSize=64m',
-            '-XX:ReservedCodeCacheSize=96m',
+            "-XX:MaxMetaspaceSize=${MaximumMetaspaceMegabytes}m",
+            "-XX:CompressedClassSpaceSize=${CompressedClassSpaceMegabytes}m",
+            "-XX:ReservedCodeCacheSize=${ReservedCodeCacheMegabytes}m",
             '-XX:ActiveProcessorCount=2',
             '-XX:+UseSerialGC',
             '-jar',
             $serverJar,
             "--server.port=$Port"
-        ) `
+        )
+    if ($ConstrainedMemory) {
+        $javaArguments = @(
+            '-XX:TieredStopAtLevel=1',
+            '-XX:MaxDirectMemorySize=32m'
+        ) + $javaArguments
+    }
+    $process = Start-Process -FilePath $javaExecutable `
+        -ArgumentList $javaArguments `
         -WorkingDirectory (Split-Path -Parent $serverJar) `
         -WindowStyle Hidden `
         -PassThru

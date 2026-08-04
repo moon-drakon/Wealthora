@@ -95,7 +95,7 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <argLine>-Xms64m -Xmx512m -XX:+UseSerialGC -Dfile.encoding=UTF-8</argLine>
+                    <argLine>-Xms32m -Xmx128m -XX:+UseSerialGC -XX:MaxMetaspaceSize=128m -XX:CompressedClassSpaceSize=32m -XX:ReservedCodeCacheSize=48m -XX:TieredStopAtLevel=1 -Dfile.encoding=UTF-8</argLine>
                 </configuration>
             </plugin>
         </plugins>

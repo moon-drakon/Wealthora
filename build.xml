@@ -527,6 +527,26 @@
             </classpath>
         </java>
     </target>
+    <target name="test-live-speech" depends="compile-test"
+            description="Runs the opt-in Windows ADC, Speech V1, and real microphone live test.">
+        <java classname="com.spendwise.voice.LiveSpeechRecognitionTest"
+              fork="true"
+              maxmemory="96m"
+              failonerror="true">
+            <jvmarg value="-Xms16m"/>
+            <jvmarg value="-Xshare:off"/>
+            <jvmarg value="-XX:+UseSerialGC"/>
+            <jvmarg value="-XX:MaxMetaspaceSize=96m"/>
+            <jvmarg value="-XX:CompressedClassSpaceSize=32m"/>
+            <jvmarg value="-XX:ReservedCodeCacheSize=32m"/>
+            <jvmarg value="-XX:TieredStopAtLevel=1"/>
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+                <pathelement path="${javac.classpath}"/>
+            </classpath>
+        </java>
+    </target>
     <target name="test-quality" depends="test-voice"
             description="Runs the final chained suite including isolated restart and persistence checks.">
         <java classname="com.spendwise.service.ApplicationPersistenceSmokeTest"
