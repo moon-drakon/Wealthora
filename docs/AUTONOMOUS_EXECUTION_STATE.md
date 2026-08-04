@@ -5,12 +5,13 @@ Verified on 2026-08-04.
 ## Current stage
 
 - Branch: `feature/wealthora-online-auth-voice`
-- Recorded implementation HEAD: `cc6d244`
+- Recorded implementation HEAD: `7d2c83f`
 - Active stage: Stage 6, Google OAuth linking and session verification
-- Exact resume point: audit the configured OAuth redirect contract, run the
-  real browser authorization/linking flow without exposing tokens, verify
-  repeat sign-in and password-identity coexistence, then continue through
-  administration, container, web, CI, and acceptance
+- Exact resume point: connect an in-app browser, run the real Google
+  authorization/linking flow without exposing tokens, verify repeat sign-in
+  and password-identity coexistence, then continue through administration,
+  container, web, CI, and acceptance. The automated redirect, claim,
+  duplicate-linking, and client-secret audits are complete.
 
 ## Completed stages
 
@@ -33,7 +34,7 @@ pressure. No destructive Docker recovery was attempted.
 ## Tests passed
 
 - `ant clean jar test-voice`: 24 voice tests and the full dependency chain
-- `server\mvnw.cmd package`: 39 tests, 0 failures, 0 errors, 2 live-only
+- `server\mvnw.cmd package`: 42 tests, 0 failures, 0 errors, 2 live-only
   tests skipped by default
 - Live PostgreSQL product, TLS, five-migration history/checksum, exact
   26-table inventory, and composite ownership-constraint audit
@@ -68,22 +69,33 @@ pressure. No destructive Docker recovery was attempted.
   loopback capture, English recognition, multilingual parser handoff, complete
   editable draft validation, and confirm-before-save. It created no finance
   record and removed exactly one synthetic user with zero fixtures absent.
+- Seven Google OAuth endpoint tests cover first-time and existing users,
+  issuer, audience, expiry, verified-email, hosted-domain, nonce, and subject
+  rejection, plus prevention of subject reassignment and second-subject links.
+- The configured local redirect is the exact documented loopback callback.
+  Tracked files and every desktop JAR entry contain neither the configured
+  client secret nor a desktop OAuth-secret setting.
 
 ## Tests failed or pending
 
 - Docker `hello-world`: failed with Docker Desktop engine HTTP 500
 - Docker clean relaunch: failed with WSL VHDX attach error `0x800705aa`
-- Google OAuth: pending browser authorization and live linking verification
+- Google OAuth: automated verification complete; real browser authorization
+  and live linking remain pending because the browser connector reports no
+  available browser
 - Administration console live verification: pending
 - Docker image/container, Render, Next.js web, Vercel, and GitHub-hosted CI:
   pending
 
 ## Manual gates
 
-There is no active Stage 5 gate. No account credential, token, generated ADC
-file, captured microphone audio, or synthetic mail value is stored in the
-repository. Later gates may include OAuth console changes, Render/Vercel
-connections, and explicit push, merge, or deployment authorization.
+The active Stage 6 gate is a connected in-app browser. The browser connector
+reports zero available browsers, so the official Google authorization page
+cannot be completed or observed safely. No account credential, token,
+generated ADC file, captured microphone audio, or synthetic mail value is
+stored in the repository. Later gates may include OAuth console changes,
+Render/Vercel connections, and explicit push, merge, or deployment
+authorization.
 
 ## Remaining stages
 

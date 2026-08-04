@@ -65,7 +65,7 @@
   interruption, and both desktop and server tests prove audio-buffer wiping on
   successful and failed recognition.
 - `ant clean jar test-voice` passes with 24 voice tests. The server package
-  passes 39 tests with no failures or errors and two intended live-only skips.
+  passes 42 tests with no failures or errors and two intended live-only skips.
 - The official Google Cloud CLI 578.0.0, ADC, quota project, and Speech V1 API
   are ready. A production-profile live run passed the real Windows loopback,
   authenticated English recognition, parser completion, confirm-before-save,
@@ -85,11 +85,14 @@
 
 ## Exact next task
 
-Complete Stage 6 Google OAuth: audit the redirect URI and identity-linking
-contract, run a token-safe browser authorization flow, verify first sign-in,
+Complete the live portion of Stage 6 Google OAuth after an in-app browser is
+connected. The redirect URI, identity-linking contract, invalid-claim
+rejection, duplicate prevention, and desktop client-secret isolation already
+pass. Run a token-safe browser authorization flow, then verify first sign-in,
 repeat sign-in, password/Google identity coexistence, CLOUD session creation,
 logout/revocation, and scoped cleanup. Do not print authorization codes,
-provider tokens, email addresses, or session values.
+provider tokens, email addresses, or session values. The last browser probe
+reported zero available browsers, so no live-link success is claimed.
 
 Then continue through live administration, Docker/container recovery, and the
 Next.js web application in dependency order.

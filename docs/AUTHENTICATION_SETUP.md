@@ -121,6 +121,17 @@ local BCrypt password; email recovery applies only to online accounts.
 Google Sign-In uses the server callback
 `GET /api/auth/google/callback` and remains honestly unavailable until the
 server-only OAuth variables are configured; no success is simulated.
+Register these exact authorized redirect URIs on the server-side Google OAuth
+web client:
+
+- local: `http://127.0.0.1:8080/api/auth/google/callback`
+- production: `https://wealthora-api.onrender.com/api/auth/google/callback`
+
+The local server must run on port `8080` for the registered development URI.
+The production URI is the release contract for the planned Render service name
+`wealthora-api`; if Render cannot assign that exact origin, update the Google
+client, Render environment, and this document together before deployment.
+Never put the Google client secret in the desktop environment or JAR.
 Production email delivery similarly remains unavailable until `SMTP_HOST`,
 `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`, and
 `SMTP_FROM_NAME` are supplied. The desktop reports these provider states

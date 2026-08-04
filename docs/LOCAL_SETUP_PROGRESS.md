@@ -76,18 +76,22 @@ Verified on 2026-08-04 on branch
   added explicit microphone health, visible timeout guidance, cancellation
   interrupt handling, and success/failure audio-buffer wiping tests.
 - `ant clean jar test-voice` passes with 24 voice tests. The full server package
-  passes 39 tests with no failures or errors and two intended live-only skips.
+  passes 42 tests with no failures or errors and two intended live-only skips.
 - The official Google Cloud CLI 578.0.0 and Application Default Credentials
   are ready. Quota-project configuration and token-safe Speech V1 access pass.
   The production-profile live harness passed provider/microphone readiness,
   real Windows loopback recognition, parser completion, confirm-before-save,
   and exact synthetic-user cleanup. No token, transcript, or account detail
   was printed.
+- Google OAuth readiness, exact redirect structure, invalid-claim rejection,
+  identity-linking invariants, and desktop secret isolation pass. The browser
+  connector currently reports no available browser, so no live account was
+  linked and no browser result is claimed.
 
 ## Still pending
 
 - Docker `hello-world`, image build, and container run
-- Google browser OAuth linking verification
+- Google browser OAuth linking verification after a browser is connected
 - Administration console live verification
 - Next.js web application and deployments
 

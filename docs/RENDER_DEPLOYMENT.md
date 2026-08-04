@@ -9,6 +9,7 @@ Use these values when connecting the Git repository:
 
 | Field | Value |
 | --- | --- |
+| Service Name | `wealthora-api` |
 | Service type | Web Service |
 | Root Directory | `server` |
 | Language / Runtime | Docker |
@@ -50,10 +51,15 @@ Google Sign-In remains unavailable until all three server-only values exist:
 - `GOOGLE_OAUTH_CLIENT_SECRET`
 - `GOOGLE_OAUTH_REDIRECT_URI`
 
-Set the redirect URI to the final HTTPS Render origin followed by
-`/api/auth/google/callback`, and register that exact URI in the Google OAuth
-client. Google Cloud Speech additionally uses `GOOGLE_CLOUD_PROJECT` and
-Application Default Credentials supplied through an approved secret mechanism.
+Set `GOOGLE_OAUTH_REDIRECT_URI` to exactly
+`https://wealthora-api.onrender.com/api/auth/google/callback` and register the
+same URI in the Google OAuth web client. The local URI remains exactly
+`http://127.0.0.1:8080/api/auth/google/callback`. If the planned
+`wealthora-api` Render origin cannot be assigned, stop and update the OAuth
+client, Render environment, and authentication documentation together; do not
+deploy with a redirect mismatch. Google Cloud Speech additionally uses
+`GOOGLE_CLOUD_PROJECT` and Application Default Credentials supplied through an
+approved secret mechanism.
 
 Do not configure `WEALTHORA_DEV_MAIL_DIR` or activate `dev-mail-sink` on
 Render. Do not pass secrets as Docker build arguments.

@@ -164,7 +164,7 @@ Flyway V1-V5 remain forward-only, and Hibernate remains configured with
   produced `dist/Wealthora.jar`.
 - **Desktop runtime:** the JAR opened `Wealthora Authentication` using a new
   temporary `LOCALAPPDATA`; the spawned process was then stopped.
-- **Server tests:** `server\mvnw.cmd package` passed 39 tests with no failures
+- **Server tests:** `server\mvnw.cmd package` passed 42 tests with no failures
   or errors. The two tests that require explicit live-environment flags were
   skipped during the ordinary package build. The isolated
   H2/PostgreSQL-compatibility suite applied Flyway V1-V5 and exercised
@@ -229,6 +229,15 @@ Flyway V1-V5 remain forward-only, and Hibernate remains configured with
   session revocation, ACTIVE status, and a clear lock state.
 - The cloud-safe desktop launcher passed server health, email-provider, Google
   OAuth, JAR, Java, and process checks against port 18080.
+- The configured Google OAuth server passed readiness with the exact local
+  loopback callback. Seven endpoint tests independently reject invalid issuer,
+  audience, expiry, verified-email, hosted-domain, nonce, and subject claims;
+  they also prove verified-email password-account linking, new-user creation,
+  duplicate prevention, subject immutability, and one Google subject per user.
+- A value-aware scan found no configured Google client secret in any tracked
+  file or desktop JAR entry. The desktop JAR contains no OAuth client-secret
+  setting name. A controlled pending live flow was removed without linking or
+  changing any user.
 - The recovered address also has a same-email local account. The prior
   local-first routing prevented a cloud password from reaching the backend.
   Sign-in now exposes separate **Sign In to CLOUD** and **Sign In to LOCAL**
@@ -270,8 +279,10 @@ Flyway V1-V5 remain forward-only, and Hibernate remains configured with
 
 ## Remaining configuration and limitations
 
-- Google OAuth is configured server-side, but browser authorization and live
-  account linking remain unverified.
+- Google OAuth is configured server-side and its automated security/linking
+  contract passes, but browser authorization, repeat live sign-in, and live
+  account linking remain unverified. The browser connector reported zero
+  available browsers; no substitute or simulated success was used.
 - Google Cloud Speech has its project ID, Google Cloud CLI 578.0.0, valid
   Application Default Credentials, quota-project access, and an enabled Speech
   V1 API. Live English recognition passes. Exact Bangla (`bn-BD`) and

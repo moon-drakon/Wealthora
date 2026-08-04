@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.wealthora.server.domain.AccountStatus;
 import com.wealthora.server.domain.AuthProvider;
+import com.wealthora.server.domain.AuthenticationIdentity;
 import com.wealthora.server.domain.UserAccount;
 import com.wealthora.server.oauth.GoogleIdentityGateway;
 import com.wealthora.server.oauth.VerifiedGoogleIdentity;
@@ -28,6 +29,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -158,6 +160,50 @@ class GoogleOAuthEndpointTest {
         assertTrue(polled.body().contains("\"status\":\"FAILED\""));
         assertTrue(identities.findByUserIdAndProvider(
                 user.getId(), AuthProvider.GOOGLE).isEmpty());
+    }
+
+    @Test
+    void invalidIdentityClaimsAreRejectedIndependently() throws Exception {
+        for (String code : List.of("bad-issuer", "bad-audience", "expired",
+                "unverified", "bad-nonce", "missing-subject")) {
+            Flow flow = start();
+            assertEquals(200, callback(flow, code).statusCode());
+            HttpResponse<String> polled = poll(flow);
+            assertEquals(200, polled.statusCode());
+            assertTrue(polled.body().contains("\"status\":\"FAILED\""));
+        }
+        UserAccount user = users.findByEmail(EMAIL).orElseThrow();
+        assertTrue(identities.findByUserIdAndProvider(
+                user.getId(), AuthProvider.GOOGLE).isEmpty());
+        assertEquals(1, users.count());
+    }
+
+    @Test
+    void linkedSubjectCannotMoveToAnotherEmail() throws Exception {
+        Flow first = start();
+        assertEquals(200, callback(first, "existing").statusCode());
+        assertTrue(poll(first).body().contains("\"status\":\"COMPLETED\""));
+
+        Flow second = start();
+        assertEquals(200, callback(
+                second, "subject-email-mismatch").statusCode());
+        assertTrue(poll(second).body().contains("\"status\":\"FAILED\""));
+        assertEquals(1, users.count());
+        assertEquals(2, identities.count());
+    }
+
+    @Test
+    void userCannotAcquireASecondGoogleSubject() throws Exception {
+        UserAccount user = users.findByEmail(EMAIL).orElseThrow();
+        identities.save(new AuthenticationIdentity(UUID.randomUUID(),
+                user.getId(), AuthProvider.GOOGLE,
+                "already-linked-subject", null, Instant.now()));
+
+        Flow flow = start();
+        assertEquals(200, callback(flow, "existing").statusCode());
+        assertTrue(poll(flow).body().contains("\"status\":\"FAILED\""));
+        assertEquals(1, users.count());
+        assertEquals(2, identities.count());
     }
 
     private Flow start() throws Exception {
@@ -299,17 +345,31 @@ class GoogleOAuthEndpointTest {
             String email = switch (code) {
                 case "new-account" -> "google.new@northsouth.edu";
                 case "wrong-domain" -> "oauth.student@gmail.com";
+                case "subject-email-mismatch" ->
+                    "oauth.other@northsouth.edu";
                 default -> EMAIL;
             };
             String domain = code.equals("wrong-domain")
                     ? "gmail.com" : "northsouth.edu";
-            String subject = code.equals("new-account")
-                    ? "sub-new" : "sub-existing";
-            return new VerifiedGoogleIdentity(subject, email, true, domain,
-                    "Google Student", nonce.get(),
-                    "https://accounts.google.com",
-                    List.of("test-google-client.apps.googleusercontent.com"),
-                    Instant.now().plusSeconds(600));
+            String subject = switch (code) {
+                case "new-account" -> "sub-new";
+                case "missing-subject" -> "";
+                default -> "sub-existing";
+            };
+            String issuer = code.equals("bad-issuer")
+                    ? "https://identity.example" : "https://accounts.google.com";
+            List<String> audience = code.equals("bad-audience")
+                    ? List.of("another-client.apps.googleusercontent.com")
+                    : List.of("test-google-client.apps.googleusercontent.com");
+            Instant expiry = code.equals("expired")
+                    ? Instant.now().minusSeconds(1)
+                    : Instant.now().plusSeconds(600);
+            String returnedNonce = code.equals("bad-nonce")
+                    ? "incorrect-nonce" : nonce.get();
+            return new VerifiedGoogleIdentity(subject, email,
+                    !code.equals("unverified"), domain,
+                    "Google Student", returnedNonce, issuer,
+                    audience, expiry);
         }
     }
 }
