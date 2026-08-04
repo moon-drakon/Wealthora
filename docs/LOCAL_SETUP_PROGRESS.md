@@ -84,14 +84,15 @@ Verified on 2026-08-04 on branch
   and exact synthetic-user cleanup. No token, transcript, or account detail
   was printed.
 - Google OAuth readiness, exact redirect structure, invalid-claim rejection,
-  identity-linking invariants, and desktop secret isolation pass. The browser
-  connector currently reports no available browser, so no live account was
-  linked and no browser result is claimed.
+  identity-linking invariants, and desktop secret isolation pass. The connected
+  in-app browser reached Google, which returned `redirect_uri_mismatch`; the
+  local callback must be added to the configured web client before live
+  linking. The pending flow and temporary identifier were removed exactly.
 
 ## Still pending
 
 - Docker `hello-world`, image build, and container run
-- Google browser OAuth linking verification after a browser is connected
+- Google OAuth redirect registration and browser linking verification
 - Administration console live verification
 - Next.js web application and deployments
 

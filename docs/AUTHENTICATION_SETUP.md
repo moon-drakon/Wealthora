@@ -132,6 +132,13 @@ The production URI is the release contract for the planned Render service name
 `wealthora-api`; if Render cannot assign that exact origin, update the Google
 client, Render environment, and this document together before deployment.
 Never put the Google client secret in the desktop environment or JAR.
+
+In Google Cloud Console, open **APIs & Services → Credentials**, select the
+OAuth 2.0 client of type **Web application** whose client ID matches the
+server-only `GOOGLE_OAUTH_CLIENT_ID`, preserve all existing redirect entries,
+add the exact URIs above, and save. A Google `redirect_uri_mismatch` response
+means the requested callback is not registered exactly; do not work around it
+with a different loopback host, port, path, or simulated success.
 Production email delivery similarly remains unavailable until `SMTP_HOST`,
 `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`, and
 `SMTP_FROM_NAME` are supplied. The desktop reports these provider states

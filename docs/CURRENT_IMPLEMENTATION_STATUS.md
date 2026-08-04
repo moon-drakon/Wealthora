@@ -238,6 +238,11 @@ Flyway V1-V5 remain forward-only, and Hibernate remains configured with
   file or desktop JAR entry. The desktop JAR contains no OAuth client-secret
   setting name. A controlled pending live flow was removed without linking or
   changing any user.
+- A connected in-app browser reached Google's official authorization endpoint,
+  which returned `redirect_uri_mismatch`. This is direct evidence that the
+  configured web client does not yet authorize the exact local callback. No
+  authorization code reached Wealthora, no identity was linked, and the one
+  pending flow plus its temporary identifier file were removed exactly.
 - The recovered address also has a same-email local account. The prior
   local-first routing prevented a cloud password from reaching the backend.
   Sign-in now exposes separate **Sign In to CLOUD** and **Sign In to LOCAL**
@@ -281,8 +286,9 @@ Flyway V1-V5 remain forward-only, and Hibernate remains configured with
 
 - Google OAuth is configured server-side and its automated security/linking
   contract passes, but browser authorization, repeat live sign-in, and live
-  account linking remain unverified. The browser connector reported zero
-  available browsers; no substitute or simulated success was used.
+  account linking remain unverified. The in-app browser is now connected, but
+  Google rejects the request until the local callback is registered on the
+  configured OAuth web client. No substitute or simulated success was used.
 - Google Cloud Speech has its project ID, Google Cloud CLI 578.0.0, valid
   Application Default Credentials, quota-project access, and an enabled Speech
   V1 API. Live English recognition passes. Exact Bangla (`bn-BD`) and

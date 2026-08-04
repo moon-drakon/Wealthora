@@ -5,13 +5,14 @@ Verified on 2026-08-04.
 ## Current stage
 
 - Branch: `feature/wealthora-online-auth-voice`
-- Recorded implementation HEAD: `7d2c83f`
+- Recorded implementation HEAD: `0d14fe7`
 - Active stage: Stage 6, Google OAuth linking and session verification
-- Exact resume point: connect an in-app browser, run the real Google
-  authorization/linking flow without exposing tokens, verify repeat sign-in
-  and password-identity coexistence, then continue through administration,
-  container, web, CI, and acceptance. The automated redirect, claim,
-  duplicate-linking, and client-secret audits are complete.
+- Exact resume point: register the exact local callback on the configured
+  Google OAuth web client, then rerun real authorization/linking without
+  exposing tokens and verify repeat sign-in and password-identity coexistence.
+  Continue through administration, container, web, CI, and acceptance after
+  that proof. The automated redirect, claim, duplicate-linking, and
+  client-secret audits are complete.
 
 ## Completed stages
 
@@ -75,27 +76,34 @@ pressure. No destructive Docker recovery was attempted.
 - The configured local redirect is the exact documented loopback callback.
   Tracked files and every desktop JAR entry contain neither the configured
   client secret nor a desktop OAuth-secret setting.
+- A connected in-app browser reached the official Google authorization page.
+  Google returned `redirect_uri_mismatch`, proving the exact local callback is
+  absent from the configured client's authorized redirect URI list. The
+  pending flow was not linked and was removed exactly with its temporary
+  identifier file.
 
 ## Tests failed or pending
 
 - Docker `hello-world`: failed with Docker Desktop engine HTTP 500
 - Docker clean relaunch: failed with WSL VHDX attach error `0x800705aa`
 - Google OAuth: automated verification complete; real browser authorization
-  and live linking remain pending because the browser connector reports no
-  available browser
+  reached Google and is blocked by the OAuth client's missing local redirect
+  registration
 - Administration console live verification: pending
 - Docker image/container, Render, Next.js web, Vercel, and GitHub-hosted CI:
   pending
 
 ## Manual gates
 
-The active Stage 6 gate is a connected in-app browser. The browser connector
-reports zero available browsers, so the official Google authorization page
-cannot be completed or observed safely. No account credential, token,
-generated ADC file, captured microphone audio, or synthetic mail value is
-stored in the repository. Later gates may include OAuth console changes,
-Render/Vercel connections, and explicit push, merge, or deployment
-authorization.
+The active Stage 6 gate is a Google Cloud developer-account action. Sign in to
+`https://console.cloud.google.com/apis/credentials`, open the OAuth 2.0 **Web
+application** client whose ID matches the server-only configuration, preserve
+its existing entries, add
+`http://127.0.0.1:8080/api/auth/google/callback`, confirm the documented
+production callback is also present, and save. The in-app browser is connected
+but is not signed into Google Cloud; Chrome and Edge do not have the ChatGPT
+browser extension. No account credential, token, generated ADC file, captured
+microphone audio, or synthetic mail value is stored in the repository.
 
 ## Remaining stages
 

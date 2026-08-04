@@ -85,14 +85,21 @@
 
 ## Exact next task
 
-Complete the live portion of Stage 6 Google OAuth after an in-app browser is
-connected. The redirect URI, identity-linking contract, invalid-claim
-rejection, duplicate prevention, and desktop client-secret isolation already
-pass. Run a token-safe browser authorization flow, then verify first sign-in,
+Complete the Google Cloud console gate for Stage 6. Sign in at
+`https://console.cloud.google.com/apis/credentials` with the developer account
+that owns the configured OAuth **Web application** client. Select the client
+whose ID matches the server-only configuration, preserve its existing entries,
+add `http://127.0.0.1:8080/api/auth/google/callback`, verify the documented
+production callback is present, and save. Google's official authorization page
+currently returns `redirect_uri_mismatch`; the failed pending flow was removed
+exactly and no account was linked.
+
+Then rerun the token-safe browser authorization flow and verify first sign-in,
 repeat sign-in, password/Google identity coexistence, CLOUD session creation,
 logout/revocation, and scoped cleanup. Do not print authorization codes,
-provider tokens, email addresses, or session values. The last browser probe
-reported zero available browsers, so no live-link success is claimed.
+provider tokens, email addresses, or session values. The identity-linking
+contract, invalid-claim rejection, duplicate prevention, and desktop
+client-secret isolation already pass.
 
 Then continue through live administration, Docker/container recovery, and the
 Next.js web application in dependency order.
