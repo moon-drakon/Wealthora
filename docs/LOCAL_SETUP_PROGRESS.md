@@ -78,15 +78,15 @@ Verified on 2026-08-04 on branch
 - `ant clean jar test-voice` passes with 24 voice tests. The full server package
   passes 39 tests with no failures or errors and two intended live-only skips.
 - The official Google Cloud CLI 578.0.0 and Application Default Credentials
-  are ready. Token-safe live calls prove Speech-to-Text is disabled and the
-  current identity cannot enable it or set the quota project. No token or
-  account detail was printed.
+  are ready. Quota-project configuration and token-safe Speech V1 access pass.
+  The production-profile live harness passed provider/microphone readiness,
+  real Windows loopback recognition, parser completion, confirm-before-save,
+  and exact synthetic-user cleanup. No token, transcript, or account detail
+  was printed.
 
 ## Still pending
 
 - Docker `hello-world`, image build, and container run
-- Project-admin Speech-to-Text enablement, Service Usage Consumer access, and
-  live speech recognition
 - Google browser OAuth linking verification
 - Administration console live verification
 - Next.js web application and deployments

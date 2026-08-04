@@ -86,6 +86,21 @@ Never commit the generated ADC file, print its access token, or copy it into
 desktop configuration. The server reports unavailable status when ADC, API
 access, or project configuration is missing; typed parsing remains available.
 
+On Windows, the opt-in live verifier uses a disposable CLOUD user and an
+external environment file, prefers a Stereo Mix/loopback capture endpoint,
+requires an explicit editable draft before confirmation, and deletes the
+fixture automatically:
+
+```powershell
+.\scripts\Test-WealthoraLiveSpeech.ps1 `
+  -EnvironmentFile '<external-environment-file>' `
+  -JavaHome $env:JAVA_HOME
+```
+
+The exact environment and JDK paths are local examples, not repository
+configuration. The test records no transaction and must never be run against
+an environment where its scoped synthetic-user cleanup is not permitted.
+
 ## Explicit development mail sink
 
 For local end-to-end authentication without SMTP, activate only the

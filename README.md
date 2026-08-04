@@ -149,7 +149,10 @@ are ignored by Git; CI uploads the desktop JAR for successful workflow runs.
 
 More focused Ant targets remain available in `build.xml`, including
 `test-core`, `test-persistence`, `test-finance`, `test-reports`, `test-data`,
-`test-accounts`, `test-voice`, and `test-quality`.
+`test-accounts`, `test-voice`, and `test-quality`. `test-live-speech` is an
+explicitly opt-in Windows/ADC integration target; use the secret-safe launcher
+documented in the [local development guide](docs/LOCAL_DEVELOPMENT.md) for its
+scoped server and cleanup.
 
 ## Data and security notes
 

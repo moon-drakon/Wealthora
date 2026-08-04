@@ -13,6 +13,8 @@
 - Real SMTP password-recovery audit commit: `967d640`
 - Verified desktop CLOUD workflow commit: `9252ee1`
 - Google Cloud Speech hardening commit: `febb7b5`
+- Live Google Speech verification commit: `7bc7738`
+- Deterministic speech loopback commit: `cc6d244`
 - The status-document commit follows that implementation commit; confirm the
   exact current hash with `git rev-parse --short HEAD`.
 - Desktop and server tests/builds pass under Java 25.
@@ -64,10 +66,12 @@
   successful and failed recognition.
 - `ant clean jar test-voice` passes with 24 voice tests. The server package
   passes 39 tests with no failures or errors and two intended live-only skips.
-- The official Google Cloud CLI 578.0.0 is installed and executable. A
-  token-safe live recognition call reports `speech.googleapis.com` disabled.
-  Quota-project setup and API enablement both return `PERMISSION_DENIED`, so a
-  project administrator action is required.
+- The official Google Cloud CLI 578.0.0, ADC, quota project, and Speech V1 API
+  are ready. A production-profile live run passed the real Windows loopback,
+  authenticated English recognition, parser completion, confirm-before-save,
+  and strict cleanup. Exact `bn-BD` and mixed-locale requests plus native
+  Bengali/Banglish parsing are covered by deterministic tests; no native
+  Bengali TTS voice is installed on this verifier.
 - The Next.js frontend has not been started.
 - Docker Desktop 4.84.0 and Docker CLI/Server 29.6.2 responded after the
   required Windows restart, but `hello-world` failed with an engine HTTP 500.
@@ -81,16 +85,14 @@
 
 ## Exact next task
 
-Wait for a `wealthora-voice` project administrator to enable the Cloud
-Speech-to-Text API, link billing if prompted, and grant the already authorized
-ADC account `roles/serviceusage.serviceUsageConsumer`. After the user replies
-`ready`, re-run token-safe API and quota-project checks, then run the production
-provider plus real-microphone English, Bangla, and Banglish confirmation flow.
-Keep all captured audio memory-only and do not create a transaction before
-explicit confirmation.
+Complete Stage 6 Google OAuth: audit the redirect URI and identity-linking
+contract, run a token-safe browser authorization flow, verify first sign-in,
+repeat sign-in, password/Google identity coexistence, CLOUD session creation,
+logout/revocation, and scoped cleanup. Do not print authorization codes,
+provider tokens, email addresses, or session values.
 
-Then continue through Google OAuth, live administration, Docker/container
-recovery, and the Next.js web application in dependency order.
+Then continue through live administration, Docker/container recovery, and the
+Next.js web application in dependency order.
 
 ## Completed live database sequence
 

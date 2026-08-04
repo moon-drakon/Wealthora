@@ -25,6 +25,8 @@ Verified on 2026-08-04 on branch
 - Anonymized real SMTP password-recovery verification: `967d640`.
 - Verified desktop CLOUD workflows and low-memory launchers: `9252ee1`.
 - Google Cloud Speech robustness and privacy verification: `febb7b5`.
+- Live Google Speech verification and low-memory harness: `7bc7738`.
+- Deterministic Windows loopback verification: `cc6d244`.
 - The commit containing this report follows those implementation commits; use
   `git rev-parse --short HEAD` for its exact hash.
 - The cloud-finance milestone commits were not pushed or merged. The remote
@@ -98,6 +100,11 @@ Flyway V1-V5 remain forward-only, and Hibernate remains configured with
 - Microphone buffers are never persisted and are wiped after successful or
   failed recognition. Cancellation now also honours worker interruption during
   an active Java Sound capture.
+- The production-profile live harness passed real Windows loopback capture,
+  authenticated Speech V1 recognition, multilingual parser handoff, a complete
+  editable English expense draft, and explicit confirm-before-save without
+  creating a finance record. Synthetic playback is wiped after every attempt;
+  the generated CLOUD user and mail fixture are removed automatically.
 
 ### Repository hygiene and documentation
 
@@ -265,12 +272,13 @@ Flyway V1-V5 remain forward-only, and Hibernate remains configured with
 
 - Google OAuth is configured server-side, but browser authorization and live
   account linking remain unverified.
-- Google Cloud Speech has its project ID, Google Cloud CLI 578.0.0, and valid
-  Application Default Credentials. Token-safe Service Usage and recognition
-  checks prove `speech.googleapis.com` is disabled, while quota-project setup
-  and API enablement both return project IAM permission denied. A project
-  administrator must complete that external gate before live microphone
-  recognition can pass.
+- Google Cloud Speech has its project ID, Google Cloud CLI 578.0.0, valid
+  Application Default Credentials, quota-project access, and an enabled Speech
+  V1 API. Live English recognition passes. Exact Bangla (`bn-BD`) and
+  Banglish/mixed request construction plus Bengali/Banglish parsing remain
+  covered by the 24 deterministic voice tests; this machine has only en-US
+  synthetic voices, so the automated live fixture does not claim native
+  Bengali speech synthesis.
 - Docker and GitHub-hosted workflow execution remain unverified in this
   environment.
 - Flyway emitted a non-failing warning that test-only H2 2.4.240 is newer than

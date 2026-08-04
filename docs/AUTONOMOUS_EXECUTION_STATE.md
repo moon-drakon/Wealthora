@@ -5,13 +5,12 @@ Verified on 2026-08-04.
 ## Current stage
 
 - Branch: `feature/wealthora-online-auth-voice`
-- Recorded implementation HEAD: `febb7b5`
-- Active stage: Stage 5, Google Cloud Speech project enablement and verification
-- Exact resume point: after a project administrator enables Speech-to-Text V1,
-  links billing if Google requests it, and grants the authorized ADC account
-  Service Usage Consumer access, verify the API with token-safe calls, set the
-  quota project, run the production provider and real-microphone flow, then
-  continue through OAuth, administration, container, web, CI, and acceptance
+- Recorded implementation HEAD: `cc6d244`
+- Active stage: Stage 6, Google OAuth linking and session verification
+- Exact resume point: audit the configured OAuth redirect contract, run the
+  real browser authorization/linking flow without exposing tokens, verify
+  repeat sign-in and password-identity coexistence, then continue through
+  administration, container, web, CI, and acceptance
 
 ## Completed stages
 
@@ -22,8 +21,9 @@ Verified on 2026-08-04.
 - Stage 3 real SMTP password recovery and post-reset CLOUD sign-in
 - Stage 4 desktop CLOUD finance, isolation, persistence, session, transport,
   Swing construction, cleanup, and LOCAL-data-preservation verification
-- Stage 5 non-manual Speech V1 implementation, desktop workflow, privacy
-  hardening, cancellation behavior, provider tests, and Google Cloud CLI setup
+- Stage 5 Google Speech V1 implementation, locale/parser coverage, desktop
+  workflow, privacy hardening, live provider/microphone recognition, and
+  automatic scoped cleanup
 
 Stage 1 is partially complete: the Windows restart, WSL checks, and Docker
 Client/Server checks passed. `hello-world` and Docker stability did not pass
@@ -62,15 +62,17 @@ pressure. No destructive Docker recovery was attempted.
   success/failure buffer wiping, manual fallback, explicit confirm-before-add,
   microphone status, 30-second timeout, and cancellation interrupt handling
 - Official Google Cloud CLI 578.0.0 installed and executable; project
-  configuration and Application Default Credentials are ready
+  configuration, quota project, Application Default Credentials, and the
+  Speech V1 API are ready
+- Production-profile live speech passed provider readiness, real Windows
+  loopback capture, English recognition, multilingual parser handoff, complete
+  editable draft validation, and confirm-before-save. It created no finance
+  record and removed exactly one synthetic user with zero fixtures absent.
 
 ## Tests failed or pending
 
 - Docker `hello-world`: failed with Docker Desktop engine HTTP 500
 - Docker clean relaunch: failed with WSL VHDX attach error `0x800705aa`
-- Google Cloud Speech: ADC authorization passed, but an authoritative live
-  recognition request reports the API disabled; both API enablement and quota
-  project configuration are denied by current project IAM permissions
 - Google OAuth: pending browser authorization and live linking verification
 - Administration console live verification: pending
 - Docker image/container, Render, Next.js web, Vercel, and GitHub-hosted CI:
@@ -78,17 +80,14 @@ pressure. No destructive Docker recovery was attempted.
 
 ## Manual gates
 
-Active gate: a `wealthora-voice` project administrator must enable Cloud
-Speech-to-Text, link billing if prompted, and grant the authorized ADC account
-`roles/serviceusage.serviceUsageConsumer`. No account credential, token, or
-generated ADC file is requested or stored in the repository. Later gates may
-include OAuth console changes, Render/Vercel connections, and explicit push,
-merge, or deployment authorization.
+There is no active Stage 5 gate. No account credential, token, generated ADC
+file, captured microphone audio, or synthetic mail value is stored in the
+repository. Later gates may include OAuth console changes, Render/Vercel
+connections, and explicit push, merge, or deployment authorization.
 
 ## Remaining stages
 
 - Finish Stage 1 Docker stability when host resources permit
-- Stage 5 Google Cloud Speech
 - Stage 6 Google Sign-In
 - Stage 7 administration console live verification
 - Stage 8 production container and Render readiness verification
