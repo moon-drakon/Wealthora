@@ -21,16 +21,22 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.DataLine;
+import javax.sound.sampled.Mixer;
+import javax.sound.sampled.SourceDataLine;
 
 /**
  * Opt-in Windows live test for ADC, Speech V1, and real microphone capture.
- * Audio, passwords, verification codes, and session tokens stay in memory.
+ * Captured audio, passwords, verification codes, and tokens stay in memory.
+ * The synthetic playback wave is wiped and deleted after each attempt.
  */
 public final class LiveSpeechRecognitionTest {
 
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final String EMAIL_PREFIX = "wealthora.swing.e2e.";
-    private static final String SPOKEN_COMMAND =
+    private static final String ENGLISH_COMMAND =
             "Add expense five hundred taka for food from cash today";
 
     private LiveSpeechRecognitionTest() {
@@ -86,24 +92,12 @@ public final class LiveSpeechRecognitionTest {
             System.out.println("LiveSpeechProviderReady: PASS");
             System.out.println("LiveMicrophoneReady: PASS");
 
-            SpeechRecognitionResult result = recognizeSpokenCommand(provider);
-            require(!result.transcript().isBlank(),
-                    "Speech V1 returned an empty transcript.");
-            VoiceParseResult parsed = new VoiceTransactionParser(
-                    List.of(Account.DEFAULT), List.of(Category.values()))
-                    .parse(result.transcript());
-            VoiceTransactionDraft draft = parsed.draft();
-            require(draft.getTransactionType() == TransactionType.EXPENSE,
-                    "The live transcript did not parse as an expense.");
-            require(draft.getAmount() != null
-                            && draft.getAmount().signum() > 0,
-                    "The live transcript did not contain a positive amount.");
-            require(draft.getSourceAccount() != null,
-                    "The live transcript did not resolve the Cash account.");
-            require(draft.getEffectiveCategory() == Category.FOOD,
-                    "The live transcript did not resolve the Food category.");
-            require(draft.isComplete(),
-                    "The live transcript did not produce a complete draft.");
+            VoiceTransactionParser parser = new VoiceTransactionParser(
+                    List.of(Account.DEFAULT), List.of(Category.values()));
+            System.out.println("LiveEnglishRecognition: RUNNING");
+            verifyExpenseDraft("English", parser,
+                    recognizeWithRetry(provider, VoiceInputLanguage.ENGLISH,
+                            ENGLISH_COMMAND, selectedDevice.displayName()));
             System.out.println("LiveEnglishRecognition: PASS");
             System.out.println("LiveTranscriptParsed: PASS");
             System.out.println("LiveConfirmBeforeSave: PASS");
@@ -123,20 +117,75 @@ public final class LiveSpeechRecognitionTest {
     }
 
     private static SpeechRecognitionResult recognizeSpokenCommand(
-            AuthenticatedSpeechRecognitionProvider provider) throws Exception {
+            AuthenticatedSpeechRecognitionProvider provider,
+            VoiceInputLanguage language, String command,
+            String captureDeviceName) throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         try {
             Future<SpeechRecognitionResult> recognition = executor.submit(
-                    () -> provider.recognize(VoiceInputLanguage.ENGLISH));
+                    () -> provider.recognize(language));
             awaitRecording(provider);
-            speakThroughDefaultOutput(SPOKEN_COMMAND);
             Thread.sleep(700);
+            speakThroughMatchingOutput(command, captureDeviceName);
+            Thread.sleep(1_000);
             provider.stop();
             return recognition.get(45, TimeUnit.SECONDS);
         } finally {
             provider.cancel();
             executor.shutdownNow();
             executor.awaitTermination(5, TimeUnit.SECONDS);
+        }
+    }
+
+    private static SpeechRecognitionResult recognizeWithRetry(
+            AuthenticatedSpeechRecognitionProvider provider,
+            VoiceInputLanguage language, String command,
+            String captureDeviceName) throws Exception {
+        Exception lastFailure = null;
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            try {
+                return recognizeSpokenCommand(provider, language, command,
+                        captureDeviceName);
+            } catch (InterruptedException failure) {
+                Thread.currentThread().interrupt();
+                throw failure;
+            } catch (Exception failure) {
+                lastFailure = failure;
+                if (attempt < 3) Thread.sleep(700);
+            }
+        }
+        if (lastFailure == null) {
+            throw new IllegalStateException(
+                    "No speech recognition attempt was completed.");
+        }
+        throw lastFailure;
+    }
+
+    private static void verifyExpenseDraft(String label,
+            VoiceTransactionParser parser, SpeechRecognitionResult result) {
+        requireDraft(label, "transcript", !result.transcript().isBlank(),
+                "Speech V1 returned an empty transcript.");
+        VoiceTransactionDraft draft = parser.parse(result.transcript()).draft();
+        requireDraft(label, "type",
+                draft.getTransactionType() == TransactionType.EXPENSE,
+                "The live transcript did not parse as an expense.");
+        requireDraft(label, "amount", draft.getAmount() != null
+                        && draft.getAmount().signum() > 0,
+                "The live transcript did not contain a positive amount.");
+        requireDraft(label, "account", draft.getSourceAccount() != null,
+                "The live transcript did not resolve the Cash account.");
+        requireDraft(label, "category",
+                draft.getEffectiveCategory() == Category.FOOD,
+                "The live transcript did not resolve the Food category.");
+        requireDraft(label, "complete", draft.isComplete(),
+                "The live transcript did not produce a complete draft.");
+    }
+
+    private static void requireDraft(String label, String field,
+            boolean condition, String message) {
+        if (!condition) {
+            System.err.println("LiveDraftFailure: " + label + "." + field);
+            throw new AssertionError(message);
         }
     }
 
@@ -151,12 +200,27 @@ public final class LiveSpeechRecognitionTest {
                 "Microphone recording did not start.");
     }
 
-    private static void speakThroughDefaultOutput(String text)
+    private static void speakThroughMatchingOutput(String text,
+            String captureDeviceName)
+            throws Exception {
+        Path waveFile = Files.createTempFile(
+                "wealthora-live-synthetic-speech-", ".wav");
+        try {
+            synthesizeWave(text, waveFile);
+            playWave(waveFile, captureDeviceName);
+        } finally {
+            clearAndDelete(waveFile);
+        }
+    }
+
+    private static void synthesizeWave(String text, Path waveFile)
             throws Exception {
         String escaped = text.replace("'", "''");
+        String escapedPath = waveFile.toString().replace("'", "''");
         String command = "Add-Type -AssemblyName System.Speech; "
                 + "$s=[System.Speech.Synthesis.SpeechSynthesizer]::new(); "
-                + "try {$s.Volume=100; $s.Rate=-1; $s.Speak('"
+                + "try {$s.Volume=100; $s.Rate=-1; "
+                + "$s.SetOutputToWaveFile('" + escapedPath + "'); $s.Speak('"
                 + escaped + "')} finally {$s.Dispose()}";
         Process process = new ProcessBuilder("powershell.exe", "-NoProfile",
                 "-NonInteractive", "-Command", command)
@@ -167,6 +231,62 @@ public final class LiveSpeechRecognitionTest {
                 "Windows speech synthesis timed out.");
         require(process.exitValue() == 0,
                 "Windows speech synthesis was unavailable.");
+        require(Files.size(waveFile) > 44,
+                "Windows speech synthesis returned an empty wave file.");
+    }
+
+    private static void playWave(Path waveFile, String captureDeviceName)
+            throws Exception {
+        try (AudioInputStream audio = AudioSystem.getAudioInputStream(
+                waveFile.toFile())) {
+            DataLine.Info lineInfo = new DataLine.Info(
+                    SourceDataLine.class, audio.getFormat());
+            Mixer mixer = matchingOutputMixer(lineInfo, captureDeviceName);
+            SourceDataLine output = mixer == null
+                    ? (SourceDataLine) AudioSystem.getLine(lineInfo)
+                    : (SourceDataLine) mixer.getLine(lineInfo);
+            byte[] buffer = new byte[4_096];
+            try {
+                output.open(audio.getFormat());
+                output.start();
+                int count;
+                while ((count = audio.read(buffer)) >= 0) {
+                    if (count > 0) output.write(buffer, 0, count);
+                }
+                output.drain();
+            } finally {
+                if (output.isOpen()) {
+                    output.stop();
+                    output.close();
+                }
+                Arrays.fill(buffer, (byte) 0);
+            }
+        }
+    }
+
+    private static Mixer matchingOutputMixer(DataLine.Info lineInfo,
+            String captureDeviceName) {
+        String captureName = captureDeviceName.toLowerCase(Locale.ROOT);
+        Mixer best = null;
+        int bestScore = Integer.MIN_VALUE;
+        for (Mixer.Info mixerInfo : AudioSystem.getMixerInfo()) {
+            Mixer mixer = AudioSystem.getMixer(mixerInfo);
+            if (!mixer.isLineSupported(lineInfo)) continue;
+            String outputName = mixerInfo.getName().toLowerCase(Locale.ROOT);
+            int score = outputName.contains("primary sound") ? 1 : 2;
+            if (outputName.contains("speaker")
+                    || outputName.contains("headphone")) score += 10;
+            for (String hardware : List.of("realtek", "intel", "nvidia",
+                    "amd", "usb", "bluetooth")) {
+                if (captureName.contains(hardware)
+                        && outputName.contains(hardware)) score += 100;
+            }
+            if (score > bestScore) {
+                best = mixer;
+                bestScore = score;
+            }
+        }
+        return best;
     }
 
     private static Path verificationFile(Path directory, String email) {
