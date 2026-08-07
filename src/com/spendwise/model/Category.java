@@ -23,9 +23,14 @@ public final class Category implements Comparable<Category> {
     public static final Category ENTERTAINMENT =
             builtIn("ENTERTAINMENT", "Entertainment", 6);
     public static final Category OTHER = builtIn("OTHER", "Other", 7);
+    public static final Category INCOME = builtIn("INCOME", "Income", 8);
 
-    private static final Category[] BUILT_IN_VALUES = {
+    private static final Category[] EXPENSE_VALUES = {
         FOOD, TRANSPORT, SHOPPING, BILLS, HEALTH, EDUCATION, ENTERTAINMENT, OTHER
+    };
+    private static final Category[] BUILT_IN_VALUES = {
+        FOOD, TRANSPORT, SHOPPING, BILLS, HEALTH, EDUCATION, ENTERTAINMENT,
+        OTHER, INCOME
     };
 
     private final String identifier;
@@ -67,7 +72,7 @@ public final class Category implements Comparable<Category> {
     }
 
     public static Category[] values() {
-        return BUILT_IN_VALUES.clone();
+        return EXPENSE_VALUES.clone();
     }
 
     public static Category valueOf(String identifier) {

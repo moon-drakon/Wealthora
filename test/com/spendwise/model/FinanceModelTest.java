@@ -2,7 +2,9 @@ package com.spendwise.model;
 
 import com.spendwise.validation.ValidationException;
 import java.math.BigDecimal;
+import java.lang.reflect.Modifier;
 import java.time.LocalDate;
+import java.util.List;
 
 public final class FinanceModelTest {
 
@@ -24,6 +26,8 @@ public final class FinanceModelTest {
         test("income generated ID", FinanceModelTest::incomeGeneratedId);
         test("income normalization", FinanceModelTest::incomeNormalization);
         test("income validation", FinanceModelTest::incomeValidation);
+        test("transaction inheritance and polymorphism",
+                FinanceModelTest::transactionPolymorphism);
         test("transfer generated ID", FinanceModelTest::transferGeneratedId);
         test("transfer normalization", FinanceModelTest::transferNormalization);
         test("self transfer rejection", FinanceModelTest::selfTransferRejection);
@@ -144,6 +148,33 @@ public final class FinanceModelTest {
         expect(NullPointerException.class, () -> new Income(
                 LocalDate.now(), BigDecimal.ONE,
                 "Salary", null, ""));
+    }
+
+    private static void transactionPolymorphism() {
+        assertTrue(Modifier.isAbstract(Transaction.class.getModifiers()));
+        Transaction income = new Income(
+                "INCOME_OOP",
+                LocalDate.now(),
+                new BigDecimal("100.00"),
+                "Salary",
+                Account.DEFAULT,
+                "Monthly salary");
+        Transaction expense = new Expense(
+                "EXPENSE_OOP",
+                "Books",
+                new BigDecimal("35.00"),
+                LocalDate.now(),
+                Category.EDUCATION,
+                Account.DEFAULT,
+                "Course books");
+        BigDecimal impact = List.of(income, expense).stream()
+                .map(Transaction::calculateImpact)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        assertMoney("65.00", impact);
+        assertMoney("100.00", income.calculateImpact());
+        assertMoney("-35.00", expense.calculateImpact());
+        assertEquals(TransactionType.INCOME, income.getType());
+        assertEquals(TransactionType.EXPENSE, expense.getType());
     }
 
     private static void transferGeneratedId() {

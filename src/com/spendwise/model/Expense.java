@@ -4,21 +4,13 @@ import com.spendwise.validation.ExpenseValidator;
 import com.spendwise.validation.FinanceValidator;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.Objects;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
-public class Expense {
+public final class Expense extends Transaction {
 
-    private final String id;
     private String description;
-    private BigDecimal amount;
-    private LocalDate date;
-    private Category category;
-    private Account account;
-    private String notes;
-    private PaymentMethod paymentMethod;
-    private List<String> tags;
 
     public Expense(
             String description,
@@ -26,14 +18,8 @@ public class Expense {
             LocalDate date,
             Category category,
             String notes) {
-        this(
-                UUID.randomUUID().toString(),
-                description,
-                amount,
-                date,
-                category,
-                Account.DEFAULT,
-                notes);
+        this(UUID.randomUUID().toString(), description, amount, date,
+                category, Account.DEFAULT, notes);
     }
 
     public Expense(
@@ -43,16 +29,8 @@ public class Expense {
             Category category,
             Account account,
             String notes) {
-        this(
-                UUID.randomUUID().toString(),
-                description,
-                amount,
-                date,
-                category,
-                account,
-                PaymentMethod.UNSPECIFIED,
-                List.of(),
-                notes);
+        this(UUID.randomUUID().toString(), description, amount, date,
+                category, account, PaymentMethod.UNSPECIFIED, List.of(), notes);
     }
 
     public Expense(
@@ -78,17 +56,18 @@ public class Expense {
             PaymentMethod paymentMethod,
             List<String> tags,
             String notes) {
-        this.id = ExpenseValidator.validateId(id);
+        super(
+                ExpenseValidator.validateId(id),
+                ExpenseValidator.validateAmount(amount),
+                ExpenseValidator.validateDate(date),
+                ExpenseValidator.validateCategory(category),
+                Objects.requireNonNull(account,
+                        "Expense account is required."),
+                Objects.requireNonNull(paymentMethod,
+                        "Expense payment method is required."),
+                FinanceValidator.validateTags(tags),
+                ExpenseValidator.validateNotes(notes));
         this.description = ExpenseValidator.validateDescription(description);
-        this.amount = ExpenseValidator.validateAmount(amount);
-        this.date = ExpenseValidator.validateDate(date);
-        this.category = ExpenseValidator.validateCategory(category);
-        this.account = Objects.requireNonNull(
-                account, "Expense account is required.");
-        this.paymentMethod = Objects.requireNonNull(
-                paymentMethod, "Expense payment method is required.");
-        this.tags = FinanceValidator.validateTags(tags);
-        this.notes = ExpenseValidator.validateNotes(notes);
     }
 
     public Expense(
@@ -98,14 +77,7 @@ public class Expense {
             LocalDate date,
             Category category,
             String notes) {
-        this(
-                id,
-                description,
-                amount,
-                date,
-                category,
-                Account.DEFAULT,
-                notes);
+        this(id, description, amount, date, category, Account.DEFAULT, notes);
     }
 
     public Expense(
@@ -120,40 +92,23 @@ public class Expense {
                 PaymentMethod.UNSPECIFIED, List.of(), notes);
     }
 
-    public String getId() {
-        return id;
-    }
-
+    @Override
     public String getDescription() {
         return description;
     }
 
-    public BigDecimal getAmount() {
-        return amount;
-    }
-
-    public LocalDate getDate() {
-        return date;
-    }
-
-    public Category getCategory() {
-        return category;
-    }
-
-    public Account getAccount() {
-        return account;
-    }
-
     public String getNotes() {
-        return notes;
+        return getNote();
     }
 
-    public PaymentMethod getPaymentMethod() {
-        return paymentMethod;
+    @Override
+    public TransactionType getType() {
+        return TransactionType.EXPENSE;
     }
 
-    public List<String> getTags() {
-        return tags;
+    @Override
+    public BigDecimal calculateImpact() {
+        return getAmount().negate();
     }
 
     public void updateDetails(
@@ -162,8 +117,7 @@ public class Expense {
             LocalDate date,
             Category category,
             String notes) {
-        updateDetails(
-                description, amount, date, category, account, notes);
+        updateDetails(description, amount, date, category, getAccount(), notes);
     }
 
     public void updateDetails(
@@ -173,20 +127,19 @@ public class Expense {
             Category category,
             Account account,
             String notes) {
-        String validatedDescription = ExpenseValidator.validateDescription(description);
+        String validatedDescription =
+                ExpenseValidator.validateDescription(description);
         BigDecimal validatedAmount = ExpenseValidator.validateAmount(amount);
         LocalDate validatedDate = ExpenseValidator.validateDate(date);
-        Category validatedCategory = ExpenseValidator.validateCategory(category);
+        Category validatedCategory =
+                ExpenseValidator.validateCategory(category);
         Account validatedAccount = Objects.requireNonNull(
                 account, "Expense account is required.");
         String validatedNotes = ExpenseValidator.validateNotes(notes);
-
+        updateTransactionDetails(validatedAmount, validatedDate,
+                validatedCategory, validatedAccount, getPaymentMethod(),
+                getTags(), validatedNotes);
         this.description = validatedDescription;
-        this.amount = validatedAmount;
-        this.date = validatedDate;
-        this.category = validatedCategory;
-        this.account = validatedAccount;
-        this.notes = validatedNotes;
     }
 
     public void updateDetails(
@@ -198,37 +151,45 @@ public class Expense {
             PaymentMethod paymentMethod,
             List<String> tags,
             String notes) {
-        updateDetails(description, amount, date, category, account, notes);
-        this.paymentMethod = Objects.requireNonNull(
+        String validatedDescription =
+                ExpenseValidator.validateDescription(description);
+        BigDecimal validatedAmount = ExpenseValidator.validateAmount(amount);
+        LocalDate validatedDate = ExpenseValidator.validateDate(date);
+        Category validatedCategory =
+                ExpenseValidator.validateCategory(category);
+        Account validatedAccount = Objects.requireNonNull(
+                account, "Expense account is required.");
+        PaymentMethod validatedPaymentMethod = Objects.requireNonNull(
                 paymentMethod, "Expense payment method is required.");
-        this.tags = FinanceValidator.validateTags(tags);
+        List<String> validatedTags = FinanceValidator.validateTags(tags);
+        String validatedNotes = ExpenseValidator.validateNotes(notes);
+        updateTransactionDetails(validatedAmount, validatedDate,
+                validatedCategory, validatedAccount, validatedPaymentMethod,
+                validatedTags, validatedNotes);
+        this.description = validatedDescription;
     }
 
     @Override
     public boolean equals(Object other) {
-        if (this == other) {
-            return true;
-        }
-        if (!(other instanceof Expense expense)) {
-            return false;
-        }
-        return id.equals(expense.id);
+        return this == other
+                || other instanceof Expense expense
+                        && getId().equals(expense.getId());
     }
 
     @Override
     public int hashCode() {
-        return id.hashCode();
+        return getId().hashCode();
     }
 
     @Override
     public String toString() {
         return "Expense{"
-                + "id='" + id + '\''
+                + "id='" + getId() + '\''
                 + ", description='" + description + '\''
-                + ", amount=" + amount
-                + ", date=" + date
-                + ", category=" + category
-                + ", account=" + account
+                + ", amount=" + getAmount()
+                + ", date=" + getDate()
+                + ", category=" + getCategory()
+                + ", account=" + getAccount()
                 + '}';
     }
 }

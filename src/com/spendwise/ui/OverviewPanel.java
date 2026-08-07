@@ -4,6 +4,8 @@ import com.spendwise.auth.CloudConnectionState;
 import com.spendwise.auth.FinanceMode;
 import com.spendwise.config.AppBrand;
 import com.spendwise.model.RecurringEntry;
+import com.spendwise.model.Transaction;
+import com.spendwise.model.TransactionType;
 import com.spendwise.service.BudgetService;
 import com.spendwise.service.BudgetUsage;
 import com.spendwise.service.ExpenseAnalyticsService;
@@ -88,9 +90,9 @@ public final class OverviewPanel extends JPanel {
             new CategoryDonutChartPanel();
     private final JLabel updatedLabel = new JLabel(" ");
     private final JLabel workspaceTitle =
-            new JLabel("Private LOCAL workspace");
+            new JLabel("Local workspace");
     private final JLabel workspaceDetail = new JLabel(
-            "Stored only on this device; CLOUD data stays separate.");
+            "Your finance data is stored on this computer.");
     private final JScrollPane scrollPane = new JScrollPane();
     private FinanceMode financeMode = FinanceMode.LOCAL;
     private Supplier<CloudConnectionState> connectionState =
@@ -150,13 +152,20 @@ public final class OverviewPanel extends JPanel {
     public void refreshOverview() {
         YearMonth month = YearMonth.now();
         ExpenseAnalyticsSnapshot analytics = analyticsService.analyzeMonth(month);
-        BigDecimal income = incomeService.getAllIncome().stream()
+        List<Transaction> monthTransactions = financeService
+                .getAllTransactions().stream()
                 .filter(item -> YearMonth.from(item.getDate()).equals(month))
-                .map(com.spendwise.model.Income::getAmount)
+                .toList();
+        BigDecimal income = monthTransactions.stream()
+                .filter(item -> item.getType() == TransactionType.INCOME)
+                .map(Transaction::calculateImpact)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal expense =
-                analytics.getSelectedMonthSummary().getTotalAmount();
-        BigDecimal net = income.subtract(expense);
+        BigDecimal expense = monthTransactions.stream()
+                .filter(item -> item.getType() == TransactionType.EXPENSE)
+                .map(Transaction::calculateImpact)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .negate();
+        BigDecimal net = financeService.calculateImpact(monthTransactions);
 
         balanceCard.setValue(money(
                 financeService.calculateBalances().getTotalBalance()));
@@ -175,7 +184,7 @@ public final class OverviewPanel extends JPanel {
         updateUpcomingItems();
         updateWorkspaceStatus();
         updatedLabel.setText(financeMode == FinanceMode.LOCAL
-                ? "Showing LOCAL data for " + month.format(MONTH_LABEL)
+                ? "Showing data for " + month.format(MONTH_LABEL)
                 : "Showing CLOUD data for " + month.format(MONTH_LABEL)
                         + " · " + connectionState.get().getDisplayName());
         revalidate();
@@ -274,9 +283,9 @@ public final class OverviewPanel extends JPanel {
 
     private void updateWorkspaceStatus() {
         if (financeMode == FinanceMode.LOCAL) {
-            workspaceTitle.setText("Private LOCAL workspace");
+            workspaceTitle.setText("Local workspace");
             workspaceDetail.setText(
-                    "Stored only on this device; CLOUD data stays separate.");
+                    "Your finance data is stored on this computer.");
             return;
         }
         CloudConnectionState state = connectionState.get();

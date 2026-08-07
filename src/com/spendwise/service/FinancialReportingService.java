@@ -4,6 +4,7 @@ import com.spendwise.model.Account;
 import com.spendwise.model.Category;
 import com.spendwise.model.Expense;
 import com.spendwise.model.Income;
+import com.spendwise.model.Transaction;
 import com.spendwise.model.MonthlyBudget;
 import com.spendwise.model.Transfer;
 import com.spendwise.validation.ValidationException;
@@ -305,13 +306,14 @@ public final class FinancialReportingService {
 
     private static BigDecimal sumExpenses(List<Expense> expenses) {
         return expenses.stream()
-                .map(Expense::getAmount)
-                .reduce(ZERO, BigDecimal::add);
+                .map(Transaction::calculateImpact)
+                .reduce(ZERO, BigDecimal::add)
+                .negate();
     }
 
     private static BigDecimal sumIncome(List<Income> incomeEntries) {
         return incomeEntries.stream()
-                .map(Income::getAmount)
+                .map(Transaction::calculateImpact)
                 .reduce(ZERO, BigDecimal::add);
     }
 

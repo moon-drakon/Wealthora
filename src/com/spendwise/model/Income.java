@@ -3,23 +3,16 @@ package com.spendwise.model;
 import com.spendwise.validation.FinanceValidator;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.List;
 
-public final class Income {
+public final class Income extends Transaction {
 
     private static final String ID_PREFIX = "INCOME_";
 
-    private final String id;
-    private final LocalDate date;
-    private final BigDecimal amount;
     private final String source;
-    private final Account account;
-    private final String note;
-    private final PaymentMethod paymentMethod;
-    private final List<String> tags;
 
     public Income(
             LocalDate date,
@@ -27,16 +20,10 @@ public final class Income {
             String source,
             Account account,
             String note) {
-        this(
-                ID_PREFIX + UUID.randomUUID().toString()
-                        .replace("-", "").toUpperCase(Locale.ROOT),
-                date,
-                amount,
-                source,
-                account,
-                PaymentMethod.UNSPECIFIED,
-                List.of(),
-                note);
+        this(ID_PREFIX + UUID.randomUUID().toString()
+                .replace("-", "").toUpperCase(Locale.ROOT),
+                date, amount, source, account,
+                PaymentMethod.UNSPECIFIED, List.of(), note);
     }
 
     public Income(
@@ -72,73 +59,62 @@ public final class Income {
             PaymentMethod paymentMethod,
             List<String> tags,
             String note) {
-        this.id = FinanceValidator.validateIdentifier(
-                id, "Income", ID_PREFIX);
-        this.date = FinanceValidator.validatePostedDate(date, "Income date");
-        this.amount = FinanceValidator.validatePositiveAmount(
-                amount, "Income amount");
+        super(
+                FinanceValidator.validateIdentifier(id, "Income", ID_PREFIX),
+                FinanceValidator.validatePositiveAmount(
+                        amount, "Income amount"),
+                FinanceValidator.validatePostedDate(date, "Income date"),
+                Category.INCOME,
+                Objects.requireNonNull(account,
+                        "Income account is required."),
+                Objects.requireNonNull(paymentMethod,
+                        "Income payment method is required."),
+                FinanceValidator.validateTags(tags),
+                FinanceValidator.validateOptionalText(
+                        note, "Income note", FinanceValidator.MAX_NOTE_LENGTH));
         this.source = FinanceValidator.validateRequiredText(
                 source, "Income source", FinanceValidator.MAX_NAME_LENGTH);
-        this.account = Objects.requireNonNull(
-                account, "Income account is required.");
-        this.paymentMethod = Objects.requireNonNull(
-                paymentMethod, "Income payment method is required.");
-        this.tags = FinanceValidator.validateTags(tags);
-        this.note = FinanceValidator.validateOptionalText(
-                note, "Income note", FinanceValidator.MAX_NOTE_LENGTH);
-    }
-
-    public String getId() {
-        return id;
-    }
-
-    public LocalDate getDate() {
-        return date;
-    }
-
-    public BigDecimal getAmount() {
-        return amount;
     }
 
     public String getSource() {
         return source;
     }
 
-    public Account getAccount() {
-        return account;
+    @Override
+    public String getDescription() {
+        return source;
     }
 
-    public String getNote() {
-        return note;
+    @Override
+    public TransactionType getType() {
+        return TransactionType.INCOME;
     }
 
-    public PaymentMethod getPaymentMethod() {
-        return paymentMethod;
-    }
-
-    public List<String> getTags() {
-        return tags;
+    @Override
+    public BigDecimal calculateImpact() {
+        return getAmount();
     }
 
     @Override
     public boolean equals(Object other) {
         return this == other
-                || other instanceof Income income && id.equals(income.id);
+                || other instanceof Income income
+                        && getId().equals(income.getId());
     }
 
     @Override
     public int hashCode() {
-        return id.hashCode();
+        return getId().hashCode();
     }
 
     @Override
     public String toString() {
         return "Income{"
-                + "id='" + id + '\''
-                + ", date=" + date
-                + ", amount=" + amount
+                + "id='" + getId() + '\''
+                + ", date=" + getDate()
+                + ", amount=" + getAmount()
                 + ", source='" + source + '\''
-                + ", account=" + account
+                + ", account=" + getAccount()
                 + '}';
     }
 }
