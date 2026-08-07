@@ -219,18 +219,15 @@ public final class AuthClientFoundationTest {
                 assertContains(signInText, AppBrand.APP_NAME);
                 assertContains(signInText, AppBrand.TAGLINE);
                 assertContains(signInText, AppBrand.DESCRIPTION);
-                assertContains(signInText, "Continue with Google");
+                assertContains(signInText, "Local Sign In");
+                assertContains(signInText, "Sign In");
                 assertContainsPart(signInText,
-                        "never simulates a successful Google sign-in");
-                assertContains(signInText, "NSU Email Access");
-                assertContains(signInText, AppBrand.NSU_EMAIL_SUBTITLE);
-                assertContains(signInText, "Remember Me");
-                assertContains(signInText, "Sign In to CLOUD");
-                assertContains(signInText, "Sign In to LOCAL");
-                assertContainsPart(signInText,
-                        "Choose CLOUD for server data");
+                        "Finance records stay on this computer");
+                assertFalse(signInText.contains("Continue with Google"));
+                assertFalse(signInText.contains("Create Account"));
+                assertFalse(signInText.contains("Forgot Password?"));
                 assertFalse(signInText.stream().anyMatch(value ->
-                        value.contains("Google") && value.contains("NSU only")));
+                        value.contains("CLOUD") || value.contains("Server:")));
                 assertContains(componentText(panels.get(1)),
                         "Continue with Google");
             } catch (Throwable exception) {

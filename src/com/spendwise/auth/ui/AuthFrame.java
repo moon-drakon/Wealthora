@@ -19,16 +19,11 @@ import javax.swing.SwingUtilities;
 public final class AuthFrame extends JFrame implements AuthNavigator {
 
     private static final String SIGN_IN = "sign-in";
-    private static final String SIGN_UP = "sign-up";
-    private static final String VERIFY = "verify";
-    private static final String FORGOT = "forgot";
-    private static final String RESET = "reset";
     private static final String PROFILE = "profile";
     private static final String OWNER_SETUP = "owner-setup";
 
     private final CardLayout cards = new CardLayout();
     private final JPanel content = new JPanel(cards);
-    private final VerificationPanel verificationPanel;
     private final AuthenticatedProfilePanel profilePanel;
     private final OwnerSetupPanel ownerSetupPanel;
     private final Consumer<UserSession> authenticatedListener;
@@ -49,18 +44,10 @@ public final class AuthFrame extends JFrame implements AuthNavigator {
         AuthService requiredService = Objects.requireNonNull(authService);
         SessionManager requiredSessions = Objects.requireNonNull(sessionManager);
         this.authenticatedListener = authenticatedListener;
-        verificationPanel = new VerificationPanel(requiredService, this);
         profilePanel = new AuthenticatedProfilePanel(
                 requiredService, requiredSessions, this);
         content.add(scroll(new SignInPanel(
                 requiredService, requiredSessions, this)), SIGN_IN);
-        content.add(scroll(new SignUpPanel(
-                requiredService, requiredSessions, this)), SIGN_UP);
-        content.add(scroll(verificationPanel), VERIFY);
-        content.add(scroll(new ForgotPasswordPanel(
-                requiredService, this)), FORGOT);
-        content.add(scroll(new ResetPasswordPanel(
-                requiredService, this)), RESET);
         content.add(scroll(profilePanel), PROFILE);
         ownerSetupPanel = requiredService instanceof OwnerSetupService setup
                 ? new OwnerSetupPanel(setup, requiredSessions, this) : null;
@@ -111,23 +98,22 @@ public final class AuthFrame extends JFrame implements AuthNavigator {
 
     @Override
     public void showSignUp() {
-        cards.show(content, SIGN_UP);
+        showSignIn();
     }
 
     @Override
     public void showVerification(String email) {
-        verificationPanel.setEmail(email);
-        cards.show(content, VERIFY);
+        showSignIn();
     }
 
     @Override
     public void showForgotPassword() {
-        cards.show(content, FORGOT);
+        showSignIn();
     }
 
     @Override
     public void showResetPassword() {
-        cards.show(content, RESET);
+        showSignIn();
     }
 
     @Override

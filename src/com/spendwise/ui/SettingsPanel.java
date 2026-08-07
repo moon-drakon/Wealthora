@@ -126,8 +126,6 @@ public final class SettingsPanel extends JPanel {
         cards.add(currencyCard());
         cards.add(categoriesCard());
         cards.add(dataCard());
-        cards.add(voiceEntryCard());
-        cards.add(profileCard());
         cards.add(privacyCard());
         cards.add(aboutCard());
         content.add(cards, BorderLayout.CENTER);

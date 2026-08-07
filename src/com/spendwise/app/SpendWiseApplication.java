@@ -10,8 +10,6 @@ import com.spendwise.auth.audit.CsvAuditRepository;
 import com.spendwise.auth.local.CsvLocalUserRepository;
 import com.spendwise.auth.local.LegacyDataMigrationService;
 import com.spendwise.auth.local.LocalDesktopAuthService;
-import com.spendwise.auth.registration.HttpRegistrationGateway;
-import com.spendwise.auth.registration.ServerConfiguration;
 import com.spendwise.auth.ui.AccountProfileDialog;
 import com.spendwise.auth.ui.AdminConsoleDialog;
 import com.spendwise.auth.ui.AuthFrame;
@@ -94,9 +92,7 @@ public final class SpendWiseApplication {
                             new LegacyDataMigrationService(
                                     AppPaths.getLegacyDataDirectory(),
                                     AppPaths.getBackupDirectory(),
-                                    auditRepository),
-                            new HttpRegistrationGateway(
-                                    ServerConfiguration.fromEnvironment()));
+                                    auditRepository));
             AdminService adminService = new AdminService(
                     authService.getUserRepository(), auditRepository,
                     authService);
@@ -123,12 +119,6 @@ public final class SpendWiseApplication {
             AdminService adminService) {
         try {
             sessionManager.startSession(session);
-            if (session.getFinanceMode() == FinanceMode.CLOUD) {
-                AppPaths.clearUserDataDirectory();
-                openCloudFinanceWorkspace(session, authService,
-                        sessionManager, adminService);
-                return;
-            }
             AppPaths.activateUserDataDirectory(session.getUserIdentifier());
             Path categoryCsvPath = AppPaths.getCategoryCsvPath();
             CsvCategoryRepository categoryRepository =
@@ -257,10 +247,7 @@ public final class SpendWiseApplication {
                             notificationService,
                             jsonBackupService,
                             csvImportService,
-                            new PdfReportService(),
-                            new AuthenticatedSpeechRecognitionProvider(
-                                    authService.getSpeechApiClient(),
-                                    new JavaSoundMicrophoneCapture()));
+                            new PdfReportService());
             frame.configureFinanceMode(FinanceMode.LOCAL,
                     () -> com.spendwise.auth.CloudConnectionState.OFFLINE,
                     new MigrationPreviewService(dataDirectory));
@@ -276,13 +263,7 @@ public final class SpendWiseApplication {
                             .setVisible(true),
                     () -> leaveWorkspace(frame, authService, sessionManager,
                             adminService, true),
-                    session.canAccessAdminConsole()
-                            ? () -> new AdminConsoleDialog(
-                                    frame, adminService, session,
-                                    frame::createFinanceBackup,
-                                    frame::restoreFinanceBackup)
-                                    .setVisible(true)
-                            : null,
+                    null,
                     () -> leaveWorkspace(frame, authService, sessionManager,
                             adminService, false)));
             frame.setVisible(true);

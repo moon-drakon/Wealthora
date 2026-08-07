@@ -86,6 +86,33 @@ public final class LocalAuthenticationTest {
             expect(AuthConfigurationException.class,
                     missing::requireOwnerEmail);
         });
+        test("first local owner needs no environment setting", () -> {
+            Path offline = root.resolve("offline-owner");
+            CsvAuditRepository offlineAudit = new CsvAuditRepository(
+                    offline.resolve("auth").resolve("audit.csv"));
+            LocalDesktopAuthService offlineService =
+                    new LocalDesktopAuthService(
+                            new CsvLocalUserRepository(offline.resolve("auth")
+                                    .resolve("users.csv")),
+                            passwords,
+                            new OwnerConfiguration(""),
+                            new SessionManager(),
+                            offlineAudit,
+                            new LegacyDataMigrationService(
+                                    offline.resolve("data"),
+                                    offline.resolve("backups"),
+                                    offlineAudit,
+                                    clock),
+                            clock,
+                            identifier -> offline.resolve("users")
+                                    .resolve(identifier));
+            assertEquals("", offlineService.getConfiguredOwnerEmail());
+            UserSession localOwner = offlineService.createFirstOwner(
+                    "Teacher Demo", "teacher@northsouth.edu",
+                    "teacher25".toCharArray(),
+                    "teacher25".toCharArray());
+            assertTrue(localOwner.hasRole(UserRole.OWNER));
+        });
         test("first owner requires exact configured NSU email", () -> {
             expect(AuthException.class, () -> service.createFirstOwner(
                     "Primary Owner", "another@northsouth.edu",

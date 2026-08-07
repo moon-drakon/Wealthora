@@ -32,7 +32,7 @@ public final class TopBar extends JPanel {
     private final SecondaryButton themeButton = new SecondaryButton("Dark");
     private final JLabel avatar = new JLabel("?", JLabel.CENTER);
     private final JButton profileButton = new SecondaryButton("Account");
-    private final JLabel financeModeLabel = new JLabel("LOCAL · Offline");
+    private final JLabel financeModeLabel = new JLabel("Local data");
     private final JPopupMenu profileMenu = new JPopupMenu();
     private final Consumer<String> searchListener;
     private final Runnable themeListener;
@@ -141,10 +141,11 @@ public final class TopBar extends JPanel {
         Runnable refresh = () -> {
             CloudConnectionState state = mode == FinanceMode.LOCAL
                     ? CloudConnectionState.OFFLINE : connectionState.get();
-            financeModeLabel.setText(mode.name() + " · "
-                    + state.getDisplayName());
+            financeModeLabel.setText(mode == FinanceMode.LOCAL
+                    ? "Local data"
+                    : mode.name() + " · " + state.getDisplayName());
             financeModeLabel.setToolTipText(mode == FinanceMode.LOCAL
-                    ? "Local finance data only; cloud data is not loaded."
+                    ? "Finance records are stored on this computer."
                     : "Cloud finance data only; local data is not loaded.");
         };
         refresh.run();

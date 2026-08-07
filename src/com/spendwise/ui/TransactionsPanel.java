@@ -81,8 +81,8 @@ public final class TransactionsPanel extends JPanel {
             new StyledTextField("End date", 10);
     private final JComboBox<SortOrder> sortOrder =
             new StyledComboBox<>(SortOrder.values());
-    private final JButton editButton = new SecondaryButton("Edit selected");
-    private final JButton deleteButton = new SecondaryButton("Delete selected");
+    private final JButton editButton = new SecondaryButton("Edit");
+    private final JButton deleteButton = new SecondaryButton("Delete");
     private final JLabel statusLabel = new JLabel(" ");
     private final CardLayout contentLayout = new CardLayout();
     private final JPanel contentPanel = new JPanel(contentLayout);

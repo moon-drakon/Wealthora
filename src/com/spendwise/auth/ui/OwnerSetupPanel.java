@@ -25,16 +25,12 @@ public final class OwnerSetupPanel extends AuthFormPanel {
             SessionManager sessionManager,
             AuthNavigator navigator) {
         super("Secure first-run setup",
-                "Create the single primary OWNER account. This identity "
-                        + "protects administrator access and receives any "
-                        + "existing local finance data without deleting the originals.");
+                "Create the primary local account for this copy of Wealthora.");
         this.ownerSetupService = Objects.requireNonNull(ownerSetupService);
         this.sessionManager = Objects.requireNonNull(sessionManager);
         this.navigator = Objects.requireNonNull(navigator);
-        email.setEditable(false);
-        email.setFocusable(false);
         addWide(sectionHeading("Primary OWNER",
-                "The email is locked to the APP_OWNER_EMAIL environment setting."));
+                "Use an NSU email address. The account is stored on this computer."));
         addField("Full name", fullName);
         addField("OWNER email", email);
         addField("Password", password);
@@ -52,14 +48,13 @@ public final class OwnerSetupPanel extends AuthFormPanel {
     }
 
     private void loadConfiguration() {
-        try {
-            email.setText(ownerSetupService.getConfiguredOwnerEmail());
-            createButton.setEnabled(true);
-        } catch (RuntimeException exception) {
-            email.setText("APP_OWNER_EMAIL is not configured");
-            createButton.setEnabled(false);
-            showFailure(exception);
-        }
+        String configuredEmail = ownerSetupService.getConfiguredOwnerEmail();
+        boolean fixedEmail = configuredEmail != null
+                && !configuredEmail.isBlank();
+        email.setText(fixedEmail ? configuredEmail : "");
+        email.setEditable(!fixedEmail);
+        email.setFocusable(!fixedEmail);
+        createButton.setEnabled(true);
     }
 
     private void createOwner() {

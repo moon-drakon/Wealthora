@@ -266,11 +266,13 @@ public final class SpendWiseFrame extends JFrame {
         final QuickEntryDialog[] quickEntryReference = new QuickEntryDialog[1];
         final VoiceQuickEntryDialog[] voiceEntryReference =
                 new VoiceQuickEntryDialog[1];
-        Runnable openVoiceEntry = () -> {
+        boolean voiceEntryAvailable = !(speechProvider
+                instanceof UnconfiguredSpeechRecognitionProvider);
+        Runnable openVoiceEntry = voiceEntryAvailable ? () -> {
             if (voiceEntryReference[0] != null) {
                 voiceEntryReference[0].open();
             }
-        };
+        } : null;
         FinancePanel financePanel = new FinancePanel(
                 accountService,
                 incomeService,
@@ -369,16 +371,16 @@ public final class SpendWiseFrame extends JFrame {
                 refreshFinancialViews);
         recurringReference[0] = recurringPanel;
         VoiceEntrySettings voiceSettings = new VoiceEntrySettings();
-        VoiceQuickEntryDialog voiceQuickEntryDialog =
-                new VoiceQuickEntryDialog(
-                        this,
-                        new VoiceCaptureService(speechProvider, voiceSettings),
-                        quickEntryService,
-                        accountService,
-                        categoryService,
-                        voiceSettings,
-                        refreshFinancialViews);
-        voiceEntryReference[0] = voiceQuickEntryDialog;
+        if (voiceEntryAvailable) {
+            voiceEntryReference[0] = new VoiceQuickEntryDialog(
+                    this,
+                    new VoiceCaptureService(speechProvider, voiceSettings),
+                    quickEntryService,
+                    accountService,
+                    categoryService,
+                    voiceSettings,
+                    refreshFinancialViews);
+        }
         QuickEntryDialog quickEntryDialog = new QuickEntryDialog(
                 this,
                 quickEntryService,
@@ -450,10 +452,7 @@ public final class SpendWiseFrame extends JFrame {
                         || budgetService.isCategoryReferenced(category),
                 currencyService,
                 shell::setDarkMode,
-                refreshFinancialViews,
-                voiceSettings,
-                speechProvider,
-                openVoiceEntry);
+                refreshFinancialViews);
         shell.addPage("settings", "Settings", AppIcons.Type.SETTINGS,
                 settingsPanel, settingsPanel::refreshSettings);
         shell.setThemeChangedListener(settingsPanel::refreshSettings);
@@ -483,12 +482,14 @@ public final class SpendWiseFrame extends JFrame {
                 KeyEvent.VK_Q, InputEvent.CTRL_DOWN_MASK));
         quickEntryItem.addActionListener(event -> quickEntryDialog.open());
         entryMenu.add(quickEntryItem);
-        JMenuItem voiceEntryItem = new JMenuItem("Voice Quick Entry");
-        voiceEntryItem.setAccelerator(KeyStroke.getKeyStroke(
-                KeyEvent.VK_V,
-                InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK));
-        voiceEntryItem.addActionListener(event -> openVoiceEntry.run());
-        entryMenu.add(voiceEntryItem);
+        if (voiceEntryAvailable) {
+            JMenuItem voiceEntryItem = new JMenuItem("Voice Quick Entry");
+            voiceEntryItem.setAccelerator(KeyStroke.getKeyStroke(
+                    KeyEvent.VK_V,
+                    InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK));
+            voiceEntryItem.addActionListener(event -> openVoiceEntry.run());
+            entryMenu.add(voiceEntryItem);
+        }
         JMenuItem searchItem = new JMenuItem("Search Transactions");
         searchItem.setAccelerator(KeyStroke.getKeyStroke(
                 KeyEvent.VK_K, InputEvent.CTRL_DOWN_MASK));
@@ -513,12 +514,14 @@ public final class SpendWiseFrame extends JFrame {
                 event -> shell.focusGlobalSearch(),
                 KeyStroke.getKeyStroke(KeyEvent.VK_K, InputEvent.CTRL_DOWN_MASK),
                 JComponent.WHEN_IN_FOCUSED_WINDOW);
-        getRootPane().registerKeyboardAction(
-                event -> openVoiceEntry.run(),
-                KeyStroke.getKeyStroke(KeyEvent.VK_V,
-                        InputEvent.CTRL_DOWN_MASK
-                        | InputEvent.SHIFT_DOWN_MASK),
-                JComponent.WHEN_IN_FOCUSED_WINDOW);
+        if (voiceEntryAvailable) {
+            getRootPane().registerKeyboardAction(
+                    event -> openVoiceEntry.run(),
+                    KeyStroke.getKeyStroke(KeyEvent.VK_V,
+                            InputEvent.CTRL_DOWN_MASK
+                            | InputEvent.SHIFT_DOWN_MASK),
+                    JComponent.WHEN_IN_FOCUSED_WINDOW);
+        }
         AppTheme.applyCustomColors(this);
         setLocationRelativeTo(null);
     }
@@ -543,7 +546,9 @@ public final class SpendWiseFrame extends JFrame {
         if (overviewPanel != null) {
             overviewPanel.configureFinanceMode(mode, connectionState);
         }
-        setTitle(AppBrand.WINDOW_TITLE + " [" + mode.name() + "]");
+        setTitle(mode == FinanceMode.LOCAL
+                ? AppBrand.WINDOW_TITLE
+                : AppBrand.WINDOW_TITLE + " [" + mode.name() + "]");
         if (mode == FinanceMode.CLOUD) {
             JMenu cloudData = new JMenu("Cloud Data");
             JMenuItem state = new JMenuItem("Connection: "

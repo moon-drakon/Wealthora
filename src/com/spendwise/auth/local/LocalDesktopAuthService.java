@@ -154,7 +154,7 @@ public final class LocalDesktopAuthService
 
     @Override
     public String getConfiguredOwnerEmail() {
-        return ownerConfiguration.requireOwnerEmail();
+        return ownerConfiguration.getConfiguredEmail();
     }
 
     @Override
@@ -166,9 +166,10 @@ public final class LocalDesktopAuthService
         if (!isOwnerSetupRequired()) {
             throw new AuthException("The primary OWNER is already configured.");
         }
-        String configuredEmail = ownerConfiguration.requireOwnerEmail();
         String normalizedEmail = NsuEmailPolicy.requireInstitutionalEmail(email);
-        if (!configuredEmail.equals(normalizedEmail)) {
+        if (ownerConfiguration.isConfigured()
+                && !ownerConfiguration.requireOwnerEmail().equals(
+                        normalizedEmail)) {
             throw new AuthException(
                     "The first OWNER email must exactly match APP_OWNER_EMAIL.");
         }
@@ -194,7 +195,7 @@ public final class LocalDesktopAuthService
                 workspaceResolver.apply(identifier));
         auditRepository.append(new AuditEvent(now, identifier,
                 AuditAction.OWNER_BOOTSTRAP, identifier, "SUCCESS",
-                "Primary OWNER created from APP_OWNER_EMAIL."));
+                "Primary local OWNER created."));
         return new UserSession(owner, now);
     }
 

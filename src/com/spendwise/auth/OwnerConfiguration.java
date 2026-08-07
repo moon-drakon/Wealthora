@@ -27,6 +27,10 @@ public final class OwnerConfiguration {
         return !configuredEmail.isBlank();
     }
 
+    public String getConfiguredEmail() {
+        return configuredEmail;
+    }
+
     public String requireOwnerEmail() {
         if (!isConfigured()) {
             throw new AuthConfigurationException(
