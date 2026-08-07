@@ -102,18 +102,18 @@ class SharedOnlineCoreEndpointTest {
                 account("ACCOUNT_A_SAVE", "Savings", 0), deviceAToken).statusCode());
         assertEquals(201, post("/api/finance/income", """
                 {"externalId":"INCOME_A_SHARED","source":"Salary","amount":200,
-                "date":"2026-08-08","accountExternalId":"ACCOUNT_A_MAIN",
+                "date":"2025-01-08","accountExternalId":"ACCOUNT_A_MAIN",
                 "paymentMethod":"BANK_TRANSFER","tags":[],"note":""}
                 """, deviceAToken).statusCode());
         assertEquals(201, post("/api/finance/expenses", """
                 {"externalId":"shared-a-expense","description":"Food","amount":50,
-                "date":"2026-08-08","accountExternalId":"ACCOUNT_A_MAIN",
+                "date":"2025-01-08","accountExternalId":"ACCOUNT_A_MAIN",
                 "categoryExternalId":"FOOD","paymentMethod":"CASH",
                 "tags":[],"note":""}
                 """, deviceAToken).statusCode());
         assertEquals(201, post("/api/finance/transfers", """
                 {"externalId":"TRANSFER_A_SHARED","amount":25,
-                "date":"2026-08-08","sourceAccountExternalId":"ACCOUNT_A_MAIN",
+                "date":"2025-01-08","sourceAccountExternalId":"ACCOUNT_A_MAIN",
                 "destinationAccountExternalId":"ACCOUNT_A_SAVE","tags":[],"note":""}
                 """, deviceAToken).statusCode());
         assertEquals(204, post("/api/auth/logout", "{}", deviceAToken)
@@ -126,7 +126,7 @@ class SharedOnlineCoreEndpointTest {
         assertTrue(get("/api/finance/transactions?page=0&size=20",
                 deviceBToken).body().contains("\"totalElements\":4"));
         String dashboard = get(
-                "/api/finance/reports/dashboard?month=2026-08",
+                "/api/finance/reports/dashboard?month=2025-01",
                 deviceBToken).body();
         assertTrue(dashboard.contains("\"income\":200.00"), dashboard);
         assertTrue(dashboard.contains("\"expenses\":50.00"), dashboard);
@@ -202,7 +202,7 @@ class SharedOnlineCoreEndpointTest {
                 + "\",\"accountType\":\"BANK\",\"currencyCode\":\"BDT\","
                 + "\"openingBalance\":" + balance + ",\"iconName\":\"bank\","
                 + "\"colorHex\":\"#1F7E60\",\"institutionName\":\"\","
-                + "\"openedOn\":\"2026-08-08\",\"archived\":false}";
+                + "\"openedOn\":\"2025-01-08\",\"archived\":false}";
     }
 
     private HttpResponse<String> get(String path, String token)
