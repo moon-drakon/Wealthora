@@ -77,15 +77,16 @@ public class OwnerBootstrapRunner implements ApplicationRunner {
             throw new IllegalStateException(
                     "The configured OWNER name must not exceed 160 characters.");
         }
-        if (users.existsByEmail(email)) {
-            throw new IllegalStateException(
-                    "The configured OWNER email already belongs to a non-OWNER account.");
-        }
         char[] password = properties.password().toCharArray();
         passwordPolicy.requireStrong(password);
         String passwordText = CharBuffer.wrap(password).toString();
         try {
             Instant now = clock.instant();
+            UserAccount existing = users.findByEmail(email).orElse(null);
+            if (existing != null) {
+                promoteExistingAccount(existing, passwordText, now);
+                return;
+            }
             UUID userId = UUID.randomUUID();
             UserAccount owner = new UserAccount(userId,
                     fullName, email, null,
@@ -104,6 +105,39 @@ public class OwnerBootstrapRunner implements ApplicationRunner {
         } finally {
             passwordText = null;
             Arrays.fill(password, '\0');
+        }
+    }
+
+    private void promoteExistingAccount(
+            UserAccount account, String configuredPassword, Instant now) {
+        if (account.getAccountStatus() != AccountStatus.ACTIVE
+                || !account.isEmailVerified()) {
+            throw new IllegalStateException(
+                    "The configured existing OWNER account must be active and verified.");
+        }
+        AuthenticationIdentity passwordIdentity = identities
+                .findByUserIdAndProvider(account.getId(), AuthProvider.PASSWORD)
+                .orElseThrow(() -> new IllegalStateException(
+                        "The configured existing OWNER account has no password identity."));
+        if (passwordIdentity.getPasswordHash() == null
+                || !passwordEncoder.matches(configuredPassword,
+                        passwordIdentity.getPasswordHash())) {
+            throw new IllegalStateException(
+                    "The configured OWNER password does not match the existing account.");
+        }
+
+        grantRoleIfMissing(account.getId(), UserRole.USER);
+        grantRoleIfMissing(account.getId(), UserRole.ADMIN);
+        grantRoleIfMissing(account.getId(), UserRole.OWNER);
+        auditLogs.save(new AuditLogEntry(UUID.randomUUID(), now,
+                account.getId(), "OWNER_BOOTSTRAPPED", account.getId(),
+                "SUCCESS",
+                "Existing verified account promoted to protected OWNER."));
+    }
+
+    private void grantRoleIfMissing(UUID userId, UserRole role) {
+        if (!roles.existsByUserIdAndRoleName(userId, role.name())) {
+            roles.save(new UserRoleAssignment(userId, role));
         }
     }
 }

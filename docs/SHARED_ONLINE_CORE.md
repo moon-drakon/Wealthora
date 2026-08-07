@@ -56,7 +56,9 @@ Render:
 - `WEALTHORA_OWNER_PASSWORD`
 
 Render generates `TOKEN_PEPPER`. The OWNER bootstrap runs only when the
-database has no OWNER role. Once an OWNER exists, later starts leave it
+database has no OWNER role. It creates a new configured account, or promotes
+an existing active, verified password account only after the configured
+password matches its stored hash. Once an OWNER exists, later starts leave it
 unchanged. Flyway clean is disabled and Hibernate only validates the schema.
 
 ## Build and verification

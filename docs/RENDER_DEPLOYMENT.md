@@ -42,10 +42,13 @@ stricter verified TLS mode. Keep the username and password out of the URL.
 profile, registration approval, and no-SMTP verification policy.
 
 The OWNER bootstrap creates the protected initial OWNER only when the database
-has no OWNER role. It never changes an existing OWNER. New public registrations
-can create only USER accounts. After the first successful startup, the three
-OWNER bootstrap variables can be removed from Render; the stored BCrypt-backed
-identity and roles remain in PostgreSQL.
+has no OWNER role. If the configured email already belongs to an active,
+verified password account, it grants OWNER only when the configured password
+matches that account; it never resets the password. It never changes an
+existing OWNER. New public registrations can create only USER accounts. After
+the first successful startup, the three OWNER bootstrap variables can be
+removed from Render; the stored BCrypt-backed identity and roles remain in
+PostgreSQL.
 
 Do not configure `WEALTHORA_DEV_MAIL_DIR` or activate `dev-mail-sink` on
 Render. SMTP and Google OAuth are deliberately not configured for this
