@@ -8,15 +8,13 @@ Describe the problem and the result.
 
 ## Testing
 
-- [ ] `ant test-auth`
-- [ ] `ant clean jar`
-- [ ] `server/mvnw test`
-- [ ] `server/mvnw package`
+- [ ] `ant clean test-quality jar`
+- [ ] `git diff --check`
 - [ ] Other relevant checks are listed below
 
-## Data migration impact
+## Local data impact
 
-Describe any Flyway, CSV, backup, or compatibility impact. Write `None` when
+Describe any CSV, backup, import, or compatibility impact. Write `None` when
 there is no data change.
 
 ## Security impact
@@ -33,6 +31,6 @@ Otherwise write `Not applicable`.
 
 - [ ] I reviewed the complete diff.
 - [ ] I did not commit credentials, tokens, private data, or generated output.
-- [ ] I kept migrations forward-only and did not rewrite existing data.
+- [ ] I preserved existing local data or documented a safe migration.
 - [ ] I updated documentation for user-visible or operational changes.
 - [ ] I recorded any remaining limitation.

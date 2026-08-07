@@ -1,86 +1,126 @@
 # Wealthora
 
-Wealthora is an offline personal expense tracker built as a CSE215 Java OOP
-semester project. It uses a programmatic Swing interface and keeps each local
-user's finance records on the computer.
+Wealthora is a Java Swing personal finance manager developed for our CSE215
+Object-Oriented Programming project. It brings income, expenses, accounts,
+budgets, and other everyday finance records together in one offline desktop
+application, with each user's data stored locally on the computer.
 
 ## Features
 
-- Local owner setup and sign-in with BCrypt password hashing
-- Dashboard totals for balance, income, expenses, and cash flow
+- Dashboard with current balance, monthly income, expenses, and cash flow
 - Income, expense, transfer, account, and category management
-- Searchable transaction `JTable` with edit and delete actions
-- Budgets, recurring entries, reports, goals, debts, and settings
-- CSV export, data backup, restore, and local file persistence
-- Light and dark themes
+- Add, edit, and delete actions for transactions
+- Search and filters with a Swing `JTable` transaction view
+- Budgets, recurring entries, reports, goals, loans, and debts
+- Local owner setup and sign-in with BCrypt password hashing
+- Separate local finance records for each user
+- Combined transaction CSV export plus dedicated finance exports
+- Local backup, restore, and CSV import tools
+- Light and dark themes, currency selection, and category settings
+- Local CSV persistence across application restarts
 
-## OOP Concepts
+## Object-Oriented Programming
 
-- **Abstraction:** `Transaction` holds the state and behavior shared by money
-  entering or leaving an account.
+- **Abstraction:** the abstract `Transaction` class defines shared transaction
+  state and behavior.
 - **Inheritance:** `Income` and `Expense` extend `Transaction`.
-- **Polymorphism:** both classes override `calculateImpact()`, which is used by
-  balance and dashboard calculations.
-- **Encapsulation:** model fields are private and are changed only through
-  validated constructors or controlled methods.
-- **Interface:** `ExportService` implements `Exportable` and its
-  `generateCSV()` method powers the transaction export.
+- **Polymorphism:** each transaction type overrides `calculateImpact()`, and
+  finance totals call it through `Transaction` references.
+- **Encapsulation:** financial fields are private and are accessed or changed
+  through validated class methods.
+- **Interface:** `ExportService` implements `Exportable.generateCSV()` for the
+  transaction export available from the GUI.
+- **Swing GUI:** typed table models, event listeners, dialogs, and `JTable`
+  provide the desktop interface.
 
-See [docs/OOP_MAPPING.md](docs/OOP_MAPPING.md) for the code mapping used in the
-project demonstration.
+See [docs/OOP_MAPPING.md](docs/OOP_MAPPING.md) for the implementation map and
+viva quick reference.
 
-## Technology
+## Technologies
 
 - Java 25
 - Java Swing
-- FlatLaf
-- Apache Ant and NetBeans project files
-- Local CSV persistence
+- Apache Ant with Apache NetBeans project files
+- FlatLaf 3.7.2
+- Local CSV file persistence
 
-## Build
+## Requirements
 
-```powershell
-ant clean jar
-```
+To run the prebuilt teacher release:
 
-If Ant is not on `PATH`, open the project in Apache NetBeans and use Clean and
-Build.
+- Java 25
+- The release `lib` directory beside `Wealthora.jar`
 
-## Run
+To build from source:
+
+- Java 25
+- Apache Ant
+
+The offline demo does not require a server, external database, internet
+connection, Docker, environment variables, or a cloud account.
+
+## Run Wealthora
+
+From the repository root after building, or from the prepared submission
+folder:
 
 ```powershell
 java -jar .\dist\Wealthora.jar
 ```
 
-Windows users can also run:
+Windows users can also run the checked launcher:
 
 ```powershell
 .\scripts\Run-Wealthora.ps1
 ```
 
+For a fresh GitHub download, use the **Complete offline bundle** from the
+latest release, extract it, and run:
+
+```powershell
+java -jar .\Wealthora.jar
+```
+
 On the first launch, create the local owner account with an NSU email address.
-The password must be 8–128 characters and contain at least one English letter
-and one number. No server or environment configuration is required.
+Passwords must contain 8–128 characters with at least one English letter and
+one number.
+
+## Build and Test
+
+Build the desktop JAR:
+
+```powershell
+ant clean jar
+```
+
+Run the complete desktop quality suite:
+
+```powershell
+ant clean test-quality jar
+```
+
+The application is created at `dist\Wealthora.jar`; its required libraries are
+copied to `dist\lib`. Apache NetBeans users can also use **Clean and Build**.
 
 ## Project Structure
 
 ```text
-src/        Application source code
-test/       Local desktop tests
+src/        Desktop application source code
+test/       Desktop test programs
 lib/        Desktop libraries and license notices
 nbproject/  NetBeans and Ant project metadata
-docs/       OOP mapping and demonstration notes
-scripts/    Desktop launcher and future development helpers
-server/     Experimental server module; not required by the desktop build
+docs/       OOP mapping, architecture, and demonstration notes
+scripts/    Desktop launcher and development utilities
+server/     Experimental future server work; not used by the offline demo
 ```
 
 ## Documentation
 
-- [OOP concept mapping](docs/OOP_MAPPING.md)
+- [OOP concept mapping and viva reference](docs/OOP_MAPPING.md)
 - [Teacher demo guide](docs/DEMO_GUIDE.md)
 
-## Future Work
+## Future Scope
 
-Cloud synchronization, the Spring Boot deployment, Google Sign-In, online
-backup, voice recognition, and a web application are intentionally deferred.
-They are not required to build or run the offline desktop release.
+Cloud synchronization, Google Sign-In, online backup, voice recognition, the
+experimental server, and a web client are outside the current CSE215 desktop
+release. None of them is needed for the teacher demo.

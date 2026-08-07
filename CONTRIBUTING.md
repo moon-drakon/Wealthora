@@ -2,48 +2,39 @@
 
 ## Before changing code
 
-Use JDK 25. Keep the desktop compatible with Apache Ant and Apache NetBeans,
-and use the Maven Wrapper for the Spring Boot server. Do not add dependencies,
-licenses, generated binaries, or a web application without agreement from the
-maintainers.
+Use Java 25 and keep the desktop application compatible with Apache Ant and
+Apache NetBeans. Wealthora uses a programmatic Swing interface, so changes
+should follow the existing package structure and visual style.
 
-Create focused branches and commits. Preserve existing local finance data and
-use temporary storage for tests and runtime checks.
+Create focused branches and commits. Preserve local finance data and use
+temporary, isolated directories for tests or manual verification.
 
 ## Development standards
 
 - Keep Java code readable and explainable in a student viva.
-- Preserve the existing package structure; do not use the default package.
-- Prefer small classes and direct object-oriented design over extra layers.
-- Keep user-facing language consistent and error messages safe.
-- Add Flyway migrations as new forward-only files. Never edit an applied
-  migration or enable destructive schema recreation.
-- Never commit secrets, `.env` files, private test reports, databases, backups,
-  audio, or generated `build`, `dist`, or `target` output.
+- Use direct object-oriented design without unnecessary layers.
+- Keep model fields encapsulated and validate data before changing state.
+- Keep user-facing language consistent and error messages clear.
+- Do not add dependencies, generated binaries, or unrelated features without
+  agreement from the maintainers.
+- Never commit secrets, `.env` files, private reports, databases, backups,
+  audio, logs, or generated `build` and `dist` output.
 
 ## Required checks
 
-From the repository root:
+From the repository root, run:
 
 ```text
-ant test-auth
-ant clean jar
+ant clean test-quality jar
+git diff --check
 ```
 
-From `server/`:
-
-```text
-./mvnw test
-./mvnw package
-```
-
-On Windows, use `mvnw.cmd`. Run `git diff --check` and review the complete diff
-before committing. Live PostgreSQL checks must use an empty isolated database;
-never point verification at an existing finance database.
+Review the complete diff before committing. Confirm that
+`dist\Wealthora.jar` was produced and that documentation still matches the
+implemented desktop behavior.
 
 ## Pull requests
 
-Describe the behavior changed, tests run, migration and security impact, and
-any remaining limitation. Include screenshots only for real UI changes and
-remove private data from them. The pull request template provides the expected
-checklist.
+Describe the result, tests run, storage or compatibility impact, and any
+remaining limitation. Include screenshots only for real UI changes and remove
+private data from them.

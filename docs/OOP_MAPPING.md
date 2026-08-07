@@ -27,3 +27,40 @@
 5. Close and reopen the application to demonstrate local persistence. Briefly
    show `Exportable` and one CSV repository to connect the GUI behavior to the
    interface, collections, exception handling, and file storage.
+
+## Viva Quick Reference
+
+**Where is abstraction used?**
+
+`Transaction` is abstract and contains the fields and behavior shared by
+income and expense records.
+
+**Where is inheritance used?**
+
+`Income` and `Expense` both extend `Transaction` and reuse its common state.
+
+**How does polymorphism work?**
+
+Each subclass overrides `calculateImpact()`. Balance, dashboard, and reporting
+code calls that method through `Transaction` references, producing a positive
+income impact or a negative expense impact.
+
+**How is encapsulation used?**
+
+Financial fields are private. Constructors, validators, getters, and controlled
+update methods protect the model from invalid state.
+
+**Which interface is used?**
+
+`ExportService` implements `Exportable`; its `generateCSV()` result is written
+by the **Data → Export → Transactions** action.
+
+**Why is `JTable` used?**
+
+It gives the transaction screen a structured, sortable view backed by a typed
+table model and supports row selection for editing and deletion.
+
+**How is data persisted?**
+
+Per-user CSV repositories save records below the local application-data
+directory. They reload those records when the same user signs in again.
