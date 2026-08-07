@@ -25,6 +25,12 @@ wealthora:
     email-verification-required: ${EMAIL_VERIFICATION_REQUIRED:false}
 
 management:
+  health:
+    # SMTP is optional for the shared-online core. A missing or unavailable
+    # mail provider must not make the database-backed API fail its platform
+    # health check. Operators can opt in after configuring SMTP completely.
+    mail:
+      enabled: ${SMTP_HEALTH_ENABLED:false}
   endpoint:
     health:
       probes:

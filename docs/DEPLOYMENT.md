@@ -18,7 +18,10 @@ That profile:
 - uses graceful shutdown with a bounded shutdown phase.
 
 SMTP and Google OAuth are not configured for this milestone. Production
-registration activates USER accounts without sending mail.
+registration activates USER accounts without sending mail. Because SMTP is an
+optional integration, its Actuator health indicator is disabled by default in
+production; set `SMTP_HEALTH_ENABLED=true` only after SMTP is fully configured
+if mail-provider availability should affect service health.
 
 ## Database
 

@@ -72,7 +72,9 @@ On every new instance:
 5. The one-time OWNER bootstrap preserves any existing account and creates an
    OWNER only when the configured email is new. Existing-account recovery is an
    explicit one-time claim, never an automatic startup promotion.
-6. The health endpoint returns success before Render sends traffic.
+6. The health endpoint returns success before Render sends traffic. Optional
+   SMTP does not participate in production health unless
+   `SMTP_HEALTH_ENABLED=true` is explicitly configured.
 
 If database access, migration validation, or schema validation fails, the
 instance must fail startup. Fix the configuration or add a new forward-only
