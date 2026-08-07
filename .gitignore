@@ -1,6 +1,7 @@
 # Local environment and credentials
 .env
 .env.*
+wealthora.local.env
 !.env.example
 !**/.env.example
 **/credentials.json
@@ -58,6 +59,8 @@
 # Generated runtime storage
 /runtime-storage/
 /data/
+/auth/
+/backups/
 /storage/
 /server/dev-mail/
 /server/data/
@@ -85,6 +88,8 @@ Desktop.ini
 $RECYCLE.BIN/
 *.tmp
 *.temp
+*.log
+*.zip
 hs_err_pid*.log
 replay_pid*.log
 *.swp

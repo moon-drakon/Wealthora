@@ -35,8 +35,20 @@ jobs:
           fi
           ant -version
 
-      - name: Run desktop authentication tests
-        run: ant test-auth
+      - name: Check repository hygiene
+        shell: bash
+        run: |
+          set -euo pipefail
+          blocked="$(git ls-files | grep -E '(^|/)(build|dist|target|node_modules|\.next)/|(^|/)\.env$|service[-_]?account[^/]*\.json$|credentials[^/]*\.json$' || true)"
+          if [[ -n "$blocked" ]]; then
+            echo "Tracked private or generated files:"
+            printf '%s\n' "$blocked"
+            exit 1
+          fi
+          git diff --check
+
+      - name: Run local desktop tests
+        run: ant test-quality
 
       - name: Package desktop application
         run: ant clean jar
