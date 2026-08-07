@@ -32,11 +32,12 @@ public final class ForgotPasswordPanel extends AuthFormPanel {
     public ForgotPasswordPanel(
             AuthService authService, AuthNavigator navigator) {
         super("Forgot Password",
-                authService instanceof LocalAccountService
+                usesLocalRecovery(authService)
                         ? "Recover a local account with its protected answer, or ask an administrator for help."
                         : "Request a password-reset message for a verified NSU password account.");
         this.authService = Objects.requireNonNull(authService);
-        this.localAccountService = authService instanceof LocalAccountService local
+        this.localAccountService = usesLocalRecovery(authService)
+                && authService instanceof LocalAccountService local
                 ? local : null;
         AuthNavigator requiredNavigator = Objects.requireNonNull(navigator);
         addWide(policyLabel());
@@ -71,6 +72,11 @@ public final class ForgotPasswordPanel extends AuthFormPanel {
         }
         addWide(buttonRow(secondary(
                 "Back to Sign In", requiredNavigator::showSignIn)));
+    }
+
+    private static boolean usesLocalRecovery(AuthService authService) {
+        return authService instanceof LocalAccountService
+                && !authService.isSharedOnlineMode();
     }
 
     private void requestReset() {

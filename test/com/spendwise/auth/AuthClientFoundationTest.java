@@ -239,6 +239,13 @@ public final class AuthClientFoundationTest {
                 assertContains(sharedSignInText, "Shared Online Sign In");
                 assertContains(sharedSignInText, "Create Account");
                 assertContains(sharedSignInText, "Forgot Password?");
+
+                JPanel sharedRecovery = new ForgotPasswordPanel(
+                        sharedOnlineService(), navigator);
+                List<String> sharedRecoveryText = componentText(sharedRecovery);
+                assertContains(sharedRecoveryText, "Request Reset");
+                assertContains(sharedRecoveryText, "Enter Reset Token");
+                assertFalse(sharedRecoveryText.contains("Recovery Answer"));
             } catch (Throwable exception) {
                 failure.set(exception);
             }
@@ -308,38 +315,52 @@ public final class AuthClientFoundationTest {
     }
 
     private static AuthService sharedOnlineService() {
-        return new AuthService() {
-            @Override public boolean isSharedOnlineMode() { return true; }
-            @Override public UserSession signInWithNsuEmail(
-                    String email, char[] password) { throw unsupported(); }
-            @Override public UserSession continueWithGoogle() {
-                throw unsupported();
-            }
-            @Override public AuthenticatedUser registerWithNsuEmail(
-                    String fullName, String email, char[] password) {
-                throw unsupported();
-            }
-            @Override public AuthenticatedUser verifyNsuEmail(
-                    String email, String verificationCode) { throw unsupported(); }
-            @Override public void resendVerification(String email) {
-                throw unsupported();
-            }
-            @Override public void forgotPassword(String email) {
-                throw unsupported();
-            }
-            @Override public void resetPassword(
-                    String email, String token, char[] password) {
-                throw unsupported();
-            }
-            @Override public UserSession refreshSession() { throw unsupported(); }
-            @Override public void logout() { }
-            @Override public AuthenticatedUser getCurrentUser() {
-                throw unsupported();
-            }
-            private UnsupportedOperationException unsupported() {
-                return new UnsupportedOperationException("UI-only test service");
-            }
-        };
+        return new SharedOnlineLocalService();
+    }
+
+    private static final class SharedOnlineLocalService
+            implements AuthService, LocalAccountService {
+
+        @Override public boolean isSharedOnlineMode() { return true; }
+        @Override public UserSession signInWithNsuEmail(
+                String email, char[] password) { throw unsupported(); }
+        @Override public UserSession continueWithGoogle() { throw unsupported(); }
+        @Override public AuthenticatedUser registerWithNsuEmail(
+                String fullName, String email, char[] password) {
+            throw unsupported();
+        }
+        @Override public AuthenticatedUser verifyNsuEmail(
+                String email, String verificationCode) { throw unsupported(); }
+        @Override public void resendVerification(String email) { throw unsupported(); }
+        @Override public void forgotPassword(String email) { throw unsupported(); }
+        @Override public void resetPassword(
+                String email, String token, char[] password) { throw unsupported(); }
+        @Override public UserSession refreshSession() { throw unsupported(); }
+        @Override public void logout() { }
+        @Override public AuthenticatedUser getCurrentUser() { throw unsupported(); }
+        @Override public AuthenticatedUser registerLocalAccount(
+                String fullName, String email, String studentIdentifier,
+                char[] password, char[] passwordConfirmation,
+                String recoveryQuestion, String recoveryHint,
+                char[] recoveryAnswer) { throw unsupported(); }
+        @Override public PasswordRecoveryChallenge getPasswordRecoveryChallenge(
+                String email) { throw unsupported(); }
+        @Override public void resetPasswordWithRecovery(
+                String email, char[] recoveryAnswer, char[] newPassword,
+                char[] passwordConfirmation) { throw unsupported(); }
+        @Override public boolean hasPasswordRecovery(UserSession session) {
+            throw unsupported();
+        }
+        @Override public void updatePasswordRecovery(
+                UserSession session, char[] currentPassword,
+                String recoveryQuestion, String recoveryHint,
+                char[] recoveryAnswer, char[] recoveryAnswerConfirmation) {
+            throw unsupported();
+        }
+
+        private UnsupportedOperationException unsupported() {
+            return new UnsupportedOperationException("UI-only test service");
+        }
     }
 
     private static AuthenticatedUser localUser(
