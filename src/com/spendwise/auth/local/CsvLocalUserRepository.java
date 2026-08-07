@@ -19,12 +19,19 @@ import java.util.Set;
 
 public final class CsvLocalUserRepository implements LocalUserRepository {
 
-    private static final List<String> HEADER = List.of(
+    private static final List<String> LEGACY_HEADER = List.of(
             "user_id", "full_name", "email", "email_verified",
             "auth_provider", "google_subject_id", "password_hash", "roles",
             "account_status", "created_at", "updated_at", "last_login_at",
             "student_id", "preferred_theme", "preferred_currency",
             "failed_login_attempts", "locked_until");
+    private static final List<String> HEADER = List.of(
+            "user_id", "full_name", "email", "email_verified",
+            "auth_provider", "google_subject_id", "password_hash", "roles",
+            "account_status", "created_at", "updated_at", "last_login_at",
+            "student_id", "preferred_theme", "preferred_currency",
+            "failed_login_attempts", "locked_until", "recovery_question",
+            "recovery_hint", "recovery_answer_hash");
 
     private final Path csvPath;
 
@@ -88,21 +95,36 @@ public final class CsvLocalUserRepository implements LocalUserRepository {
     private List<LocalUserRecord> readAll() {
         Optional<String> content = CsvFileSupport.read(csvPath, "local users");
         if (content.isEmpty()) return List.of();
-        List<List<String>> rows = CsvFileSupport.parse(
-                content.get(), HEADER, "local users");
+        List<List<String>> rows;
+        boolean legacy;
+        try {
+            rows = CsvFileSupport.parse(content.get(), HEADER, "local users");
+            legacy = false;
+        } catch (RuntimeException currentFormatFailure) {
+            try {
+                rows = CsvFileSupport.parse(
+                        content.get(), LEGACY_HEADER, "local users");
+                legacy = true;
+            } catch (RuntimeException legacyFormatFailure) {
+                currentFormatFailure.addSuppressed(legacyFormatFailure);
+                throw currentFormatFailure;
+            }
+        }
         List<LocalUserRecord> records = new ArrayList<>();
         for (int index = 1; index < rows.size(); index++) {
             List<String> fields = rows.get(index);
-            if (fields.size() != HEADER.size()) {
+            int expectedFields = legacy ? LEGACY_HEADER.size() : HEADER.size();
+            if (fields.size() != expectedFields) {
                 throw new AuthException(
                         "Local-user record has an unsupported field count.");
             }
-            records.add(parse(fields));
+            records.add(parse(fields, legacy));
         }
         return List.copyOf(records);
     }
 
-    private static LocalUserRecord parse(List<String> fields) {
+    private static LocalUserRecord parse(
+            List<String> fields, boolean legacy) {
         try {
             AuthenticatedUser user = new AuthenticatedUser(
                     fields.get(0), fields.get(1), fields.get(2),
@@ -114,7 +136,10 @@ public final class CsvLocalUserRepository implements LocalUserRepository {
                     fields.get(12), fields.get(13), fields.get(14));
             return new LocalUserRecord(user, fields.get(6),
                     Integer.parseInt(fields.get(15)),
-                    optionalInstant(fields.get(16)));
+                    optionalInstant(fields.get(16)),
+                    legacy ? "" : fields.get(17),
+                    legacy ? "" : fields.get(18),
+                    legacy ? "" : fields.get(19));
         } catch (RuntimeException exception) {
             throw new AuthException("Local-user data is invalid.", exception);
         }
@@ -135,7 +160,9 @@ public final class CsvLocalUserRepository implements LocalUserRepository {
                     user.getStudentIdentifier(), user.getPreferredTheme(),
                     user.getPreferredCurrency(),
                     Integer.toString(record.failedLoginAttempts()),
-                    instantText(record.lockedUntil()));
+                    instantText(record.lockedUntil()),
+                    record.recoveryQuestion(), record.recoveryHint(),
+                    record.recoveryAnswerHash());
         }
         CsvFileSupport.write(csvPath, ".wealthora-users-", csv.toString(),
                 "local users");

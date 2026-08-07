@@ -9,6 +9,7 @@ import com.spendwise.auth.AuthenticatedUser;
 import com.spendwise.auth.AuthorizationService;
 import com.spendwise.auth.OwnerConfiguration;
 import com.spendwise.auth.PasswordService;
+import com.spendwise.auth.PasswordRecoveryChallenge;
 import com.spendwise.auth.SessionManager;
 import com.spendwise.auth.UserRole;
 import com.spendwise.auth.UserSession;
@@ -162,6 +163,27 @@ public final class LocalAuthenticationTest {
             assertTrue(persisted.contains("$2"));
             assertFalse(persisted.contains(new String(OWNER_PASSWORD)));
         });
+        test("legacy local-user CSV remains readable and upgrades on save", () -> {
+            Path legacyUsersPath = auth.resolve("legacy-users.csv");
+            List<String> currentLines = Files.readAllLines(
+                    auth.resolve("users.csv"), StandardCharsets.UTF_8);
+            String legacyCsv = currentLines.stream().map(line -> {
+                String[] fields = line.split(",", -1);
+                return String.join(",", Arrays.copyOf(fields, 17));
+            }).collect(java.util.stream.Collectors.joining("\n", "", "\n"));
+            Files.writeString(legacyUsersPath, legacyCsv,
+                    StandardCharsets.UTF_8);
+            CsvLocalUserRepository legacyUsers =
+                    new CsvLocalUserRepository(legacyUsersPath);
+            LocalUserRecord legacyOwner = legacyUsers.findOwner().orElseThrow();
+            assertFalse(legacyOwner.hasPasswordRecovery());
+            legacyUsers.save(legacyOwner);
+            String upgraded = Files.readString(
+                    legacyUsersPath, StandardCharsets.UTF_8);
+            assertTrue(upgraded.startsWith(
+                    "user_id,full_name,email,email_verified"));
+            assertTrue(upgraded.contains("recovery_answer_hash"));
+        });
         test("legacy finance data is copied byte-for-byte", () -> {
             assertEquals(expenseHash,
                     sha256(Files.readAllBytes(
@@ -241,13 +263,58 @@ public final class LocalAuthenticationTest {
             assertEquals(ownerId, signedIn.getUserIdentifier());
         });
 
+        AuthenticatedUser[] recoveryUser = new AuthenticatedUser[1];
+        char[] recoveryOriginal = "RecoveryUser1!".toCharArray();
+        char[] recoveryChanged = "RecoveryUser2!".toCharArray();
+        char[] recoveryAnswer = "Blue Bicycle".toCharArray();
+        test("new local user registers with a private workspace", () -> {
+            recoveryUser[0] = service.registerLocalAccount(
+                    "Recovery User", "recovery@northsouth.edu", "2530000004",
+                    recoveryOriginal, recoveryOriginal,
+                    "What was the name of your first school?",
+                    "Two words; remember the color and object",
+                    recoveryAnswer);
+            assertTrue(recoveryUser[0].getAccountStatus()
+                    == AccountStatus.ACTIVE);
+            assertTrue(Files.isDirectory(workspaces.resolve(
+                    recoveryUser[0].getUserIdentifier())));
+            String persisted = Files.readString(
+                    auth.resolve("users.csv"), StandardCharsets.UTF_8);
+            assertFalse(persisted.contains("Blue Bicycle"));
+        });
+        test("recovery challenge exposes only question and hint", () -> {
+            PasswordRecoveryChallenge challenge =
+                    service.getPasswordRecoveryChallenge(
+                            recoveryUser[0].getEmail());
+            assertTrue(challenge.question().contains("first school"));
+            assertTrue(challenge.hint().contains("Two words"));
+            assertFalse(challenge.hint().contains("Blue Bicycle"));
+        });
+        test("protected recovery answer resets the local password", () -> {
+            expect(AuthException.class, () ->
+                    service.resetPasswordWithRecovery(
+                            recoveryUser[0].getEmail(),
+                            "Wrong Answer".toCharArray(), recoveryChanged,
+                            recoveryChanged));
+            service.resetPasswordWithRecovery(
+                    recoveryUser[0].getEmail(), recoveryAnswer,
+                    recoveryChanged, recoveryChanged);
+            expect(AuthException.class, () -> service.signInWithNsuEmail(
+                    recoveryUser[0].getEmail(), recoveryOriginal));
+            assertEquals(recoveryUser[0].getUserIdentifier(),
+                    service.signInWithNsuEmail(
+                            recoveryUser[0].getEmail(), recoveryChanged)
+                            .getUserIdentifier());
+        });
+
         AuthenticatedUser normalUser = new AuthenticatedUser(
                 "usr_normal_1", "Normal User", "normal@northsouth.edu",
                 true, AuthProvider.LOCAL, "", AccountStatus.ACTIVE,
                 NOW, NOW, null, Set.of(UserRole.USER), "normal", "System",
                 "BDT");
+        char[] normalPassword = "NormalUser1!Password".toCharArray();
         users.save(new LocalUserRecord(normalUser,
-                passwords.hash("NormalUser1!Password".toCharArray()), 0, null));
+                passwords.hash(normalPassword), 0, null));
         AdminService admin = new AdminService(users, audit, service);
         UserSession normalSession = new UserSession(normalUser, NOW);
 
@@ -285,6 +352,19 @@ public final class LocalAuthenticationTest {
                     "Support duty ended");
             assertFalse(demoted.hasRole(UserRole.ADMIN));
         });
+        char[] administratorResetPassword =
+                "TemporaryUser3!".toCharArray();
+        test("OWNER can reset a requested local user password", () -> {
+            admin.resetUserPassword(signedIn,
+                    normalUser.getUserIdentifier(), OWNER_PASSWORD,
+                    administratorResetPassword, administratorResetPassword,
+                    "User requested password assistance");
+            expect(AuthException.class, () -> service.signInWithNsuEmail(
+                    normalUser.getEmail(), normalPassword));
+            assertEquals(normalUser.getUserIdentifier(),
+                    service.signInWithNsuEmail(normalUser.getEmail(),
+                            administratorResetPassword).getUserIdentifier());
+        });
         test("local session can be listed and revoked", () -> {
             sessions.startSession(normalSession);
             List<AccountSession> activeSessions = service.listSessions();
@@ -295,7 +375,7 @@ public final class LocalAuthenticationTest {
             assertTrue(users.findOwner().isPresent());
         });
         test("local password change revokes session and preserves owner", () -> {
-            char[] oldPassword = "NormalUser1!Password".toCharArray();
+            char[] oldPassword = administratorResetPassword.clone();
             char[] newPassword = "ChangedNormal2!Password".toCharArray();
             UserSession current = service.signInWithNsuEmail(
                     normalUser.getEmail(), oldPassword);
@@ -367,6 +447,11 @@ public final class LocalAuthenticationTest {
                     event.action().name().equals("LEGACY_DATA_ASSIGNED")));
         });
         Arrays.fill(OWNER_PASSWORD, '\0');
+        Arrays.fill(recoveryOriginal, '\0');
+        Arrays.fill(recoveryChanged, '\0');
+        Arrays.fill(recoveryAnswer, '\0');
+        Arrays.fill(normalPassword, '\0');
+        Arrays.fill(administratorResetPassword, '\0');
     }
 
     private static String sha256(byte[] content) throws Exception {

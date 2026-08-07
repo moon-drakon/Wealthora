@@ -1,57 +1,35 @@
 # Wealthora Authentication Integration
 
-Wealthora remains local-first. Settings opens a complete authentication preview,
-but local development does not require login and the preview never unlocks data.
-`UnconfiguredAuthApiClient` and `UnconfiguredGoogleAuthService` reject every
-operation with a backend-configuration message.
+## Current desktop release
 
-## Two distinct policies
+Wealthora is local-first and offline. `AuthFrame` exposes local sign-in,
+registration, first-run OWNER setup, and recovery. `LocalDesktopAuthService`
+coordinates the CSV user repository, password and recovery hashing, per-user
+workspace selection, lockout, sessions, and audit records.
 
-`Continue with Google` is one create-or-sign-in flow for any verified Google
-account, including Gmail, `@northsouth.edu`, and other Google Workspace domains.
-The future backend must verify issuer, audience, signature, expiry, and verified
-email, then identify the account by Google's subject ID rather than email alone.
+Password accounts require an exact `@northsouth.edu` address. Because the
+desktop has no trusted email server, a locally created account is marked active
+without claiming that an email message was verified. Its scope is this Windows
+user profile and this computer.
 
-Password registration, sign-in, email verification, forgot-password, and reset
-are restricted to the exact `northsouth.edu` domain on both client and backend.
-Password sign-in is unavailable until the NSU email is verified.
+The important boundaries are:
 
-## Desktop boundaries
+- `AuthService` provides sign-in and authenticated account operations.
+- `LocalAccountService` provides offline registration and protected-answer
+  recovery.
+- `OwnerSetupService` protects the one-time primary OWNER bootstrap.
+- `SessionManager` keeps the current desktop session in memory.
+- `AdminService` enforces OWNER/ADMIN authorization and audit reasons.
+- `CsvLocalUserRepository` atomically persists hashes, roles, status, lockout,
+  and recovery metadata while reading the previous schema safely.
 
-- `GoogleAuthService` owns the future system-browser authorization flow.
-- `AuthApiClient` represents `/api/auth` transport calls.
-- `BackendAuthService` applies client-side validation and clears temporary
-  password and Google authorization-code copies after each synchronous call.
-- `AuthenticatedUser` models provider, status, verified email, and the stable
-  Google subject ID. `UserSession` can only wrap an active verified account.
-- `SessionManager` holds an authenticated session in memory only.
-- `AuthFrame` provides sign-in, registration, verification, recovery, reset,
-  and verified-profile screens. A valid backend session is required to reach
-  the profile screen.
+Neither plaintext passwords nor recovery answers are written to CSV or audit
+logs. Finance data remains separated by the stable local user identifier.
 
-The future backend endpoints are:
+## Experimental online code
 
-```text
-POST /api/auth/google
-POST /api/auth/register
-POST /api/auth/login
-POST /api/auth/verify-email
-POST /api/auth/resend-verification
-POST /api/auth/forgot-password
-POST /api/auth/reset-password
-POST /api/auth/refresh
-POST /api/auth/logout
-GET  /api/auth/me
-```
-
-For safe linking, a verified Google identity whose verified email exactly
-matches an existing verified NSU password account may become
-`LOCAL_AND_GOOGLE` only after backend-controlled linking records the Google
-subject ID. The client never merges accounts. Unverified or unrelated providers
-must not be linked, and a non-NSU Google email can never become a password
-account.
-
-The Google implementation must use the system browser with PKCE and a loopback
-redirect or backend-approved device flow. OAuth client secrets, Google
-passwords, plaintext passwords, and unprotected refresh tokens must never be
-stored in the desktop repository or logged.
+`BackendAuthService`, HTTP gateways, Google OAuth boundaries, and the
+Spring Boot `server/` module remain future-scope experiments. The released app
+does not construct a configured gateway, display cloud sign-in controls, or
+contact a server. Online account linking, email verification, and cloud finance
+must not be presented as current release features.

@@ -127,6 +127,9 @@ public final class SettingsPanel extends JPanel {
         cards.add(categoriesCard());
         cards.add(dataCard());
         cards.add(privacyCard());
+        if (!(speechProvider instanceof UnconfiguredSpeechRecognitionProvider)) {
+            cards.add(voiceEntryCard());
+        }
         cards.add(aboutCard());
         content.add(cards, BorderLayout.CENTER);
 

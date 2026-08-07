@@ -174,7 +174,7 @@ public final class VoiceQuickEntryDialog extends JDialog {
     private void stopListening() {
         captureService.stop();
         listeningPanel.showStatus(
-                "Processing recording", "Sending the captured audio securely...");
+                "Processing recording", "Recognizing speech locally on Windows...");
     }
 
     private void showManualEntry() {

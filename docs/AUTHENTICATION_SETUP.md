@@ -1,11 +1,15 @@
 # Wealthora authentication setup
 
-Wealthora keeps the Java 25 Swing/Ant desktop build separate from the Spring
-Boot server in `server/`. Existing OWNER login and local finance data continue
-to work when the server is offline. Online registration and password login are enabled only when
-the desktop process has `WEALTHORA_SERVER_URL` configured.
+The released Java 25 Swing application uses local authentication only. It
+supports first-run OWNER setup, local user registration, protected recovery
+answers, administrator-assisted reset, BCrypt password hashing, lockout, audit
+events, and one isolated CSV finance workspace per user. It needs no server,
+email service, environment variable, database, or internet connection.
 
-## Server requirements
+The Spring Boot module in `server/` is experimental future work. It is not
+started or contacted by the current desktop release.
+
+## Experimental server requirements
 
 - JDK 25
 - PostgreSQL with an empty Wealthora database and a restricted application user
@@ -80,66 +84,36 @@ $env:WEALTHORA_DEV_MAIL_DIR = Join-Path $env:TEMP 'wealthora-dev-mail'
 PostgreSQL and `TOKEN_PEPPER` are still required in this profile. Automated
 tests use isolated H2 storage and a temporary mail directory.
 
-## Desktop registration and login
+## Released desktop authentication
 
-Start the server first, then use a new PowerShell window:
+Run the desktop normally:
 
 ```powershell
-$env:APP_OWNER_EMAIL = 'owner@northsouth.edu'
-$env:WEALTHORA_SERVER_URL = 'http://localhost:8080'
 java -jar '.\dist\Wealthora.jar'
 ```
 
-HTTP is accepted only for loopback development. A non-loopback server URL must
-use HTTPS. Create Account produces a pending user, delivers a six-digit
-one-time code, verifies the email, and activates the user under the default
-policy. Optional administrator approval can instead leave the user in
-`PENDING_APPROVAL`. Registration never starts a session before activation.
+1. On first launch, create the primary OWNER with an exact
+   `@northsouth.edu` email, strong password, recovery question, safe hint, and
+   recovery answer.
+2. Later users choose **Create Account** and receive the `USER` role plus an
+   isolated local finance directory. No email verification is claimed because
+   this is an offline desktop project.
+3. **Forgot Password?** shows only the stored question and non-secret hint.
+   The answer is normalized and checked against a BCrypt-protected hash; it is
+   never displayed or stored in plaintext.
+4. Five failed sign-in or recovery attempts cause a 15-minute local lockout.
+5. An OWNER or ADMIN can reset a normal user's password from **Admin Console →
+   Users** after confirming the administrator's own password and recording an
+   audit reason. Only the OWNER can reset another ADMIN; the OWNER account must
+   use its own recovery answer or Security settings.
 
-An `ACTIVE`, verified online account can sign in from the same screen. Use
-**Sign In to CLOUD** for the server account and **Sign In to LOCAL** only when
-intentionally opening the CSV-backed local workspace. These explicit actions
-also handle an address that exists in both places without silently mixing
-authentication modes. The
-desktop keeps its access and refresh tokens only in process memory, sends them
-only to the configured HTTPS/loopback server, rotates them through the refresh
-endpoint, and revokes the server session on Sign Out or Switch Account. It does
-not persist a bearer token for Remember Me yet. Local OWNER sign-in remains the
-offline fallback through the explicit LOCAL action.
+Passwords and recovery answers use BCrypt cost 12 over a SHA-256 pre-hash.
+Existing 17-column local-user CSV files remain readable and are upgraded to the
+recovery-aware schema on the next account save.
 
-To require approval after verification, set
-`REGISTRATION_REQUIRES_ADMIN_APPROVAL=true` before starting the server or use
-the OWNER-protected Application Settings control. The normal student-project
-flow keeps this disabled.
+## Experimental online boundary
 
-Password recovery and authenticated password/session management use the same
-configured server connection. Forgot-password responses are generic, reset
-tokens are single-use HMAC-hashed values, and successful password changes
-revoke every active session. The signed-in offline OWNER can also change the
-local BCrypt password; email recovery applies only to online accounts.
-
-Google Sign-In uses the server callback
-`GET /api/auth/google/callback` and remains honestly unavailable until the
-server-only OAuth variables are configured; no success is simulated.
-Register these exact authorized redirect URIs on the server-side Google OAuth
-web client:
-
-- local: `http://127.0.0.1:8080/api/auth/google/callback`
-- production: `https://wealthora-api.onrender.com/api/auth/google/callback`
-
-The local server must run on port `8080` for the registered development URI.
-The production URI is the release contract for the planned Render service name
-`wealthora-api`; if Render cannot assign that exact origin, update the Google
-client, Render environment, and this document together before deployment.
-Never put the Google client secret in the desktop environment or JAR.
-
-In Google Cloud Console, open **APIs & Services → Credentials**, select the
-OAuth 2.0 client of type **Web application** whose client ID matches the
-server-only `GOOGLE_OAUTH_CLIENT_ID`, preserve all existing redirect entries,
-add the exact URIs above, and save. A Google `redirect_uri_mismatch` response
-means the requested callback is not registered exactly; do not work around it
-with a different loopback host, port, path, or simulated success.
-Production email delivery similarly remains unavailable until `SMTP_HOST`,
-`SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`, and
-`SMTP_FROM_NAME` are supplied. The desktop reports these provider states
-separately from basic server connectivity.
+The unused server module retains endpoints, migrations, OAuth, mail, and token
+experiments for future study. They are not part of the offline JAR or teacher
+demo, and setting `WEALTHORA_SERVER_URL` does not activate them in this release.
+Never place OAuth, SMTP, database, or token secrets in the desktop JAR.

@@ -2,6 +2,7 @@ package com.spendwise.auth.ui;
 
 import com.spendwise.auth.AuthService;
 import com.spendwise.auth.FinanceMode;
+import com.spendwise.auth.LocalAccountService;
 import com.spendwise.auth.SessionManager;
 import com.spendwise.auth.UserSession;
 import com.spendwise.ui.component.StyledTextField;
@@ -34,7 +35,14 @@ public final class SignInPanel extends AuthFormPanel {
         addField("NSU Email", email);
         addField("Password", password);
         signInButton = primary("Sign In", this::signIn);
-        addWide(buttonRow(signInButton));
+        if (authService instanceof LocalAccountService) {
+            addWide(buttonRow(signInButton,
+                    secondary("Create Account", navigator::showSignUp),
+                    secondary("Forgot Password?",
+                            navigator::showForgotPassword)));
+        } else {
+            addWide(buttonRow(signInButton));
+        }
         addWide(policyLabel());
     }
 

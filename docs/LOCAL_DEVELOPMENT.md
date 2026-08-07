@@ -4,9 +4,11 @@
 
 - JDK 25
 - Apache Ant for the desktop build
-- PostgreSQL for a real server run
-- Google Cloud CLI only for live Speech-to-Text verification
-- Docker only when testing the deployment image
+- Windows with an installed speech language for offline voice recognition
+
+PostgreSQL and Docker are needed only when separately studying the
+experimental server module. Google Cloud CLI is not needed by the released
+desktop application.
 
 The Maven Wrapper is committed under `server/`; a separate Maven installation
 is not required. Confirm the active tools before building:
@@ -22,20 +24,24 @@ ant -version
 From the repository root:
 
 ```text
-ant clean jar test-voice
+ant clean test-quality jar
 java -jar dist/Wealthora.jar
 ```
 
-Set `APP_OWNER_EMAIL` before the first local OWNER setup. Set
-`WEALTHORA_SERVER_URL=http://127.0.0.1:8080` only when a local server is
-running. The desktop accepts loopback HTTP for development and requires HTTPS
-for non-loopback servers.
+No environment variables are required. The first local OWNER email is entered
+in the setup screen.
 
 For runtime checks, point `LOCALAPPDATA` or the equivalent platform data root
 at a new temporary directory. Never test startup against another user's real
 finance workspace.
 
-## Server tests
+Verify the real Windows offline speech path without a microphone or network:
+
+```text
+ant test-windows-offline-speech
+```
+
+## Experimental server tests
 
 From `server/`:
 
@@ -48,7 +54,7 @@ Use `mvnw.cmd` on Windows. Tests activate isolated H2 storage in PostgreSQL
 compatibility mode and a temporary development mail directory. They do not
 require production secrets.
 
-## Server with PostgreSQL
+## Experimental server with PostgreSQL
 
 Copy the variable names from `.env.example` into the current process
 environment. At minimum, provide:
@@ -69,9 +75,10 @@ server from `server/`:
 Production email additionally requires all six `SMTP_*` values shown in the
 example. Without them, the server reports email delivery as unavailable.
 
-## Google Cloud Speech
+## Legacy cloud speech experiment
 
-Live Voice Quick Entry uses server-side Google Cloud Speech-to-Text V1. Set
+The current desktop does not use this path; it uses Windows offline speech.
+The opt-in legacy server test uses Google Cloud Speech-to-Text V1. Set
 `GOOGLE_CLOUD_PROJECT` and authorize developer Application Default Credentials
 outside the repository:
 

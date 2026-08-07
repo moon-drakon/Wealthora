@@ -81,6 +81,8 @@ public final class VoiceTransactionParserTest {
                 VoiceTransactionParserTest::speechStopAndCancel);
         test("automatic speech uses V1-compatible language options",
                 VoiceTransactionParserTest::automaticSpeechRequest);
+        test("Windows offline speech creates a valid PCM wave envelope",
+                VoiceTransactionParserTest::windowsWaveEnvelope);
         System.out.println("All " + passed
                 + " voice transaction tests passed.");
     }
@@ -94,6 +96,21 @@ public final class VoiceTransactionParserTest {
         assertEquals(Category.FOOD, draft.getEffectiveCategory());
         assertEquals(TODAY, draft.getDate());
         assertTrue(draft.isComplete());
+    }
+
+    private static void windowsWaveEnvelope() {
+        byte[] pcm = {1, 2, 3, 4};
+        byte[] wave = WindowsOfflineSpeechRecognitionProvider.waveFile(
+                pcm, 16_000);
+        assertEquals(48, wave.length);
+        assertEquals("RIFF", new String(wave, 0, 4,
+                java.nio.charset.StandardCharsets.US_ASCII));
+        assertEquals("WAVE", new String(wave, 8, 4,
+                java.nio.charset.StandardCharsets.US_ASCII));
+        assertEquals("data", new String(wave, 36, 4,
+                java.nio.charset.StandardCharsets.US_ASCII));
+        assertEquals((byte) 1, wave[44]);
+        assertEquals((byte) 4, wave[47]);
     }
 
     private static void income() {

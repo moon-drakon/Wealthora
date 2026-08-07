@@ -445,14 +445,22 @@ public final class SpendWiseFrame extends JFrame {
         }
 
         shell.addNavigationSection("Application");
-        SettingsPanel settingsPanel = new SettingsPanel(
-                categoryService,
-                category -> expenseService.getAllExpenses().stream()
-                        .anyMatch(expense -> expense.getCategory().equals(category))
-                        || budgetService.isCategoryReferenced(category),
-                currencyService,
-                shell::setDarkMode,
-                refreshFinancialViews);
+        java.util.function.Predicate<com.spendwise.model.Category>
+                categoryReferenceChecker = category ->
+                        expenseService.getAllExpenses().stream()
+                                .anyMatch(expense -> expense.getCategory()
+                                        .equals(category))
+                        || budgetService.isCategoryReferenced(category);
+        SettingsPanel settingsPanel = voiceEntryAvailable
+                ? new SettingsPanel(
+                        categoryService, categoryReferenceChecker,
+                        currencyService, shell::setDarkMode,
+                        refreshFinancialViews, voiceSettings,
+                        speechProvider, openVoiceEntry)
+                : new SettingsPanel(
+                        categoryService, categoryReferenceChecker,
+                        currencyService, shell::setDarkMode,
+                        refreshFinancialViews);
         shell.addPage("settings", "Settings", AppIcons.Type.SETTINGS,
                 settingsPanel, settingsPanel::refreshSettings);
         shell.setThemeChangedListener(settingsPanel::refreshSettings);

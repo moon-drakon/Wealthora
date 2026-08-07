@@ -182,12 +182,15 @@ public final class AdminConsoleDialog extends JDialog {
         SecondaryButton activate = new SecondaryButton("Activate");
         SecondaryButton suspend = new SecondaryButton("Suspend");
         SecondaryButton disable = new SecondaryButton("Disable");
+        SecondaryButton resetPassword = new SecondaryButton("Reset Password");
         activate.addActionListener(event -> changeStatus(AccountStatus.ACTIVE));
         suspend.addActionListener(event -> changeStatus(AccountStatus.SUSPENDED));
         disable.addActionListener(event -> changeStatus(AccountStatus.DISABLED));
+        resetPassword.addActionListener(event -> resetSelectedPassword());
         actions.add(activate);
         actions.add(suspend);
         actions.add(disable);
+        actions.add(resetPassword);
         panel.add(actions, BorderLayout.SOUTH);
         return panel;
     }
@@ -438,6 +441,29 @@ public final class AdminConsoleDialog extends JDialog {
         });
     }
 
+    private void resetSelectedPassword() {
+        AuthenticatedUser selected = selected(userTable, userModel);
+        if (selected == null) return;
+        if (!ConfirmationDialogs.confirm(this, "Reset password",
+                "Set a temporary password for " + selected.getEmail()
+                        + "? Share it privately and ask the user to change it after sign-in.",
+                JOptionPane.WARNING_MESSAGE)) return;
+        String reason = promptReason("Reset user password");
+        if (reason == null) return;
+        PasswordResetInput input = promptPasswordReset();
+        if (input == null) return;
+        runAdminTask("Reset password", () -> {
+            try {
+                adminService.resetUserPassword(session,
+                        selected.getUserIdentifier(),
+                        input.administratorPassword(), input.newPassword(),
+                        input.passwordConfirmation(), reason);
+            } finally {
+                input.clear();
+            }
+        });
+    }
+
     private void changeAdministrator(boolean grant) {
         AuthenticatedUser selected = selected(
                 administratorTable, administratorModel);
@@ -557,6 +583,35 @@ public final class AdminConsoleDialog extends JDialog {
         return entered;
     }
 
+    private PasswordResetInput promptPasswordReset() {
+        JPasswordField administratorPassword = new JPasswordField(24);
+        JPasswordField newPassword = new JPasswordField(24);
+        JPasswordField confirmation = new JPasswordField(24);
+        JPanel form = new JPanel(new GridLayout(0, 1, 0, 6));
+        form.add(new JLabel("Your administrator password"));
+        form.add(administratorPassword);
+        form.add(new JLabel("New temporary password"));
+        form.add(newPassword);
+        form.add(new JLabel("Confirm temporary password"));
+        form.add(confirmation);
+        form.add(new JLabel(
+                "Use 8-128 characters with an English letter and number."));
+        int answer = JOptionPane.showConfirmDialog(this, form,
+                "Reset user password", JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.PLAIN_MESSAGE);
+        PasswordResetInput input = new PasswordResetInput(
+                administratorPassword.getPassword(), newPassword.getPassword(),
+                confirmation.getPassword());
+        administratorPassword.setText("");
+        newPassword.setText("");
+        confirmation.setText("");
+        if (answer != JOptionPane.OK_OPTION) {
+            input.clear();
+            return null;
+        }
+        return input;
+    }
+
     private void filterAdministratorCandidates() {
         String query = administratorSearch.getText().strip()
                 .toLowerCase(Locale.ROOT);
@@ -646,6 +701,18 @@ public final class AdminConsoleDialog extends JDialog {
             AdminSecurityStatus security,
             AdminApplicationSettings settings,
             DatabaseHealthStatus database) {
+    }
+
+    private record PasswordResetInput(
+            char[] administratorPassword,
+            char[] newPassword,
+            char[] passwordConfirmation) {
+
+        void clear() {
+            Arrays.fill(administratorPassword, '\0');
+            Arrays.fill(newPassword, '\0');
+            Arrays.fill(passwordConfirmation, '\0');
+        }
     }
 
     private static final class AdminUserTableModel extends AbstractTableModel {

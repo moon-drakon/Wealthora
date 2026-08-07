@@ -167,7 +167,7 @@ public final class AuthenticatedUser {
         List<String> badges = new ArrayList<>();
         if (primaryAuthProvider == AuthProvider.LOCAL) {
             if (emailVerified && isNsuEmail()) {
-                badges.add("Verified NSU Account");
+                badges.add("NSU Password Account");
             }
         } else {
             badges.add("Google Account");

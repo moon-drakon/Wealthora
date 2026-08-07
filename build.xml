@@ -547,6 +547,19 @@
             </classpath>
         </java>
     </target>
+    <target name="test-windows-offline-speech" depends="compile-test"
+            description="Runs the opt-in Windows offline speech integration test without a microphone or network.">
+        <java classname="com.spendwise.voice.WindowsOfflineSpeechRecognitionLiveTest"
+              fork="true"
+              maxmemory="96m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+                <pathelement path="${javac.classpath}"/>
+            </classpath>
+        </java>
+    </target>
     <target name="test-quality" depends="test-voice"
             description="Runs the final chained suite including isolated restart and persistence checks.">
         <java classname="com.spendwise.service.ApplicationPersistenceSmokeTest"

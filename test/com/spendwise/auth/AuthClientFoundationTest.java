@@ -132,7 +132,7 @@ public final class AuthClientFoundationTest {
     }
 
     private static void profileBadges() {
-        assertEquals(List.of("Verified NSU Account"),
+        assertEquals(List.of("NSU Password Account"),
                 localUser(true, AccountStatus.ACTIVE).getProfileBadges());
         assertEquals(List.of("Google Account"),
                 googleSession("person@gmail.com", "SUBJECT_1")

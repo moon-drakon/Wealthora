@@ -10,10 +10,13 @@ import com.spendwise.auth.AuthService;
 import com.spendwise.auth.AuthenticatedUser;
 import com.spendwise.auth.EmailAddressPolicy;
 import com.spendwise.auth.FinanceMode;
+import com.spendwise.auth.LocalAccountService;
 import com.spendwise.auth.NsuEmailPolicy;
 import com.spendwise.auth.OwnerConfiguration;
 import com.spendwise.auth.OwnerSetupService;
+import com.spendwise.auth.PasswordRecoveryChallenge;
 import com.spendwise.auth.PasswordService;
+import com.spendwise.auth.RecoveryAnswerService;
 import com.spendwise.auth.SessionManager;
 import com.spendwise.auth.UserRole;
 import com.spendwise.auth.UserSession;
@@ -39,7 +42,7 @@ import java.util.UUID;
 import java.util.function.Function;
 
 public final class LocalDesktopAuthService
-        implements AuthService, OwnerSetupService {
+        implements AuthService, OwnerSetupService, LocalAccountService {
 
     public static final int MAXIMUM_FAILED_ATTEMPTS = 5;
     public static final Duration LOCK_DURATION = Duration.ofMinutes(15);
@@ -50,6 +53,7 @@ public final class LocalDesktopAuthService
 
     private final LocalUserRepository userRepository;
     private final PasswordService passwordService;
+    private final RecoveryAnswerService recoveryAnswerService;
     private final OwnerConfiguration ownerConfiguration;
     private final SessionManager sessionManager;
     private final AuditRepository auditRepository;
@@ -113,6 +117,7 @@ public final class LocalDesktopAuthService
                 userRepository, "User repository is required.");
         this.passwordService = Objects.requireNonNull(
                 passwordService, "Password service is required.");
+        this.recoveryAnswerService = new RecoveryAnswerService(passwordService);
         this.ownerConfiguration = Objects.requireNonNull(
                 ownerConfiguration, "Owner configuration is required.");
         this.sessionManager = Objects.requireNonNull(
@@ -163,6 +168,30 @@ public final class LocalDesktopAuthService
             String email,
             char[] password,
             char[] passwordConfirmation) {
+        return createFirstOwnerRecord(fullName, email, password,
+                passwordConfirmation, null);
+    }
+
+    @Override
+    public synchronized UserSession createFirstOwner(
+            String fullName,
+            String email,
+            char[] password,
+            char[] passwordConfirmation,
+            String recoveryQuestion,
+            String recoveryHint,
+            char[] recoveryAnswer) {
+        return createFirstOwnerRecord(fullName, email, password,
+                passwordConfirmation, requireRecovery(recoveryQuestion,
+                        recoveryHint, recoveryAnswer));
+    }
+
+    private UserSession createFirstOwnerRecord(
+            String fullName,
+            String email,
+            char[] password,
+            char[] passwordConfirmation,
+            RecoveryData recovery) {
         if (!isOwnerSetupRequired()) {
             throw new AuthException("The primary OWNER is already configured.");
         }
@@ -190,13 +219,131 @@ public final class LocalDesktopAuthService
                 now, Set.of(UserRole.USER, UserRole.ADMIN, UserRole.OWNER),
                 studentIdentifier(normalizedEmail), "System", "BDT");
         String hash = passwordService.hash(password);
-        userRepository.save(new LocalUserRecord(owner, hash, 0, null));
+        userRepository.save(recovery == null
+                ? new LocalUserRecord(owner, hash, 0, null)
+                : new LocalUserRecord(owner, hash, 0, null,
+                        recovery.question(), recovery.hint(),
+                        recovery.answerHash()));
         migrationService.assignToFirstOwner(identifier,
                 workspaceResolver.apply(identifier));
         auditRepository.append(new AuditEvent(now, identifier,
                 AuditAction.OWNER_BOOTSTRAP, identifier, "SUCCESS",
                 "Primary local OWNER created."));
         return new UserSession(owner, now);
+    }
+
+    @Override
+    public synchronized AuthenticatedUser registerLocalAccount(
+            String fullName,
+            String email,
+            String studentIdentifier,
+            char[] password,
+            char[] passwordConfirmation,
+            String recoveryQuestion,
+            String recoveryHint,
+            char[] recoveryAnswer) {
+        if (isOwnerSetupRequired()) {
+            throw new AuthException(
+                    "Complete the primary OWNER setup before adding users.");
+        }
+        String normalizedEmail = NsuEmailPolicy.requireInstitutionalEmail(email);
+        if (password == null || passwordConfirmation == null
+                || !Arrays.equals(password, passwordConfirmation)) {
+            throw new AuthException("Password confirmation does not match.");
+        }
+        if (userRepository.findByEmail(normalizedEmail).isPresent()) {
+            throw new AuthException("An account already uses this email.");
+        }
+        String studentId = studentIdentifier == null
+                ? "" : studentIdentifier.strip();
+        if (studentId.length() > 40) {
+            throw new AuthException(
+                    "Student ID must not exceed 40 characters.");
+        }
+        RecoveryData recovery = requireRecovery(
+                recoveryQuestion, recoveryHint, recoveryAnswer);
+        Instant now = clock.instant();
+        String identifier = "usr_" + UUID.randomUUID()
+                .toString().replace("-", "");
+        AuthenticatedUser user = new AuthenticatedUser(
+                identifier, fullName, normalizedEmail, true,
+                AuthProvider.LOCAL, "", AccountStatus.ACTIVE, now, now,
+                null, Set.of(UserRole.USER),
+                studentId.isEmpty() ? studentIdentifier(normalizedEmail)
+                        : studentId,
+                "System", "BDT");
+        userRepository.save(new LocalUserRecord(user,
+                passwordService.hash(password), 0, null,
+                recovery.question(), recovery.hint(),
+                recovery.answerHash()));
+        prepareWorkspace(user);
+        auditRepository.append(new AuditEvent(now, identifier,
+                AuditAction.REGISTRATION_CREATED, identifier, "SUCCESS",
+                "Local user account created on this computer."));
+        return user;
+    }
+
+    @Override
+    public synchronized PasswordRecoveryChallenge
+            getPasswordRecoveryChallenge(String email) {
+        String normalizedEmail = NsuEmailPolicy.requireInstitutionalEmail(email);
+        LocalUserRecord record = userRepository.findByEmail(normalizedEmail)
+                .orElseThrow(() -> new AuthException(
+                        "No recoverable local account uses this email."));
+        if (!record.hasPasswordRecovery()) {
+            throw new AuthException(
+                    "Recovery is not configured for this account. Ask the OWNER or an administrator to reset the password.");
+        }
+        auditRepository.append(new AuditEvent(clock.instant(), "",
+                AuditAction.PASSWORD_RESET_REQUESTED,
+                record.user().getUserIdentifier(), "SUCCESS",
+                "Local recovery challenge opened."));
+        return new PasswordRecoveryChallenge(
+                record.recoveryQuestion(), record.recoveryHint());
+    }
+
+    @Override
+    public synchronized void resetPasswordWithRecovery(
+            String email,
+            char[] recoveryAnswer,
+            char[] newPassword,
+            char[] passwordConfirmation) {
+        String normalizedEmail = NsuEmailPolicy.requireInstitutionalEmail(email);
+        LocalUserRecord record = userRepository.findByEmail(normalizedEmail)
+                .orElseThrow(() -> new AuthException(
+                        "The recovery answer or account is incorrect."));
+        Instant now = clock.instant();
+        if (!record.hasPasswordRecovery()) {
+            throw new AuthException(
+                    "Recovery is not configured for this account. Ask the OWNER or an administrator to reset the password.");
+        }
+        if (record.isLockedAt(now)) {
+            throw new AuthException(
+                    "Too many attempts. Try again after the temporary lockout.");
+        }
+        if (!recoveryAnswerService.matches(
+                recoveryAnswer, record.recoveryAnswerHash())) {
+            int attempts = record.failedLoginAttempts() + 1;
+            Instant lockedUntil = attempts >= MAXIMUM_FAILED_ATTEMPTS
+                    ? now.plus(LOCK_DURATION) : null;
+            userRepository.save(record.withAuthenticationState(
+                    record.user(), attempts, lockedUntil));
+            auditRepository.append(new AuditEvent(now, "",
+                    AuditAction.PASSWORD_RESET_REQUESTED,
+                    record.user().getUserIdentifier(), "DENIED",
+                    "Incorrect local recovery answer."));
+            throw new AuthException(
+                    "The recovery answer or account is incorrect.");
+        }
+        requireMatchingNewPassword(newPassword, passwordConfirmation,
+                record.passwordHash());
+        userRepository.save(record.withPasswordHash(
+                passwordService.hash(newPassword)));
+        auditRepository.append(new AuditEvent(now,
+                record.user().getUserIdentifier(),
+                AuditAction.PASSWORD_RESET_COMPLETED,
+                record.user().getUserIdentifier(), "SUCCESS",
+                "Password reset with the protected local recovery answer."));
     }
 
     @Override
@@ -369,8 +516,8 @@ public final class LocalDesktopAuthService
             throw new AuthException(
                     "Choose a password different from the current password.");
         }
-        userRepository.save(new LocalUserRecord(record.user(),
-                passwordService.hash(newPassword), 0, null));
+        userRepository.save(record.withPasswordHash(
+                passwordService.hash(newPassword)));
         auditRepository.append(new AuditEvent(clock.instant(),
                 current.getUserIdentifier(), AuditAction.PASSWORD_CHANGED,
                 current.getUserIdentifier(), "SUCCESS",
@@ -506,6 +653,54 @@ public final class LocalDesktopAuthService
                 .orElse(false);
     }
 
+    public synchronized void resetPasswordByAdministrator(
+            UserSession actor,
+            String targetUserIdentifier,
+            char[] actorPassword,
+            char[] newPassword,
+            char[] passwordConfirmation) {
+        Objects.requireNonNull(actor, "Administrator session is required.");
+        if (!actor.canAccessAdminConsole()) {
+            throw new AuthException(
+                    "Administrator access is required to reset a password.");
+        }
+        if (registrationGateway.hasActiveSession()) {
+            throw new AuthException(
+                    "Administrator password reset is available for local accounts only.");
+        }
+        UserSession current = sessionManager.getCurrentSession()
+                .orElseThrow(() -> new AuthException("No active session."));
+        if (!current.getUserIdentifier().equals(actor.getUserIdentifier())) {
+            throw new AuthException(
+                    "The administrator session is no longer current.");
+        }
+        LocalUserRecord target = userRepository.findById(
+                Objects.requireNonNull(targetUserIdentifier).strip())
+                .orElseThrow(() -> new AuthException(
+                        "The selected user no longer exists."));
+        if (target.user().hasRole(UserRole.OWNER)) {
+            throw new AuthException(
+                    "The primary OWNER password must be changed from Security or recovered with its answer.");
+        }
+        if (target.user().hasRole(UserRole.ADMIN) && !actor.isOwner()) {
+            throw new AuthException(
+                    "Only the OWNER can reset an administrator password.");
+        }
+        if (target.user().getUserIdentifier().equals(
+                actor.getUserIdentifier())) {
+            throw new AuthException(
+                    "Use Security settings to change your own password.");
+        }
+        if (!verifyCurrentPassword(actorPassword)) {
+            throw new AuthException(
+                    "Administrator password confirmation failed.");
+        }
+        requireMatchingNewPassword(newPassword, passwordConfirmation,
+                target.passwordHash());
+        userRepository.save(target.withPasswordHash(
+                passwordService.hash(newPassword)));
+    }
+
     private void prepareWorkspace(AuthenticatedUser user) {
         PathHolder holder = new PathHolder(
                 workspaceResolver.apply(user.getUserIdentifier()));
@@ -539,6 +734,51 @@ public final class LocalDesktopAuthService
                 record.user().getUserIdentifier(), "DENIED", reason));
     }
 
+    private RecoveryData requireRecovery(
+            String question, String hint, char[] answer) {
+        String requiredQuestion = requiredText(
+                question, "Recovery question", 8, 120);
+        String requiredHint = requiredText(
+                hint, "Recovery hint", 3, 120);
+        String normalizedAnswer = recoveryAnswerService
+                .normalizeForComparison(answer);
+        String normalizedHint = requiredHint.toLowerCase(
+                java.util.Locale.ROOT).replaceAll("\\s+", " ");
+        if (normalizedHint.contains(normalizedAnswer)) {
+            throw new AuthException(
+                    "Recovery hint must not reveal the recovery answer.");
+        }
+        return new RecoveryData(requiredQuestion, requiredHint,
+                recoveryAnswerService.hash(answer));
+    }
+
+    private void requireMatchingNewPassword(
+            char[] password, char[] confirmation, String currentHash) {
+        if (password == null || confirmation == null
+                || !Arrays.equals(password, confirmation)) {
+            throw new AuthException("Password confirmation does not match.");
+        }
+        passwordService.requireStrong(password);
+        if (passwordService.matches(password, currentHash)) {
+            throw new AuthException(
+                    "Choose a password different from the current password.");
+        }
+    }
+
+    private static String requiredText(
+            String value, String name, int minimum, int maximum) {
+        String required = value == null ? "" : value.strip();
+        if (required.length() < minimum) {
+            throw new AuthException(name + " must contain at least "
+                    + minimum + " characters.");
+        }
+        if (required.length() > maximum) {
+            throw new AuthException(name + " must not exceed "
+                    + maximum + " characters.");
+        }
+        return required;
+    }
+
     private static String studentIdentifier(String email) {
         int separator = email.indexOf('@');
         return separator <= 0 ? "" : email.substring(0, separator);
@@ -550,5 +790,9 @@ public final class LocalDesktopAuthService
     }
 
     private record PathHolder(java.nio.file.Path path) {
+    }
+
+    private record RecoveryData(
+            String question, String hint, String answerHash) {
     }
 }

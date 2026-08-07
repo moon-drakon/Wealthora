@@ -2,24 +2,18 @@
 
 ## System shape
 
-Wealthora currently has two executable components:
+The released Wealthora application has one executable component:
 
 ```text
 Java Swing desktop
-  |-- local authentication and per-user CSV finance workspace
-  |-- finance models, repositories, services, reports, backup, and export
-  `-- HTTPS/loopback client for online authentication and speech
-                         |
-                         v
-Spring Boot server
-  |-- registration, verification, login, recovery, and opaque sessions
-  |-- USER, ADMIN, and OWNER authorization plus audit events
-  |-- Google OAuth and Google Cloud Speech provider boundaries
-  `-- owner-scoped finance APIs on PostgreSQL managed by Flyway V1-V5
+  |-- local registration, authentication, recovery, and administration
+  |-- isolated per-user CSV finance workspaces
+  |-- finance models, services, reports, backup, import, and export
+  `-- Windows offline speech recognition with confirm-before-save
 ```
 
-There is no web client yet. The desktop remains in the repository root; the
-server is the separate Maven module under `server/`.
+There is no web client. The separate Maven module under `server/` and desktop
+HTTP adapters are experimental future work and are not used by the release.
 
 ## Desktop layers
 
@@ -32,18 +26,18 @@ server is the separate Maven module under `server/`.
   and Java2D charts.
 - `src/com/spendwise/auth`: local OWNER authentication, server gateway,
   authorization, sessions, audit, and registration UI support.
+- `src/com/spendwise/voice`: provider abstraction, Windows offline recognizer,
+  microphone capture, and confirm-before-save command parsing.
 
 UI classes call services rather than editing CSV files directly. Repository
 writes use same-directory temporary files and replacement after validation.
 Each authenticated local user resolves to an isolated finance workspace.
 
-CLOUD repositories are stateless HTTP adapters. During Swing workspace
-construction, a narrowly scoped read snapshot coalesces identical GETs issued
-by panels that need the same startup data. The snapshot ends as soon as frame
-construction completes; ordinary refreshes then return to live server reads,
-so this optimization cannot hide another device's later changes.
+Every local user resolves to a stable private directory. The user registry
+stores password and recovery hashes, role/status data, and lockout state; it
+does not contain finance records.
 
-## Server layers
+## Experimental server layers
 
 - `api`: request/response records and HTTP controllers.
 - `service`: authentication, registration, recovery, OAuth, administration,
@@ -60,11 +54,9 @@ legacy BCrypt hashes remain readable.
 
 ## Persistence boundaries
 
-LOCAL desktop finance data stays in the operating system's application-data
-area and is not copied into the server. CLOUD sessions use HTTP repository
-adapters and PostgreSQL for the authenticated user's finance workspace.
-PostgreSQL also stores online users, identities, roles, verification/reset
-records, sessions, login attempts, audit entries, settings, and OAuth flows.
+Desktop finance data stays in the operating system's application-data area and
+is not copied into a server. The current release never opens a CLOUD session.
+PostgreSQL schemas and CLOUD repositories belong to the experimental module.
 
 Flyway owns schema evolution. Migrations V1-V5 are forward-only, and Hibernate
 uses `ddl-auto=validate`, so application startup does not recreate the schema.
@@ -76,9 +68,11 @@ keys reject cross-user references.
 
 - Real credentials enter through process environment variables or a deployment
   secret store, never through committed configuration.
-- Remote desktop connections require HTTPS; loopback HTTP is development-only.
-- Online authorization is enforced by the server. An ADMIN does not receive
-  cross-user finance access, and only the OWNER can manage ADMIN roles.
+- An ADMIN can manage account status and reset eligible passwords but never
+  receives access to another user's finance workspace. Only the OWNER can
+  grant or revoke ADMIN roles.
+- Microphone PCM stays in memory, is passed only to the local Windows speech
+  engine, and is cleared after recognition.
 - Development mail output contains live one-time values and must stay outside
   source control and production.
 - Google OAuth client secrets and Google Cloud credentials remain server-side.

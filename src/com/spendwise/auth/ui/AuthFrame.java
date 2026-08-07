@@ -4,6 +4,7 @@ import com.spendwise.config.AppBrand;
 import com.spendwise.auth.AuthService;
 import com.spendwise.auth.BackendAuthService;
 import com.spendwise.auth.OwnerSetupService;
+import com.spendwise.auth.LocalAccountService;
 import com.spendwise.auth.SessionManager;
 import com.spendwise.auth.UserSession;
 import com.spendwise.auth.UnconfiguredAuthApiClient;
@@ -21,12 +22,15 @@ public final class AuthFrame extends JFrame implements AuthNavigator {
     private static final String SIGN_IN = "sign-in";
     private static final String PROFILE = "profile";
     private static final String OWNER_SETUP = "owner-setup";
+    private static final String SIGN_UP = "sign-up";
+    private static final String FORGOT_PASSWORD = "forgot-password";
 
     private final CardLayout cards = new CardLayout();
     private final JPanel content = new JPanel(cards);
     private final AuthenticatedProfilePanel profilePanel;
     private final OwnerSetupPanel ownerSetupPanel;
     private final Consumer<UserSession> authenticatedListener;
+    private final boolean localAccountUi;
 
     public AuthFrame(AuthService authService, SessionManager sessionManager) {
         this(authService, sessionManager, null);
@@ -44,10 +48,17 @@ public final class AuthFrame extends JFrame implements AuthNavigator {
         AuthService requiredService = Objects.requireNonNull(authService);
         SessionManager requiredSessions = Objects.requireNonNull(sessionManager);
         this.authenticatedListener = authenticatedListener;
+        localAccountUi = requiredService instanceof LocalAccountService;
         profilePanel = new AuthenticatedProfilePanel(
                 requiredService, requiredSessions, this);
         content.add(scroll(new SignInPanel(
                 requiredService, requiredSessions, this)), SIGN_IN);
+        if (localAccountUi) {
+            content.add(scroll(new SignUpPanel(
+                    requiredService, requiredSessions, this)), SIGN_UP);
+            content.add(scroll(new ForgotPasswordPanel(
+                    requiredService, this)), FORGOT_PASSWORD);
+        }
         content.add(scroll(profilePanel), PROFILE);
         ownerSetupPanel = requiredService instanceof OwnerSetupService setup
                 ? new OwnerSetupPanel(setup, requiredSessions, this) : null;
@@ -56,7 +67,7 @@ public final class AuthFrame extends JFrame implements AuthNavigator {
         }
         setContentPane(content);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-        setSize(640, 780);
+        setSize(680, 820);
         setMinimumSize(new Dimension(520, 620));
         setLocationRelativeTo(null);
         if (requiredService instanceof OwnerSetupService setup
@@ -98,7 +109,7 @@ public final class AuthFrame extends JFrame implements AuthNavigator {
 
     @Override
     public void showSignUp() {
-        showSignIn();
+        cards.show(content, localAccountUi ? SIGN_UP : SIGN_IN);
     }
 
     @Override
@@ -108,12 +119,12 @@ public final class AuthFrame extends JFrame implements AuthNavigator {
 
     @Override
     public void showForgotPassword() {
-        showSignIn();
+        cards.show(content, localAccountUi ? FORGOT_PASSWORD : SIGN_IN);
     }
 
     @Override
     public void showResetPassword() {
-        showSignIn();
+        showForgotPassword();
     }
 
     @Override

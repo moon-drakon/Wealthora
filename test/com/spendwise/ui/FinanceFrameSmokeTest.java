@@ -38,6 +38,8 @@ import com.spendwise.service.JsonBackupService;
 import com.spendwise.service.CsvImportService;
 import com.spendwise.service.PdfReportService;
 import com.spendwise.ui.shell.AppShellPanel;
+import com.spendwise.voice.JavaSoundMicrophoneCapture;
+import com.spendwise.voice.WindowsOfflineSpeechRecognitionProvider;
 import java.awt.GraphicsEnvironment;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -170,7 +172,9 @@ public final class FinanceFrameSmokeTest {
                         new JsonBackupService(directory),
                         new CsvImportService(directory, backups, expenses,
                                 income, transfers, accounts, categories),
-                        new PdfReportService());
+                        new PdfReportService(),
+                        new WindowsOfflineSpeechRecognitionProvider(
+                                new JavaSoundMicrophoneCapture()));
                 frame.setLocation(-10000, -10000);
                 frame.setSize(1000, 650);
                 frame.setVisible(true);

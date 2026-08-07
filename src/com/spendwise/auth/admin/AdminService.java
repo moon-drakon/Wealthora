@@ -238,6 +238,27 @@ public final class AdminService {
                 AccountStatus.ACTIVE, AuditAction.USER_ACTIVATED, reason);
     }
 
+    public void resetUserPassword(
+            UserSession actor,
+            String targetUserIdentifier,
+            char[] administratorPassword,
+            char[] newPassword,
+            char[] passwordConfirmation,
+            String reason) {
+        authorizationService.requireAdmin(actor);
+        if (online()) {
+            throw new AuthException(
+                    "Administrator password reset is available for local accounts only.");
+        }
+        String requiredReason = requireReason(reason);
+        LocalUserRecord target = requiredUser(targetUserIdentifier);
+        authService.resetPasswordByAdministrator(actor,
+                targetUserIdentifier, administratorPassword,
+                newPassword, passwordConfirmation);
+        audit(actor, AuditAction.PASSWORD_RESET_COMPLETED,
+                target.user(), requiredReason);
+    }
+
     public AuthenticatedUser grantAdministrator(
             UserSession actor,
             String targetUserIdentifier,

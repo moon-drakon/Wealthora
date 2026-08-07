@@ -13,6 +13,10 @@ application, with each user's data stored locally on the computer.
 - Search and filters with a Swing `JTable` transaction view
 - Budgets, recurring entries, reports, goals, loans, and debts
 - Local owner setup and sign-in with BCrypt password hashing
+- Offline user registration with a separate workspace for every account
+- Protected recovery-question password reset with a non-secret hint
+- OWNER/ADMIN user management and assisted local password reset
+- Windows offline voice quick entry with review before saving
 - Separate local finance records for each user
 - Combined transaction CSV export plus dedicated finance exports
 - Local backup, restore, and CSV import tools
@@ -57,7 +61,10 @@ To build from source:
 - Apache Ant
 
 The offline demo does not require a server, external database, internet
-connection, Docker, environment variables, or a cloud account.
+connection, Docker, environment variables, or a cloud account. Voice capture
+uses the speech recognizer installed in Windows; English (`en-US`) is used for
+English, Banglish, and automatic input. Bangla voice needs the optional
+`bn-BD` Windows speech language. Manual voice-command parsing remains available.
 
 ## Run Wealthora
 
@@ -81,9 +88,20 @@ latest release, extract it, and run:
 java -jar .\Wealthora.jar
 ```
 
-On the first launch, create the local owner account with an NSU email address.
+On the first launch, create the local OWNER account with an NSU email address,
+password, recovery question, and a hint that does not reveal the answer.
 Passwords must contain 8–128 characters with at least one English letter and
 one number.
+
+After OWNER setup, the sign-in screen provides:
+
+- **Create Account** for a new local NSU user and private finance workspace.
+- **Forgot Password?** for protected-answer recovery.
+- OWNER/ADMIN-assisted reset under **Profile → Admin Console → Users**.
+
+Voice Quick Entry is available from **Entry → Voice Quick Entry** or
+`Ctrl+Shift+V`. Audio remains in memory only, recognition runs locally on
+Windows, and every draft must be reviewed before it can be saved.
 
 ## Build and Test
 
@@ -97,6 +115,12 @@ Run the complete desktop quality suite:
 
 ```powershell
 ant clean test-quality jar
+```
+
+On Windows, verify the real offline recognizer without a microphone or network:
+
+```powershell
+ant test-windows-offline-speech
 ```
 
 The application is created at `dist\Wealthora.jar`; its required libraries are
@@ -121,6 +145,6 @@ server/     Experimental future server work; not used by the offline demo
 
 ## Future Scope
 
-Cloud synchronization, Google Sign-In, online backup, voice recognition, the
-experimental server, and a web client are outside the current CSE215 desktop
-release. None of them is needed for the teacher demo.
+Cloud synchronization, Google Sign-In, online backup, the experimental server,
+and a web client are outside the current CSE215 desktop release. None of them
+is needed for the teacher demo.

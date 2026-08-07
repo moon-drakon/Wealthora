@@ -58,6 +58,7 @@ import com.spendwise.service.MigrationPreviewService;
 import com.spendwise.ui.SpendWiseFrame;
 import com.spendwise.voice.AuthenticatedSpeechRecognitionProvider;
 import com.spendwise.voice.JavaSoundMicrophoneCapture;
+import com.spendwise.voice.WindowsOfflineSpeechRecognitionProvider;
 import com.spendwise.ui.component.ConfirmationDialogs;
 import com.spendwise.ui.shell.ProfileMenuActions;
 import com.spendwise.ui.theme.AppTheme;
@@ -247,7 +248,9 @@ public final class SpendWiseApplication {
                             notificationService,
                             jsonBackupService,
                             csvImportService,
-                            new PdfReportService());
+                            new PdfReportService(),
+                            new WindowsOfflineSpeechRecognitionProvider(
+                                    new JavaSoundMicrophoneCapture()));
             frame.configureFinanceMode(FinanceMode.LOCAL,
                     () -> com.spendwise.auth.CloudConnectionState.OFFLINE,
                     new MigrationPreviewService(dataDirectory));
@@ -263,7 +266,13 @@ public final class SpendWiseApplication {
                             .setVisible(true),
                     () -> leaveWorkspace(frame, authService, sessionManager,
                             adminService, true),
-                    null,
+                    session.canAccessAdminConsole()
+                            ? () -> new AdminConsoleDialog(
+                                    frame, adminService, session,
+                                    frame::createFinanceBackup,
+                                    frame::restoreFinanceBackup)
+                                    .setVisible(true)
+                            : null,
                     () -> leaveWorkspace(frame, authService, sessionManager,
                             adminService, false)));
             frame.setVisible(true);

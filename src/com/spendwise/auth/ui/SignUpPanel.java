@@ -3,10 +3,12 @@ package com.spendwise.auth.ui;
 import com.spendwise.auth.AuthException;
 import com.spendwise.auth.AuthService;
 import com.spendwise.auth.AuthenticatedUser;
+import com.spendwise.auth.LocalAccountService;
 import com.spendwise.auth.SessionManager;
 import com.spendwise.auth.UserSession;
 import com.spendwise.config.AppBrand;
 import com.spendwise.ui.component.StyledTextField;
+import com.spendwise.ui.component.StyledComboBox;
 import com.spendwise.ui.theme.AppColors;
 import java.util.Arrays;
 import java.util.Objects;
@@ -21,6 +23,7 @@ import javax.swing.event.DocumentListener;
 public final class SignUpPanel extends AuthFormPanel {
 
     private final AuthService authService;
+    private final LocalAccountService localAccountService;
     private final SessionManager sessionManager;
     private final AuthNavigator navigator;
     private final StyledTextField fullName = textField("Full name");
@@ -29,6 +32,12 @@ public final class SignUpPanel extends AuthFormPanel {
     private final JPasswordField password = passwordField("Password");
     private final JPasswordField confirmation =
             passwordField("Confirm password");
+    private final StyledComboBox<String> recoveryQuestion =
+            new StyledComboBox<>(RecoveryQuestionOptions.VALUES);
+    private final StyledTextField recoveryHint = textField(
+            "A helpful hint that does not reveal the answer");
+    private final JPasswordField recoveryAnswer =
+            passwordField("Recovery answer");
     private final JCheckBox terms = new JCheckBox(
             "I accept the Terms and Privacy Notice");
     private final JLabel passwordStrength = new JLabel(
@@ -41,34 +50,54 @@ public final class SignUpPanel extends AuthFormPanel {
             SessionManager sessionManager,
             AuthNavigator navigator) {
         super("Create Account",
-                "Register with an official NSU email or continue with Google.");
+                authService instanceof LocalAccountService
+                        ? "Create a private account for this computer. Each user receives a separate finance workspace."
+                        : "Register with an official NSU email or continue with Google.");
         this.authService = Objects.requireNonNull(authService);
+        this.localAccountService = authService instanceof LocalAccountService local
+                ? local : null;
         this.sessionManager = Objects.requireNonNull(sessionManager);
         this.navigator = Objects.requireNonNull(navigator);
-        googleButton = primary(
-                "Continue with Google", this::continueWithGoogle);
-        addWide(googleButton);
-        addWide(helperLabel(
-                "Google registration requires real browser OAuth configuration; it never simulates success."));
-        addWide(orDivider());
+        googleButton = localAccountService == null
+                ? primary("Continue with Google", this::continueWithGoogle)
+                : null;
+        if (googleButton != null) {
+            addWide(googleButton);
+            addWide(helperLabel(
+                    "Google registration requires real browser OAuth configuration; it never simulates success."));
+            addWide(orDivider());
+        }
         addWide(sectionHeading(
-                "NSU Email Registration", AppBrand.NSU_EMAIL_SUBTITLE));
+                localAccountService == null
+                        ? "NSU Email Registration" : "Local User Account",
+                localAccountService == null ? AppBrand.NSU_EMAIL_SUBTITLE
+                        : "Official NSU email · protected password · private local data"));
         addField("Full Name", fullName);
         addField("NSU Email", email);
         addField("Student ID (optional)", studentId);
         addField("Password", password);
         addWide(passwordStrength);
         addField("Confirm Password", confirmation);
-        terms.setOpaque(false);
-        terms.setToolTipText(
-                "Required before the server creates a pending account.");
-        addWide(terms);
+        if (localAccountService != null) {
+            addWide(sectionHeading("Password Recovery",
+                    "The answer is protected like a password and is never displayed."));
+            addField("Recovery Question", recoveryQuestion);
+            addField("Recovery Hint", recoveryHint);
+            addField("Recovery Answer", recoveryAnswer);
+        } else {
+            terms.setOpaque(false);
+            terms.setToolTipText(
+                    "Required before the server creates a pending account.");
+            addWide(terms);
+        }
         createButton = primary("Create Account", this::createAccount);
         addWide(buttonRow(
                 createButton,
                 secondary("Back to Sign In", navigator::showSignIn)));
         addWide(helperLabel(
-                "Only exact @northsouth.edu addresses are accepted. A verification email is required; administrator approval is optional and disabled by default."));
+                localAccountService == null
+                        ? "Only exact @northsouth.edu addresses are accepted. A verification email is required; administrator approval is optional and disabled by default."
+                        : "Only exact @northsouth.edu addresses are accepted. This offline account is activated immediately on this computer."));
         password.getDocument().addDocumentListener(new DocumentListener() {
             @Override public void insertUpdate(DocumentEvent event) {
                 updatePasswordStrength();
@@ -85,31 +114,47 @@ public final class SignUpPanel extends AuthFormPanel {
     private void createAccount() {
         char[] entered = password.getPassword();
         char[] repeated = confirmation.getPassword();
+        char[] enteredRecoveryAnswer = recoveryAnswer.getPassword();
         try {
             if (!Arrays.equals(entered, repeated)) {
                 throw new AuthException("Passwords do not match.");
             }
-            if (!terms.isSelected()) {
+            if (localAccountService == null && !terms.isSelected()) {
                 throw new AuthException(
                         "Accept the Terms and Privacy Notice to create an account.");
             }
             String enteredName = fullName.getText();
             String enteredEmail = email.getText();
             String enteredStudentId = studentId.getText();
+            String selectedRecoveryQuestion =
+                    (String) recoveryQuestion.getSelectedItem();
+            String enteredRecoveryHint = recoveryHint.getText();
             createButton.setEnabled(false);
-            showStatus("Creating a protected pending account...");
+            showStatus(localAccountService == null
+                    ? "Creating a protected pending account..."
+                    : "Creating the protected local account...");
             password.setText("");
             confirmation.setText("");
+            recoveryAnswer.setText("");
             new SwingWorker<AuthenticatedUser, Void>() {
                 @Override
                 protected AuthenticatedUser doInBackground() {
                     try {
+                        if (localAccountService != null) {
+                            return localAccountService.registerLocalAccount(
+                                    enteredName, enteredEmail,
+                                    enteredStudentId, entered, repeated,
+                                    selectedRecoveryQuestion,
+                                    enteredRecoveryHint,
+                                    enteredRecoveryAnswer);
+                        }
                         return authService.registerWithNsuEmail(
                                 enteredName, enteredEmail,
                                 enteredStudentId, entered, true);
                     } finally {
                         clear(entered);
                         clear(repeated);
+                        clear(enteredRecoveryAnswer);
                     }
                 }
 
@@ -118,7 +163,10 @@ public final class SignUpPanel extends AuthFormPanel {
                     createButton.setEnabled(true);
                     try {
                         AuthenticatedUser account = get();
-                        if (account.isEmailVerified()) {
+                        if (localAccountService != null) {
+                            showSuccess(
+                                    "Account created. Use Back to Sign In when ready.");
+                        } else if (account.isEmailVerified()) {
                             showSuccess(
                                     "Account verified. Return to sign in.");
                         } else {
@@ -133,8 +181,10 @@ public final class SignUpPanel extends AuthFormPanel {
             showFailure(exception);
             clear(entered);
             clear(repeated);
+            clear(enteredRecoveryAnswer);
             password.setText("");
             confirmation.setText("");
+            recoveryAnswer.setText("");
         }
     }
 

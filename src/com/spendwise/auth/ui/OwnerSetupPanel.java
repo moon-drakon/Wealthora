@@ -4,6 +4,7 @@ import com.spendwise.auth.OwnerSetupService;
 import com.spendwise.auth.SessionManager;
 import com.spendwise.auth.UserSession;
 import com.spendwise.ui.component.StyledTextField;
+import com.spendwise.ui.component.StyledComboBox;
 import java.util.Objects;
 import javax.swing.JButton;
 import javax.swing.JPasswordField;
@@ -18,6 +19,12 @@ public final class OwnerSetupPanel extends AuthFormPanel {
     private final JPasswordField password = passwordField("Owner password");
     private final JPasswordField confirmation =
             passwordField("Confirm owner password");
+    private final StyledComboBox<String> recoveryQuestion =
+            new StyledComboBox<>(RecoveryQuestionOptions.VALUES);
+    private final StyledTextField recoveryHint = textField(
+            "A helpful hint that does not reveal the answer");
+    private final JPasswordField recoveryAnswer =
+            passwordField("Recovery answer");
     private final JButton createButton;
 
     public OwnerSetupPanel(
@@ -37,6 +44,11 @@ public final class OwnerSetupPanel extends AuthFormPanel {
         addField("Confirm password", confirmation);
         addWide(helperLabel(
                 "Use 8-128 characters with at least one English letter and one number, with no outer spaces. Passwords are stored only as protected BCrypt hashes."));
+        addWide(sectionHeading("OWNER Recovery",
+                "Choose an answer you can remember. Only its protected hash is stored."));
+        addField("Recovery question", recoveryQuestion);
+        addField("Recovery hint", recoveryHint);
+        addField("Recovery answer", recoveryAnswer);
         createButton = primary("Create OWNER and open My Finance",
                 this::createOwner);
         addWide(createButton);
@@ -60,10 +72,13 @@ public final class OwnerSetupPanel extends AuthFormPanel {
     private void createOwner() {
         char[] enteredPassword = password.getPassword();
         char[] enteredConfirmation = confirmation.getPassword();
+        char[] enteredRecoveryAnswer = recoveryAnswer.getPassword();
         try {
             UserSession session = ownerSetupService.createFirstOwner(
                     fullName.getText(), email.getText(), enteredPassword,
-                    enteredConfirmation);
+                    enteredConfirmation,
+                    (String) recoveryQuestion.getSelectedItem(),
+                    recoveryHint.getText(), enteredRecoveryAnswer);
             sessionManager.startSession(session);
             navigator.showAuthenticatedProfile(session);
         } catch (RuntimeException exception) {
@@ -71,8 +86,10 @@ public final class OwnerSetupPanel extends AuthFormPanel {
         } finally {
             clear(enteredPassword);
             clear(enteredConfirmation);
+            clear(enteredRecoveryAnswer);
             password.setText("");
             confirmation.setText("");
+            recoveryAnswer.setText("");
         }
     }
 }
