@@ -92,6 +92,9 @@ final class DataManagementActions {
         }
         dataMenu.addSeparator();
         JMenu exportMenu = new JMenu("Export");
+        exportMenu.add(item("Transactions...", () -> export(
+                "Export Transactions", "transactions-export.csv",
+                exportService::exportTransactions)));
         exportMenu.add(item("Expenses...", () -> export(
                 "Export Expenses", "expenses-export.csv",
                 exportService::exportExpenses)));

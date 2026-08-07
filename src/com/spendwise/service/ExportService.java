@@ -4,15 +4,18 @@ import com.spendwise.model.Account;
 import com.spendwise.model.Category;
 import com.spendwise.model.Expense;
 import com.spendwise.model.Income;
+import com.spendwise.model.Transaction;
 import com.spendwise.model.Transfer;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public final class ExportService {
+public final class ExportService implements Exportable {
 
     private final ExpenseService expenseService;
     private final IncomeService incomeService;
@@ -58,6 +61,38 @@ public final class ExportService {
             rows++;
         }
         return write(destination, allowOverwrite, csv, rows, "expense export");
+    }
+
+    @Override
+    public String generateCSV() {
+        StringBuilder csv = new StringBuilder(
+                "id,type,date,description,amount,impact,category,account,note\n");
+        List<Transaction> transactions = financeService.getAllTransactions()
+                .stream()
+                .sorted(Comparator.comparing(Transaction::getDate)
+                        .thenComparing(Transaction::getId))
+                .toList();
+        for (Transaction transaction : transactions) {
+            appendRow(csv,
+                    transaction.getId(),
+                    transaction.getType().getDisplayName(),
+                    transaction.getDate().toString(),
+                    transaction.getDescription(),
+                    transaction.getAmount().toPlainString(),
+                    transaction.calculateImpact().toPlainString(),
+                    transaction.getCategory().getDisplayName(),
+                    transaction.getAccount().getDisplayName(),
+                    transaction.getNote());
+        }
+        return csv.toString();
+    }
+
+    public ExportResult exportTransactions(
+            Path destination, boolean allowOverwrite) {
+        String csv = generateCSV();
+        int rows = financeService.getAllTransactions().size();
+        return write(destination, allowOverwrite, new StringBuilder(csv),
+                rows, "transaction export");
     }
 
     public ExportResult exportIncome(

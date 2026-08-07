@@ -34,6 +34,7 @@ public final class ExportServiceTest {
     public static void main(String[] args) throws Exception {
         test("expense export headers and escaping", ExportServiceTest::expenseExport);
         test("income export exact money", ExportServiceTest::incomeExport);
+        test("Exportable transaction CSV", ExportServiceTest::transactionExport);
         test("transfer export fields", ExportServiceTest::transferExport);
         test("account summary export", ExportServiceTest::accountExport);
         test("date-range report export", ExportServiceTest::reportExport);
@@ -69,6 +70,24 @@ public final class ExportServiceTest {
                     "id,date,amount,source,accountId,accountName,note\n"));
             assertContains(text, "100.00");
             assertContains(text, "\"Salary, August\"");
+        });
+    }
+
+    private static void transactionExport() throws Exception {
+        withFixture(fixture -> {
+            assertTrue(fixture.export instanceof Exportable);
+            String generated = fixture.export.generateCSV();
+            assertTrue(generated.startsWith(
+                    "id,type,date,description,amount,impact,category,account,note\n"));
+            assertContains(generated, "Income,2024-08-01");
+            assertContains(generated, "Expense,2024-08-05");
+            assertContains(generated, ",-12.50,Food,");
+
+            Path target = fixture.root.resolve("transactions-export.csv");
+            ExportResult result = fixture.export.exportTransactions(
+                    target, false);
+            assertEquals(generated, Files.readString(target));
+            assertEquals(2, result.rowCount());
         });
     }
 
@@ -176,6 +195,8 @@ public final class ExportServiceTest {
             Map<String, byte[]> before = fixture.dataBytes();
             fixture.export.exportExpenses(fixture.root.resolve("e.csv"), false);
             fixture.export.exportIncome(fixture.root.resolve("i.csv"), false);
+            fixture.export.exportTransactions(
+                    fixture.root.resolve("transactions.csv"), false);
             fixture.export.exportTransfers(fixture.root.resolve("t.csv"), false);
             fixture.export.exportAccountSummary(
                     fixture.root.resolve("a.csv"), false);
