@@ -6,6 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties("wealthora.registration")
 public record RegistrationProperties(
         boolean requiresAdminApproval,
+        boolean emailVerificationRequired,
         Duration verificationExpiry,
         Duration resendCooldown,
         int maximumVerificationAttempts) {

@@ -148,6 +148,11 @@ public final class LocalDesktopAuthService
     }
 
     @Override
+    public boolean isSharedOnlineMode() {
+        return registrationGateway.isConfigured();
+    }
+
+    @Override
     public AuthenticationAvailability getAuthenticationAvailability() {
         return registrationGateway.getAuthenticationAvailability();
     }

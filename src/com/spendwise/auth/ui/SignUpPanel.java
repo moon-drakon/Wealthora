@@ -44,21 +44,25 @@ public final class SignUpPanel extends AuthFormPanel {
             "Password: 8-128 characters with an English letter and number");
     private final JButton createButton;
     private final JButton googleButton;
+    private final boolean sharedOnline;
 
     public SignUpPanel(
             AuthService authService,
             SessionManager sessionManager,
             AuthNavigator navigator) {
-        super("Create Account",
-                authService instanceof LocalAccountService
+        super("Create Account", authService.isSharedOnlineMode()
+                ? "Create a private account for the shared-online workspace."
+                : authService instanceof LocalAccountService
                         ? "Create a private account for this computer. Each user receives a separate finance workspace."
-                        : "Register with an official NSU email or continue with Google.");
+                        : "Register with an official NSU email.");
         this.authService = Objects.requireNonNull(authService);
-        this.localAccountService = authService instanceof LocalAccountService local
+        sharedOnline = authService.isSharedOnlineMode();
+        this.localAccountService = !sharedOnline
+                && authService instanceof LocalAccountService local
                 ? local : null;
         this.sessionManager = Objects.requireNonNull(sessionManager);
         this.navigator = Objects.requireNonNull(navigator);
-        googleButton = localAccountService == null
+        googleButton = localAccountService == null && !sharedOnline
                 ? primary("Continue with Google", this::continueWithGoogle)
                 : null;
         if (googleButton != null) {
@@ -68,8 +72,10 @@ public final class SignUpPanel extends AuthFormPanel {
             addWide(orDivider());
         }
         addWide(sectionHeading(
-                localAccountService == null
-                        ? "NSU Email Registration" : "Local User Account",
+                sharedOnline ? "Shared Online Registration"
+                        : localAccountService == null
+                                ? "NSU Email Registration"
+                                : "Local User Account",
                 localAccountService == null ? AppBrand.NSU_EMAIL_SUBTITLE
                         : "Official NSU email · protected password · private local data"));
         addField("Full Name", fullName);
@@ -95,7 +101,9 @@ public final class SignUpPanel extends AuthFormPanel {
                 createButton,
                 secondary("Back to Sign In", navigator::showSignIn)));
         addWide(helperLabel(
-                localAccountService == null
+                sharedOnline
+                        ? "Only exact @northsouth.edu addresses are accepted. New accounts receive the USER role and cannot access anyone else's records."
+                        : localAccountService == null
                         ? "Only exact @northsouth.edu addresses are accepted. A verification email is required; administrator approval is optional and disabled by default."
                         : "Only exact @northsouth.edu addresses are accepted. This offline account is activated immediately on this computer."));
         password.getDocument().addDocumentListener(new DocumentListener() {
@@ -130,9 +138,11 @@ public final class SignUpPanel extends AuthFormPanel {
                     (String) recoveryQuestion.getSelectedItem();
             String enteredRecoveryHint = recoveryHint.getText();
             createButton.setEnabled(false);
-            showStatus(localAccountService == null
-                    ? "Creating a protected pending account..."
-                    : "Creating the protected local account...");
+            showStatus(sharedOnline
+                    ? "Creating your shared-online account..."
+                    : localAccountService == null
+                            ? "Creating a protected pending account..."
+                            : "Creating the protected local account...");
             password.setText("");
             confirmation.setText("");
             recoveryAnswer.setText("");
@@ -168,7 +178,7 @@ public final class SignUpPanel extends AuthFormPanel {
                                     "Account created. Use Back to Sign In when ready.");
                         } else if (account.isEmailVerified()) {
                             showSuccess(
-                                    "Account verified. Return to sign in.");
+                                    "Account created. Return to sign in.");
                         } else {
                             navigator.showVerification(account.getEmail());
                         }

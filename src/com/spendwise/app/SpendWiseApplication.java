@@ -10,6 +10,8 @@ import com.spendwise.auth.audit.CsvAuditRepository;
 import com.spendwise.auth.local.CsvLocalUserRepository;
 import com.spendwise.auth.local.LegacyDataMigrationService;
 import com.spendwise.auth.local.LocalDesktopAuthService;
+import com.spendwise.auth.registration.HttpRegistrationGateway;
+import com.spendwise.auth.registration.ServerConfiguration;
 import com.spendwise.auth.ui.AccountProfileDialog;
 import com.spendwise.auth.ui.AdminConsoleDialog;
 import com.spendwise.auth.ui.AuthFrame;
@@ -56,7 +58,6 @@ import com.spendwise.service.CsvImportService;
 import com.spendwise.service.PdfReportService;
 import com.spendwise.service.MigrationPreviewService;
 import com.spendwise.ui.SpendWiseFrame;
-import com.spendwise.voice.AuthenticatedSpeechRecognitionProvider;
 import com.spendwise.voice.JavaSoundMicrophoneCapture;
 import com.spendwise.voice.WindowsOfflineSpeechRecognitionProvider;
 import com.spendwise.ui.component.ConfirmationDialogs;
@@ -93,7 +94,9 @@ public final class SpendWiseApplication {
                             new LegacyDataMigrationService(
                                     AppPaths.getLegacyDataDirectory(),
                                     AppPaths.getBackupDirectory(),
-                                    auditRepository));
+                                    auditRepository),
+                            new HttpRegistrationGateway(
+                                    ServerConfiguration.fromEnvironment()));
             AdminService adminService = new AdminService(
                     authService.getUserRepository(), auditRepository,
                     authService);
@@ -120,6 +123,12 @@ public final class SpendWiseApplication {
             AdminService adminService) {
         try {
             sessionManager.startSession(session);
+            if (session.getFinanceMode() == FinanceMode.CLOUD) {
+                AppPaths.clearUserDataDirectory();
+                openCloudFinanceWorkspace(session, authService,
+                        sessionManager, adminService);
+                return;
+            }
             AppPaths.activateUserDataDirectory(session.getUserIdentifier());
             Path categoryCsvPath = AppPaths.getCategoryCsvPath();
             CsvCategoryRepository categoryRepository =
@@ -343,8 +352,7 @@ public final class SpendWiseApplication {
                     advancedBudgetService, savingsGoalService, debtService,
                     portfolioService, null, null, null,
                     new PdfReportService(),
-                    new AuthenticatedSpeechRecognitionProvider(
-                            authService.getSpeechApiClient(),
+                    new WindowsOfflineSpeechRecognitionProvider(
                             new JavaSoundMicrophoneCapture()));
         } finally {
             client.endReadSnapshot();

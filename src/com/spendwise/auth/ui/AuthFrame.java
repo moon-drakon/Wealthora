@@ -48,14 +48,15 @@ public final class AuthFrame extends JFrame implements AuthNavigator {
         AuthService requiredService = Objects.requireNonNull(authService);
         SessionManager requiredSessions = Objects.requireNonNull(sessionManager);
         this.authenticatedListener = authenticatedListener;
-        localAccountUi = requiredService instanceof LocalAccountService;
+        localAccountUi = requiredService instanceof LocalAccountService
+                && !requiredService.isSharedOnlineMode();
         profilePanel = new AuthenticatedProfilePanel(
                 requiredService, requiredSessions, this);
         content.add(scroll(new SignInPanel(
                 requiredService, requiredSessions, this)), SIGN_IN);
+        content.add(scroll(new SignUpPanel(
+                requiredService, requiredSessions, this)), SIGN_UP);
         if (localAccountUi) {
-            content.add(scroll(new SignUpPanel(
-                    requiredService, requiredSessions, this)), SIGN_UP);
             content.add(scroll(new ForgotPasswordPanel(
                     requiredService, this)), FORGOT_PASSWORD);
         }
@@ -70,7 +71,8 @@ public final class AuthFrame extends JFrame implements AuthNavigator {
         setSize(680, 820);
         setMinimumSize(new Dimension(520, 620));
         setLocationRelativeTo(null);
-        if (requiredService instanceof OwnerSetupService setup
+        if (!requiredService.isSharedOnlineMode()
+                && requiredService instanceof OwnerSetupService setup
                 && setup.isOwnerSetupRequired()) {
             showOwnerSetup();
         } else {
@@ -109,7 +111,7 @@ public final class AuthFrame extends JFrame implements AuthNavigator {
 
     @Override
     public void showSignUp() {
-        cards.show(content, localAccountUi ? SIGN_UP : SIGN_IN);
+        cards.show(content, SIGN_UP);
     }
 
     @Override

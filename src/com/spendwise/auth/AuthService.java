@@ -4,6 +4,10 @@ import java.util.List;
 
 public interface AuthService {
 
+    default boolean isSharedOnlineMode() {
+        return false;
+    }
+
     default AuthenticationAvailability getAuthenticationAvailability() {
         return AuthenticationAvailability.serverUrlMissing();
     }

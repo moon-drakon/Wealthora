@@ -8,6 +8,8 @@ import java.util.Objects;
 public final class ServerConfiguration {
 
     public static final String ENVIRONMENT_NAME = "WEALTHORA_SERVER_URL";
+    public static final String DEFAULT_SHARED_ONLINE_URL =
+            "https://wealthora-api.onrender.com";
     private final String configuredUrl;
 
     public ServerConfiguration(String configuredUrl) {
@@ -15,7 +17,10 @@ public final class ServerConfiguration {
     }
 
     public static ServerConfiguration fromEnvironment() {
-        return new ServerConfiguration(System.getenv(ENVIRONMENT_NAME));
+        String configured = System.getenv(ENVIRONMENT_NAME);
+        return new ServerConfiguration(configured == null
+                || configured.isBlank()
+                        ? DEFAULT_SHARED_ONLINE_URL : configured);
     }
 
     static ServerConfiguration fromEnvironment(Map<String, String> values) {

@@ -116,10 +116,22 @@ public class RegistrationService {
             Arrays.fill(request.passwordConfirmation(), '\0');
         }
         roles.save(new UserRoleAssignment(userId, UserRole.USER));
-        issueVerification(user, now, false);
-        auditLogs.save(new AuditLogEntry(UUID.randomUUID(), now, userId,
-                "REGISTRATION_CREATED", userId, "SUCCESS",
-                "NSU email verification required."));
+        if (properties.emailVerificationRequired()) {
+            issueVerification(user, now, false);
+            auditLogs.save(new AuditLogEntry(UUID.randomUUID(), now, userId,
+                    "REGISTRATION_CREATED", userId, "SUCCESS",
+                    "NSU email verification required."));
+        } else {
+            AccountStatus next = applicationSettings.requiresAdminApproval()
+                    ? AccountStatus.PENDING_APPROVAL : AccountStatus.ACTIVE;
+            user.verifyEmail(next, now);
+            users.save(user);
+            auditLogs.save(new AuditLogEntry(UUID.randomUUID(), now, userId,
+                    "REGISTRATION_CREATED", userId, "SUCCESS",
+                    next == AccountStatus.ACTIVE
+                            ? "Shared-online account activated."
+                            : "Awaiting administrator approval."));
+        }
         return UserResponse.from(user, Set.of(UserRole.USER.name()));
     }
 

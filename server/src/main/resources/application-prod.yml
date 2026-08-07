@@ -20,6 +20,10 @@ server:
   shutdown: graceful
   forward-headers-strategy: framework
 
+wealthora:
+  registration:
+    email-verification-required: ${EMAIL_VERIFICATION_REQUIRED:false}
+
 management:
   endpoint:
     health:

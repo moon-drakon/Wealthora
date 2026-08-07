@@ -19,23 +19,32 @@ public final class SignInPanel extends AuthFormPanel {
     private final StyledTextField email = textField("NSU email");
     private final JPasswordField password = passwordField("Password");
     private final JButton signInButton;
+    private final boolean sharedOnline;
 
     public SignInPanel(
             AuthService authService,
             SessionManager sessionManager,
             AuthNavigator navigator) {
-        super("Welcome back",
-                "Sign in to your local Wealthora workspace.");
+        super("Welcome back", authService.isSharedOnlineMode()
+                ? "Sign in to your private shared-online Wealthora workspace."
+                : "Sign in to your local Wealthora workspace.");
         this.authService = Objects.requireNonNull(authService);
         this.sessionManager = Objects.requireNonNull(sessionManager);
         this.navigator = Objects.requireNonNull(navigator);
+        sharedOnline = authService.isSharedOnlineMode();
 
-        addWide(sectionHeading("Local Sign In",
-                "Finance records stay on this computer."));
+        addWide(sectionHeading(sharedOnline
+                ? "Shared Online Sign In" : "Local Sign In",
+                sharedOnline
+                        ? "Your finance records follow your account across devices."
+                        : "Finance records stay on this computer."));
         addField("NSU Email", email);
         addField("Password", password);
         signInButton = primary("Sign In", this::signIn);
-        if (authService instanceof LocalAccountService) {
+        if (sharedOnline) {
+            addWide(buttonRow(signInButton,
+                    secondary("Create Account", navigator::showSignUp)));
+        } else if (authService instanceof LocalAccountService) {
             addWide(buttonRow(signInButton,
                     secondary("Create Account", navigator::showSignUp),
                     secondary("Forgot Password?",
@@ -57,7 +66,9 @@ public final class SignInPanel extends AuthFormPanel {
             protected UserSession doInBackground() {
                 try {
                     return authService.signInWithNsuEmail(
-                            enteredEmail, enteredPassword, FinanceMode.LOCAL);
+                            enteredEmail, enteredPassword,
+                            sharedOnline ? FinanceMode.CLOUD
+                                    : FinanceMode.LOCAL);
                 } finally {
                     clear(enteredPassword);
                 }

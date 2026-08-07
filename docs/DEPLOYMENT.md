@@ -1,8 +1,7 @@
 # Backend deployment
 
-Only the Spring Boot server is prepared for deployment in this release. The
-Swing desktop remains a local application, and no Next.js frontend exists yet.
-No deployment is performed automatically by this repository.
+Only the Spring Boot server is deployed for the shared-online core. The Swing
+desktop remains a packaged application and no web frontend exists.
 
 ## Production contract
 
@@ -18,13 +17,12 @@ That profile:
 - exposes health without component details; and
 - uses graceful shutdown with a bounded shutdown phase.
 
-SMTP and Google OAuth remain optional capabilities. The public provider-status
-endpoint reports them as unavailable until their complete configuration is
-present.
+SMTP and Google OAuth are not configured for this milestone. Production
+registration activates USER accounts without sending mail.
 
 ## Database
 
-Use a new PostgreSQL database and a restricted application user. Keep the
+Use the reviewed Wealthora Neon project and its application role. Keep the
 username and password in separate environment variables. Neon URLs must use
 JDBC form with TLS, for example:
 

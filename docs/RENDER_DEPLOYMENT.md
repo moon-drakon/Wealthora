@@ -1,7 +1,8 @@
 # Render deployment setup
 
-This is a readiness guide, not a deployment record. Create a new Render Web
-Service only after an isolated PostgreSQL/Neon verification has passed.
+This guide covers the shared-online core deployment. The root `render.yaml`
+contains the reviewed non-secret service configuration; Render prompts for the
+secret values during the first Blueprint creation.
 
 ## Dashboard fields
 
@@ -31,38 +32,24 @@ Add these as secret environment values in the Render dashboard:
 - `DATABASE_URL`
 - `DATABASE_USERNAME`
 - `DATABASE_PASSWORD`
-- `TOKEN_PEPPER`
+- `WEALTHORA_OWNER_NAME`
+- `WEALTHORA_OWNER_EMAIL`
+- `WEALTHORA_OWNER_PASSWORD`
 
 Use a JDBC PostgreSQL URL. A Neon URL must include `sslmode=require` or a
 stricter verified TLS mode. Keep the username and password out of the URL.
+`render.yaml` generates a unique `TOKEN_PEPPER` and fixes the production
+profile, registration approval, and no-SMTP verification policy.
 
-For production email verification and password recovery, also add all six:
-
-- `SMTP_HOST`
-- `SMTP_PORT`
-- `SMTP_USERNAME`
-- `SMTP_PASSWORD`
-- `SMTP_FROM_ADDRESS`
-- `SMTP_FROM_NAME`
-
-Google Sign-In remains unavailable until all three server-only values exist:
-
-- `GOOGLE_OAUTH_CLIENT_ID`
-- `GOOGLE_OAUTH_CLIENT_SECRET`
-- `GOOGLE_OAUTH_REDIRECT_URI`
-
-Set `GOOGLE_OAUTH_REDIRECT_URI` to exactly
-`https://wealthora-api.onrender.com/api/auth/google/callback` and register the
-same URI in the Google OAuth web client. The local URI remains exactly
-`http://127.0.0.1:8080/api/auth/google/callback`. If the planned
-`wealthora-api` Render origin cannot be assigned, stop and update the OAuth
-client, Render environment, and authentication documentation together; do not
-deploy with a redirect mismatch. Google Cloud Speech additionally uses
-`GOOGLE_CLOUD_PROJECT` and Application Default Credentials supplied through an
-approved secret mechanism.
+The OWNER bootstrap creates the protected initial OWNER only when the database
+has no OWNER role. It never changes an existing OWNER. New public registrations
+can create only USER accounts. After the first successful startup, the three
+OWNER bootstrap variables can be removed from Render; the stored BCrypt-backed
+identity and roles remain in PostgreSQL.
 
 Do not configure `WEALTHORA_DEV_MAIL_DIR` or activate `dev-mail-sink` on
-Render. Do not pass secrets as Docker build arguments.
+Render. SMTP and Google OAuth are deliberately not configured for this
+milestone. Do not pass secrets as Docker build arguments.
 
 ## Safe startup expectations
 
@@ -73,12 +60,15 @@ On every new instance:
 3. Flyway validates existing checksums and applies only pending V1-V5
    migrations under its migration lock.
 4. Hibernate validates the mapped schema and never creates or drops it.
-5. The health endpoint returns success before Render sends traffic.
+5. The one-time OWNER bootstrap either finds an existing OWNER or creates the
+   configured OWNER without exposing credentials.
+6. The health endpoint returns success before Render sends traffic.
 
 If database access, migration validation, or schema validation fails, the
 instance must fail startup. Fix the configuration or add a new forward-only
 migration; never clean or recreate a production schema.
 
-After the first successful deploy, set the desktop's `WEALTHORA_SERVER_URL` to
-the service's HTTPS origin and repeat the authentication/administration smoke
-checks before announcing availability.
+The desktop defaults to `https://wealthora-api.onrender.com`. Developers can
+override it with `WEALTHORA_SERVER_URL` for an HTTPS staging service or an HTTP
+localhost server. Repeat the registration, finance, isolation, and Admin
+Console smoke checks before announcing availability.

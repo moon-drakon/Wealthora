@@ -53,10 +53,12 @@ jobs:
       - name: Package desktop application
         run: ant clean jar
 
-      - name: Upload desktop JAR
+      - name: Upload runnable desktop bundle
         uses: actions/upload-artifact@v7
         with:
           name: wealthora-desktop-${{ github.sha }}
-          path: dist/Wealthora.jar
+          path: |
+            dist/Wealthora.jar
+            dist/lib/
           if-no-files-found: error
           retention-days: 14
