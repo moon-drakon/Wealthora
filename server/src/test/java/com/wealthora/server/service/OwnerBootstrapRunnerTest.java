@@ -2,7 +2,6 @@ package com.wealthora.server.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.wealthora.server.domain.AccountStatus;
@@ -80,7 +79,7 @@ class OwnerBootstrapRunnerTest {
     }
 
     @Test
-    void promotesMatchingActiveVerifiedAccountWithoutChangingPassword() {
+    void leavesExistingUserUnchangedForExplicitOneTimeClaim() {
         Instant now = Instant.parse("2025-01-08T00:00:00Z");
         UUID userId = UUID.randomUUID();
         UserAccount existing = new UserAccount(userId, "Bootstrap Owner",
@@ -95,15 +94,20 @@ class OwnerBootstrapRunnerTest {
 
         runner.run(null);
 
-        assertProtectedOwner(existing);
+        assertTrue(roles.existsByUserIdAndRoleName(
+                userId, UserRole.USER.name()));
+        assertFalse(roles.existsByUserIdAndRoleName(
+                userId, UserRole.ADMIN.name()));
+        assertFalse(roles.existsByUserIdAndRoleName(
+                userId, UserRole.OWNER.name()));
         assertEquals(originalHash, identities.findByUserIdAndProvider(
                 userId, AuthProvider.PASSWORD).orElseThrow()
                 .getPasswordHash());
-        assertEquals(1, ownerAuditCount());
+        assertEquals(0, ownerAuditCount());
     }
 
     @Test
-    void rejectsExistingAccountWhenConfiguredPasswordDoesNotMatch() {
+    void existingOwnerBypassesBootstrapPasswordAfterPasswordChanges() {
         Instant now = Instant.parse("2025-01-08T00:00:00Z");
         UUID userId = UUID.randomUUID();
         UserAccount existing = new UserAccount(userId, "Bootstrap Owner",
@@ -115,16 +119,16 @@ class OwnerBootstrapRunnerTest {
                 AuthProvider.PASSWORD,
                 passwordEncoder.encode("DifferentPassword1!"), now));
         roles.save(new UserRoleAssignment(userId, UserRole.USER));
+        roles.save(new UserRoleAssignment(userId, UserRole.ADMIN));
+        roles.save(new UserRoleAssignment(userId, UserRole.OWNER));
 
-        IllegalStateException error = assertThrows(IllegalStateException.class,
-                () -> runner.run(null));
+        runner.run(null);
 
-        assertEquals("The configured OWNER password does not match the existing account.",
-                error.getMessage());
-        assertFalse(roles.existsByUserIdAndRoleName(
-                userId, UserRole.ADMIN.name()));
-        assertFalse(roles.existsByUserIdAndRoleName(
-                userId, UserRole.OWNER.name()));
+        assertProtectedOwner(existing);
+        assertTrue(passwordEncoder.matches("DifferentPassword1!",
+                identities.findByUserIdAndProvider(
+                        userId, AuthProvider.PASSWORD).orElseThrow()
+                        .getPasswordHash()));
         assertEquals(0, ownerAuditCount());
     }
 

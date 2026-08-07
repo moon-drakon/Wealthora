@@ -6,14 +6,16 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record OwnerBootstrapProperties(
         String fullName,
         String email,
-        String password) {
+        String password,
+        String claimToken) {
 
-    public boolean hasAnyValue() {
-        return present(fullName) || present(email) || present(password);
+    public boolean isCreationComplete() {
+        return present(fullName) && present(email) && present(password);
     }
 
-    public boolean isComplete() {
-        return present(fullName) && present(email) && present(password);
+    public boolean isClaimComplete() {
+        return present(email) && present(claimToken)
+                && claimToken.length() >= 43;
     }
 
     private static boolean present(String value) {

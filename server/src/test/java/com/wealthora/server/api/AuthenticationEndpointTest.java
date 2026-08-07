@@ -9,6 +9,7 @@ import com.wealthora.server.domain.AccountStatus;
 import com.wealthora.server.domain.AuthenticationIdentity;
 import com.wealthora.server.domain.AuthProvider;
 import com.wealthora.server.domain.UserAccount;
+import com.wealthora.server.domain.UserRole;
 import com.wealthora.server.repository.AuditLogRepository;
 import com.wealthora.server.repository.AuthenticationIdentityRepository;
 import com.wealthora.server.repository.EmailVerificationRepository;
@@ -18,6 +19,7 @@ import com.wealthora.server.repository.RefreshTokenRepository;
 import com.wealthora.server.repository.SessionRecordRepository;
 import com.wealthora.server.repository.UserAccountRepository;
 import com.wealthora.server.repository.UserRoleRepository;
+import com.wealthora.server.service.OwnerBootstrapRunner;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -35,13 +37,20 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.ActiveProfiles;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = {
+            "wealthora.owner-bootstrap.email=session.student@northsouth.edu",
+            "wealthora.owner-bootstrap.claim-token="
+                    + "test-owner-claim-token-with-at-least-forty-three-characters"
+        })
 @ActiveProfiles({"test", "dev-mail-sink"})
 class AuthenticationEndpointTest {
 
     private static final String EMAIL =
             "session.student@northsouth.edu";
     private static final String PASSWORD = "SessionStudent1!";
+    private static final String OWNER_CLAIM_TOKEN =
+            "test-owner-claim-token-with-at-least-forty-three-characters";
     private static final Path MAIL_DIRECTORY = Path.of(
             System.getProperty("java.io.tmpdir"), "wealthora-test-mail");
 
@@ -55,6 +64,7 @@ class AuthenticationEndpointTest {
     @Autowired private AuthenticationIdentityRepository identities;
     @Autowired private UserRoleRepository roles;
     @Autowired private UserAccountRepository users;
+    @Autowired private OwnerBootstrapRunner ownerBootstrapRunner;
 
     @BeforeEach
     void reset() throws Exception {
@@ -176,6 +186,69 @@ class AuthenticationEndpointTest {
                 loginJson().replace(PASSWORD, newPassword)).statusCode());
         assertEquals(400, post(
                 "/api/auth/reset-password", resetJson).statusCode());
+    }
+
+    @Test
+    void oneTimeOwnerClaimPreservesUserAndResetsPasswordExplicitly()
+            throws Exception {
+        UserAccount before = users.findByEmail(EMAIL).orElseThrow();
+        String oldAccess = string(post(
+                "/api/auth/login", loginJson()).body(), "accessToken");
+        String newPassword = "RecoveredOwner2!";
+        String claimJson = "{\"email\":\"" + EMAIL + "\","
+                + "\"resetToken\":\"" + OWNER_CLAIM_TOKEN + "\","
+                + "\"newPassword\":\"" + newPassword + "\","
+                + "\"passwordConfirmation\":\"" + newPassword + "\"}";
+
+        assertEquals(204, post(
+                "/api/auth/reset-password", claimJson).statusCode());
+
+        UserAccount after = users.findByEmail(EMAIL).orElseThrow();
+        assertEquals(before.getId(), after.getId());
+        assertEquals(1, users.count());
+        assertEquals(1, roles.findAll().stream().filter(role ->
+                UserRole.OWNER.name().equals(role.getRoleName())).count());
+        assertTrue(roles.existsByUserIdAndRoleName(
+                after.getId(), UserRole.USER.name()));
+        assertTrue(roles.existsByUserIdAndRoleName(
+                after.getId(), UserRole.ADMIN.name()));
+        assertTrue(roles.existsByUserIdAndRoleName(
+                after.getId(), UserRole.OWNER.name()));
+        assertEquals(401, get("/api/auth/me", oldAccess).statusCode());
+        assertEquals(401, post("/api/auth/login", loginJson()).statusCode());
+        HttpResponse<String> ownerLogin = post("/api/auth/login",
+                loginJson().replace(PASSWORD, newPassword));
+        assertEquals(200, ownerLogin.statusCode());
+        assertTrue(ownerLogin.body().contains("\"OWNER\""));
+        String ownerAccess = string(ownerLogin.body(), "accessToken");
+        assertEquals(200, get("/api/admin/users", ownerAccess).statusCode());
+        assertEquals(400, post(
+                "/api/auth/reset-password", claimJson).statusCode());
+
+        ownerBootstrapRunner.run(null);
+        assertEquals(1, roles.findAll().stream().filter(role ->
+                UserRole.OWNER.name().equals(role.getRoleName())).count());
+        assertEquals(1, auditLogs.findAll().stream().filter(event ->
+                "OWNER_RECOVERY_CLAIMED".equals(event.getAction())).count());
+    }
+
+    @Test
+    void ownerClaimRejectsWrongTokenWithoutChangingRoles() throws Exception {
+        String newPassword = "RecoveredOwner2!";
+        String claimJson = "{\"email\":\"" + EMAIL + "\","
+                + "\"resetToken\":\""
+                + "wrong-owner-claim-token-with-at-least-forty-three-characters\","
+                + "\"newPassword\":\"" + newPassword + "\","
+                + "\"passwordConfirmation\":\"" + newPassword + "\"}";
+
+        assertEquals(400, post(
+                "/api/auth/reset-password", claimJson).statusCode());
+        UserAccount account = users.findByEmail(EMAIL).orElseThrow();
+        assertFalse(roles.existsByUserIdAndRoleName(
+                account.getId(), UserRole.ADMIN.name()));
+        assertFalse(roles.existsByUserIdAndRoleName(
+                account.getId(), UserRole.OWNER.name()));
+        assertEquals(200, post("/api/auth/login", loginJson()).statusCode());
     }
 
     @Test

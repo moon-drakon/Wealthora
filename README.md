@@ -147,5 +147,7 @@ server/     Spring Boot HTTPS API and Flyway-managed PostgreSQL backend
 
 See [docs/SHARED_ONLINE_CORE.md](docs/SHARED_ONLINE_CORE.md) for architecture,
 deployment, privacy, validation, and friend-device instructions. Web, Google
-OAuth, SMTP recovery, and online backup are deliberately deferred. They remain
-unnecessary for the frozen teacher release.
+OAuth, general SMTP recovery, and online backup are deliberately deferred. A
+single high-entropy recovery claim is supported only for safely establishing
+the intended initial OWNER when that account already exists. These online
+details remain unnecessary for the frozen teacher release.

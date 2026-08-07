@@ -35,6 +35,8 @@ Add these as secret environment values in the Render dashboard:
 - `WEALTHORA_OWNER_NAME`
 - `WEALTHORA_OWNER_EMAIL`
 - `WEALTHORA_OWNER_PASSWORD`
+- `WEALTHORA_OWNER_CLAIM_TOKEN` only when claiming a pre-existing intended
+  initial OWNER account; use at least 32 random bytes encoded as Base64 URL text
 
 Use a JDBC PostgreSQL URL. A Neon URL must include `sslmode=require` or a
 stricter verified TLS mode. Keep the username and password out of the URL.
@@ -42,13 +44,17 @@ stricter verified TLS mode. Keep the username and password out of the URL.
 profile, registration approval, and no-SMTP verification policy.
 
 The OWNER bootstrap creates the protected initial OWNER only when the database
-has no OWNER role. If the configured email already belongs to an active,
-verified password account, it grants OWNER only when the configured password
-matches that account; it never resets the password. It never changes an
-existing OWNER. New public registrations can create only USER accounts. After
-the first successful startup, the three OWNER bootstrap variables can be
-removed from Render; the stored BCrypt-backed identity and roles remain in
-PostgreSQL.
+has no OWNER role and the configured email does not exist. It never promotes,
+resets, duplicates, or replaces an existing account during startup. If the
+intended account already exists while no OWNER exists, start the server and use
+the desktop's existing Reset Password screen with the one-time claim token.
+That explicit request atomically changes the password, revokes prior sessions,
+and grants the protected OWNER roles without changing the user ID or finance
+data. The token is unusable after an OWNER exists. New public registrations can
+create only USER accounts. After a successful creation or claim, remove all
+four `WEALTHORA_OWNER_*` values from Render; stored identity and roles remain in
+PostgreSQL and future redeploys never compare an OWNER's current password with
+deployment configuration.
 
 Do not configure `WEALTHORA_DEV_MAIL_DIR` or activate `dev-mail-sink` on
 Render. SMTP and Google OAuth are deliberately not configured for this
@@ -63,8 +69,9 @@ On every new instance:
 3. Flyway validates existing checksums and applies only pending V1-V5
    migrations under its migration lock.
 4. Hibernate validates the mapped schema and never creates or drops it.
-5. The one-time OWNER bootstrap either finds an existing OWNER or creates the
-   configured OWNER without exposing credentials.
+5. The one-time OWNER bootstrap preserves any existing account and creates an
+   OWNER only when the configured email is new. Existing-account recovery is an
+   explicit one-time claim, never an automatic startup promotion.
 6. The health endpoint returns success before Render sends traffic.
 
 If database access, migration validation, or schema validation fails, the

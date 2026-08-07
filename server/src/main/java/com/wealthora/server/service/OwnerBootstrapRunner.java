@@ -19,6 +19,8 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -27,6 +29,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Component
 public class OwnerBootstrapRunner implements ApplicationRunner {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(
+            OwnerBootstrapRunner.class);
 
     private final OwnerBootstrapProperties properties;
     private final UserAccountRepository users;
@@ -63,15 +68,22 @@ public class OwnerBootstrapRunner implements ApplicationRunner {
                 UserRole.OWNER.name().equals(assignment.getRoleName()))) {
             return;
         }
-        if (!properties.hasAnyValue()) {
+        if (properties.email() == null || properties.email().isBlank()) {
             return;
-        }
-        if (!properties.isComplete()) {
-            throw new IllegalStateException(
-                    "OWNER bootstrap requires name, email, and password together.");
         }
 
         String email = NsuEmailPolicy.require(properties.email());
+        if (users.existsByEmail(email)) {
+            LOGGER.warn("The configured initial OWNER account already exists. "
+                    + "Automatic promotion is disabled; use the one-time "
+                    + "OWNER recovery claim flow.");
+            return;
+        }
+        if (!properties.isCreationComplete()) {
+            LOGGER.warn("Initial OWNER creation is incomplete. The server will "
+                    + "start without creating or changing an account.");
+            return;
+        }
         String fullName = properties.fullName().strip();
         if (fullName.length() > 160) {
             throw new IllegalStateException(
@@ -82,11 +94,6 @@ public class OwnerBootstrapRunner implements ApplicationRunner {
         String passwordText = CharBuffer.wrap(password).toString();
         try {
             Instant now = clock.instant();
-            UserAccount existing = users.findByEmail(email).orElse(null);
-            if (existing != null) {
-                promoteExistingAccount(existing, passwordText, now);
-                return;
-            }
             UUID userId = UUID.randomUUID();
             UserAccount owner = new UserAccount(userId,
                     fullName, email, null,
@@ -105,39 +112,6 @@ public class OwnerBootstrapRunner implements ApplicationRunner {
         } finally {
             passwordText = null;
             Arrays.fill(password, '\0');
-        }
-    }
-
-    private void promoteExistingAccount(
-            UserAccount account, String configuredPassword, Instant now) {
-        if (account.getAccountStatus() != AccountStatus.ACTIVE
-                || !account.isEmailVerified()) {
-            throw new IllegalStateException(
-                    "The configured existing OWNER account must be active and verified.");
-        }
-        AuthenticationIdentity passwordIdentity = identities
-                .findByUserIdAndProvider(account.getId(), AuthProvider.PASSWORD)
-                .orElseThrow(() -> new IllegalStateException(
-                        "The configured existing OWNER account has no password identity."));
-        if (passwordIdentity.getPasswordHash() == null
-                || !passwordEncoder.matches(configuredPassword,
-                        passwordIdentity.getPasswordHash())) {
-            throw new IllegalStateException(
-                    "The configured OWNER password does not match the existing account.");
-        }
-
-        grantRoleIfMissing(account.getId(), UserRole.USER);
-        grantRoleIfMissing(account.getId(), UserRole.ADMIN);
-        grantRoleIfMissing(account.getId(), UserRole.OWNER);
-        auditLogs.save(new AuditLogEntry(UUID.randomUUID(), now,
-                account.getId(), "OWNER_BOOTSTRAPPED", account.getId(),
-                "SUCCESS",
-                "Existing verified account promoted to protected OWNER."));
-    }
-
-    private void grantRoleIfMissing(UUID userId, UserRole role) {
-        if (!roles.existsByUserIdAndRoleName(userId, role.name())) {
-            roles.save(new UserRoleAssignment(userId, role));
         }
     }
 }

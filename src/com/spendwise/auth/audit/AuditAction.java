@@ -2,6 +2,7 @@ package com.spendwise.auth.audit;
 
 public enum AuditAction {
     OWNER_BOOTSTRAP,
+    OWNER_RECOVERY_CLAIMED,
     LOGIN_SUCCESS,
     LOGIN_FAILED,
     PASSWORD_CHANGED,

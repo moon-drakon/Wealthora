@@ -30,3 +30,5 @@ services:
         sync: false
       - key: WEALTHORA_OWNER_PASSWORD
         sync: false
+      - key: WEALTHORA_OWNER_CLAIM_TOKEN
+        sync: false

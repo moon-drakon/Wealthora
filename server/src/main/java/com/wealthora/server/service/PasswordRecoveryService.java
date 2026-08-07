@@ -47,6 +47,7 @@ public class PasswordRecoveryService {
     private final PasswordPolicy passwordPolicy;
     private final TokenHasher tokenHasher;
     private final PasswordRecoveryProperties properties;
+    private final OwnerClaimService ownerClaimService;
     private final SecureRandom secureRandom;
     private final Clock clock;
 
@@ -61,6 +62,7 @@ public class PasswordRecoveryService {
             PasswordPolicy passwordPolicy,
             TokenHasher tokenHasher,
             PasswordRecoveryProperties properties,
+            OwnerClaimService ownerClaimService,
             SecureRandom secureRandom,
             Clock clock) {
         this.users = users;
@@ -73,6 +75,7 @@ public class PasswordRecoveryService {
         this.passwordPolicy = passwordPolicy;
         this.tokenHasher = tokenHasher;
         this.properties = properties;
+        this.ownerClaimService = ownerClaimService;
         this.secureRandom = secureRandom;
         this.clock = clock;
     }
@@ -125,6 +128,9 @@ public class PasswordRecoveryService {
         try {
             String email = NsuEmailPolicy.require(request.email());
             String rawToken = text(request.resetToken());
+            if (ownerClaimService.tryClaim(email, request, now)) {
+                return;
+            }
             UserAccount user = users.findByEmail(email).orElse(null);
             PasswordResetToken token = user == null ? null : resetTokens
                     .findFirstByUserIdOrderByCreatedAtDesc(user.getId())

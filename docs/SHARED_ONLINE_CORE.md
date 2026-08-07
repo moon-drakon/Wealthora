@@ -34,7 +34,9 @@ and no database username, password, token pepper, or OWNER password.
 Email verification is disabled for this no-SMTP milestone. Registration still
 requires an exact `@northsouth.edu` email, terms acceptance, and the password
 policy. Password recovery is deferred; an OWNER credential is provisioned once
-through server-only deployment secrets.
+through server-only deployment secrets. A narrowly scoped one-time recovery
+claim is available only when the intended initial OWNER account already exists
+and the database still has no OWNER.
 
 ## Privacy boundary
 
@@ -54,12 +56,18 @@ Render:
 - `WEALTHORA_OWNER_NAME`
 - `WEALTHORA_OWNER_EMAIL`
 - `WEALTHORA_OWNER_PASSWORD`
+- `WEALTHORA_OWNER_CLAIM_TOKEN` only for an existing-account recovery claim
 
 Render generates `TOKEN_PEPPER`. The OWNER bootstrap runs only when the
-database has no OWNER role. It creates a new configured account, or promotes
-an existing active, verified password account only after the configured
-password matches its stored hash. Once an OWNER exists, later starts leave it
-unchanged. Flyway clean is disabled and Hibernate only validates the schema.
+database has no OWNER role, and the name/email/password values create only a
+new account. An existing account is never promoted or password-reset during
+startup. Instead, the existing Reset Password screen can consume the
+high-entropy claim token once to reset the password explicitly and atomically
+grant USER, ADMIN, and OWNER to the configured active, verified account. The
+claim preserves the user ID and all finance data, revokes old sessions, and is
+disabled as soon as any OWNER exists. Once an OWNER exists, startup ignores all
+bootstrap password values, so later password changes cannot break a redeploy.
+Flyway clean is disabled and Hibernate only validates the schema.
 
 ## Build and verification
 
@@ -98,6 +106,7 @@ after an idle period can take longer while the service starts.
 
 ## Deferred
 
-The web client, Google OAuth, SMTP/email verification, online password recovery,
-online backup/restore, cloud data migration, and new voice work are outside this
-quick milestone.
+The web client, Google OAuth, SMTP/email verification, general online password
+recovery, online backup/restore, cloud data migration, and new voice work are
+outside this quick milestone. The one-time initial-OWNER recovery claim is the
+only no-SMTP recovery exception.

@@ -39,6 +39,7 @@ wealthora:
     full-name: ${WEALTHORA_OWNER_NAME:}
     email: ${WEALTHORA_OWNER_EMAIL:}
     password: ${WEALTHORA_OWNER_PASSWORD:}
+    claim-token: ${WEALTHORA_OWNER_CLAIM_TOKEN:}
   registration:
     requires-admin-approval: ${REGISTRATION_REQUIRES_ADMIN_APPROVAL:false}
     email-verification-required: ${EMAIL_VERIFICATION_REQUIRED:true}
