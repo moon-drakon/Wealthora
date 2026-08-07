@@ -4,13 +4,17 @@ import com.formdev.flatlaf.FlatClientProperties;
 import com.spendwise.auth.AccountSession;
 import com.spendwise.auth.AuthProvider;
 import com.spendwise.auth.AuthService;
+import com.spendwise.auth.LocalAccountService;
 import com.spendwise.auth.UserSession;
 import com.spendwise.ui.component.PrimaryButton;
 import com.spendwise.ui.component.SecondaryButton;
+import com.spendwise.ui.component.StyledComboBox;
+import com.spendwise.ui.component.StyledTextField;
 import com.spendwise.ui.theme.AppColors;
 import com.spendwise.ui.theme.AppFonts;
 import com.spendwise.ui.theme.AppTheme;
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Dialog;
 import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
@@ -46,16 +50,27 @@ public final class SecuritySessionsDialog extends JDialog {
                     .withZone(ZoneId.systemDefault());
 
     private final AuthService authService;
+    private final LocalAccountService localAccountService;
+    private final UserSession session;
     private final Runnable sessionEnded;
     private final boolean passwordAlreadySet;
     private final SessionTableModel sessionModel = new SessionTableModel();
     private final JTable sessionTable = new JTable(sessionModel);
     private final JLabel sessionStatus = new JLabel(" ");
     private final JLabel passwordStatus = new JLabel(" ");
+    private final JLabel recoveryStatus = new JLabel(" ");
     private final JPasswordField currentPassword = passwordField();
     private final JPasswordField newPassword = passwordField();
     private final JPasswordField confirmation = passwordField();
+    private final JPasswordField recoveryCurrentPassword = passwordField();
+    private final StyledComboBox<String> recoveryQuestion =
+            new StyledComboBox<>(RecoveryQuestionOptions.VALUES);
+    private final StyledTextField recoveryHint = new StyledTextField(
+            "Recovery hint", 30);
+    private final JPasswordField recoveryAnswer = passwordField();
+    private final JPasswordField recoveryAnswerConfirmation = passwordField();
     private final JButton passwordButton;
+    private final JButton recoveryButton;
     private final JButton refreshButton = new SecondaryButton("Refresh");
     private final JButton revokeButton = new SecondaryButton("Revoke Selected");
     private final JButton logoutAllButton = new SecondaryButton("Sign Out All");
@@ -68,12 +83,19 @@ public final class SecuritySessionsDialog extends JDialog {
         super(owner, "Security and Sessions",
                 Dialog.ModalityType.APPLICATION_MODAL);
         UserSession requiredSession = Objects.requireNonNull(session);
+        this.session = requiredSession;
         this.authService = Objects.requireNonNull(authService);
+        localAccountService = authService instanceof LocalAccountService local
+                ? local : null;
         this.sessionEnded = Objects.requireNonNull(sessionEnded);
         passwordAlreadySet = requiredSession.getProvider()
                 != AuthProvider.GOOGLE;
         passwordButton = new PrimaryButton(passwordAlreadySet
                 ? "Change Password" : "Set Password");
+        boolean recoveryConfigured = localAccountService != null
+                && localAccountService.hasPasswordRecovery(requiredSession);
+        recoveryButton = new PrimaryButton(recoveryConfigured
+                ? "Update Recovery" : "Set Up Recovery");
 
         JPanel content = new JPanel(new BorderLayout(0, 16));
         AppTheme.mark(content, AppTheme.PAGE_ROLE);
@@ -85,6 +107,9 @@ public final class SecuritySessionsDialog extends JDialog {
 
         JTabbedPane tabs = new JTabbedPane();
         tabs.addTab("Password", passwordPanel());
+        if (localAccountService != null) {
+            tabs.addTab("Recovery", recoveryPanel(recoveryConfigured));
+        }
         tabs.addTab("Sessions", sessionsPanel());
         content.add(tabs, BorderLayout.CENTER);
 
@@ -96,6 +121,7 @@ public final class SecuritySessionsDialog extends JDialog {
         content.add(footer, BorderLayout.SOUTH);
 
         passwordButton.addActionListener(event -> updatePassword());
+        recoveryButton.addActionListener(event -> updateRecovery());
         refreshButton.addActionListener(event -> loadSessions());
         revokeButton.addActionListener(event -> revokeSelectedSession());
         logoutAllButton.addActionListener(event -> logoutAllSessions());
@@ -103,8 +129,8 @@ public final class SecuritySessionsDialog extends JDialog {
                 revokeButton.setEnabled(sessionTable.getSelectedRow() >= 0));
 
         setContentPane(content);
-        setSize(760, 520);
-        setMinimumSize(new java.awt.Dimension(660, 460));
+        setSize(780, 620);
+        setMinimumSize(new java.awt.Dimension(680, 520));
         setLocationRelativeTo(owner);
         SwingUtilities.invokeLater(this::loadSessions);
     }
@@ -168,6 +194,45 @@ public final class SecuritySessionsDialog extends JDialog {
         return panel;
     }
 
+    private JPanel recoveryPanel(boolean configured) {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setOpaque(false);
+        panel.setBorder(BorderFactory.createEmptyBorder(18, 12, 12, 12));
+        int row = 0;
+        JLabel explanation = new JLabel(configured
+                ? "Recovery is configured. Confirm your password to replace it."
+                : "Add recovery now so this existing account can use Forgot Password.");
+        explanation.setFont(AppFonts.body());
+        AppTheme.mark(explanation, AppTheme.SECONDARY_TEXT_ROLE);
+        panel.add(explanation, constraints(row++));
+        addFormField(panel, row, "Current Password", recoveryCurrentPassword);
+        row += 2;
+        addFormField(panel, row, "Recovery Question", recoveryQuestion);
+        row += 2;
+        addFormField(panel, row, "Safe Hint", recoveryHint);
+        row += 2;
+        addFormField(panel, row, "Recovery Answer", recoveryAnswer);
+        row += 2;
+        addFormField(panel, row, "Confirm Recovery Answer",
+                recoveryAnswerConfirmation);
+        row += 2;
+        JLabel privacy = new JLabel(
+                "The hint must not reveal the answer. Only a protected answer hash is stored.");
+        privacy.setFont(AppFonts.caption());
+        AppTheme.mark(privacy, AppTheme.SECONDARY_TEXT_ROLE);
+        panel.add(privacy, constraints(row++));
+        GridBagConstraints buttonConstraints = constraints(row++);
+        buttonConstraints.insets = new Insets(8, 0, 6, 0);
+        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        buttons.setOpaque(false);
+        buttons.add(recoveryButton);
+        panel.add(buttons, buttonConstraints);
+        recoveryStatus.setFont(AppFonts.caption());
+        AppTheme.mark(recoveryStatus, AppTheme.SECONDARY_TEXT_ROLE);
+        panel.add(recoveryStatus, constraints(row));
+        return panel;
+    }
+
     private void updatePassword() {
         char[] current = currentPassword.getPassword();
         char[] next = newPassword.getPassword();
@@ -211,6 +276,51 @@ public final class SecuritySessionsDialog extends JDialog {
                     finishCurrentSession();
                 } catch (Exception exception) {
                     showPasswordFailure(message(exception));
+                }
+            }
+        }.execute();
+    }
+
+    private void updateRecovery() {
+        char[] current = recoveryCurrentPassword.getPassword();
+        char[] answer = recoveryAnswer.getPassword();
+        char[] repeated = recoveryAnswerConfirmation.getPassword();
+        if (!Arrays.equals(answer, repeated)) {
+            clear(current, answer, repeated);
+            showRecoveryFailure(
+                    "Recovery answer confirmation does not match.");
+            return;
+        }
+        String question = (String) recoveryQuestion.getSelectedItem();
+        String hint = recoveryHint.getText();
+        recoveryButton.setEnabled(false);
+        recoveryCurrentPassword.setText("");
+        recoveryAnswer.setText("");
+        recoveryAnswerConfirmation.setText("");
+        showRecoveryStatus("Protecting the recovery answer...");
+        new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() {
+                try {
+                    localAccountService.updatePasswordRecovery(
+                            session, current, question, hint,
+                            answer, repeated);
+                    return null;
+                } finally {
+                    clear(current, answer, repeated);
+                }
+            }
+
+            @Override
+            protected void done() {
+                recoveryButton.setEnabled(true);
+                try {
+                    get();
+                    recoveryButton.setText("Update Recovery");
+                    showRecoverySuccess(
+                            "Recovery is configured for Forgot Password.");
+                } catch (Exception exception) {
+                    showRecoveryFailure(message(exception));
                 }
             }
         }.execute();
@@ -334,6 +444,21 @@ public final class SecuritySessionsDialog extends JDialog {
         passwordStatus.setText(message);
     }
 
+    private void showRecoveryStatus(String message) {
+        recoveryStatus.setForeground(AppColors.secondaryText());
+        recoveryStatus.setText(message);
+    }
+
+    private void showRecoverySuccess(String message) {
+        recoveryStatus.setForeground(AppColors.income());
+        recoveryStatus.setText(message);
+    }
+
+    private void showRecoveryFailure(String message) {
+        recoveryStatus.setForeground(AppColors.expense());
+        recoveryStatus.setText(message);
+    }
+
     private void showSessionStatus(String message) {
         sessionStatus.setForeground(AppColors.secondaryText());
         sessionStatus.setText(message);
@@ -355,6 +480,11 @@ public final class SecuritySessionsDialog extends JDialog {
 
     private static void addPasswordField(
             JPanel panel, int row, String labelText, JPasswordField field) {
+        addFormField(panel, row, labelText, field);
+    }
+
+    private static void addFormField(
+            JPanel panel, int row, String labelText, Component field) {
         GridBagConstraints labelConstraints = constraints(row);
         labelConstraints.insets = new Insets(3, 0, 4, 0);
         JLabel label = new JLabel(labelText);

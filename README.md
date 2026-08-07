@@ -99,6 +99,10 @@ After OWNER setup, the sign-in screen provides:
 - **Forgot Password?** for protected-answer recovery.
 - OWNER/ADMIN-assisted reset under **Profile → Admin Console → Users**.
 
+Accounts created by an older Wealthora version can add recovery after signing
+in through **Profile → Security and Sessions → Recovery**. Confirm the current
+password, then choose a question, safe hint, and answer.
+
 Voice Quick Entry is available from **Entry → Voice Quick Entry** or
 `Ctrl+Shift+V`. Audio remains in memory only, recognition runs locally on
 Windows, and every draft must be reviewed before it can be saved.

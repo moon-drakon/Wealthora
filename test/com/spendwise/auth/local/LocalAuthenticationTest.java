@@ -184,6 +184,23 @@ public final class LocalAuthenticationTest {
                     "user_id,full_name,email,email_verified"));
             assertTrue(upgraded.contains("recovery_answer_hash"));
         });
+        test("existing account can securely enroll password recovery", () -> {
+            assertFalse(service.hasPasswordRecovery(ownerSession));
+            expect(AuthException.class, () ->
+                    service.updatePasswordRecovery(ownerSession,
+                            "WrongOwner1!".toCharArray(),
+                            "What city were you born in?",
+                            "Capital city", "Dhaka".toCharArray(),
+                            "Dhaka".toCharArray()));
+            service.updatePasswordRecovery(ownerSession, OWNER_PASSWORD,
+                    "What city were you born in?", "Capital city",
+                    "Dhaka".toCharArray(), "Dhaka".toCharArray());
+            assertTrue(service.hasPasswordRecovery(ownerSession));
+            PasswordRecoveryChallenge challenge =
+                    service.getPasswordRecoveryChallenge(OWNER_EMAIL);
+            assertEquals("What city were you born in?", challenge.question());
+            assertEquals("Capital city", challenge.hint());
+        });
         test("legacy finance data is copied byte-for-byte", () -> {
             assertEquals(expenseHash,
                     sha256(Files.readAllBytes(

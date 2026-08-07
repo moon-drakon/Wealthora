@@ -42,6 +42,8 @@ You can also use **Clean and Build** in Apache NetBeans.
    the exported rows.
 9. As OWNER, open **Profile → Admin Console → Users** to show account status,
    ADMIN role management, and assisted password reset.
+   For an account upgraded from v1.0, also show **Security and Sessions →
+   Recovery**, where the current password authorizes recovery enrollment.
 10. Sign out and open **Forgot Password?** to show the saved recovery question
     and non-secret hint. Do not disclose the answer during the demo.
 11. Close and reopen Wealthora. Sign in and confirm the remaining data persists.

@@ -20,4 +20,14 @@ public interface LocalAccountService {
             char[] recoveryAnswer,
             char[] newPassword,
             char[] passwordConfirmation);
+
+    boolean hasPasswordRecovery(UserSession session);
+
+    void updatePasswordRecovery(
+            UserSession session,
+            char[] currentPassword,
+            String recoveryQuestion,
+            String recoveryHint,
+            char[] recoveryAnswer,
+            char[] recoveryAnswerConfirmation);
 }

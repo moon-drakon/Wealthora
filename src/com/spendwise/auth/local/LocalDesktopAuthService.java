@@ -347,6 +347,57 @@ public final class LocalDesktopAuthService
     }
 
     @Override
+    public synchronized boolean hasPasswordRecovery(UserSession session) {
+        UserSession required = Objects.requireNonNull(
+                session, "User session is required.");
+        return userRepository.findById(required.getUserIdentifier())
+                .map(LocalUserRecord::hasPasswordRecovery)
+                .orElse(false);
+    }
+
+    @Override
+    public synchronized void updatePasswordRecovery(
+            UserSession session,
+            char[] currentPassword,
+            String recoveryQuestion,
+            String recoveryHint,
+            char[] recoveryAnswer,
+            char[] recoveryAnswerConfirmation) {
+        UserSession required = Objects.requireNonNull(
+                session, "User session is required.");
+        UserSession current = sessionManager.getCurrentSession()
+                .orElseThrow(() -> new AuthException("No active session."));
+        if (!current.getUserIdentifier().equals(
+                required.getUserIdentifier())) {
+            throw new AuthException("The signed-in session is no longer current.");
+        }
+        LocalUserRecord record = userRepository.findById(
+                required.getUserIdentifier()).orElseThrow(
+                        () -> new AuthException(
+                                "The signed-in account no longer exists."));
+        if (!passwordService.matches(currentPassword, record.passwordHash())) {
+            throw new AuthException("The current password is incorrect.");
+        }
+        if (recoveryAnswer == null || recoveryAnswerConfirmation == null
+                || !Arrays.equals(
+                        recoveryAnswer, recoveryAnswerConfirmation)) {
+            throw new AuthException(
+                    "Recovery answer confirmation does not match.");
+        }
+        RecoveryData recovery = requireRecovery(
+                recoveryQuestion, recoveryHint, recoveryAnswer);
+        userRepository.save(record.withPasswordRecovery(
+                recovery.question(), recovery.hint(),
+                recovery.answerHash()));
+        auditRepository.append(new AuditEvent(clock.instant(),
+                required.getUserIdentifier(), AuditAction.RECOVERY_CONFIGURED,
+                required.getUserIdentifier(), "SUCCESS",
+                record.hasPasswordRecovery()
+                        ? "Local password recovery updated."
+                        : "Local password recovery configured."));
+    }
+
+    @Override
     public synchronized UserSession signInWithNsuEmail(
             String email, char[] password) {
         Instant now = clock.instant();

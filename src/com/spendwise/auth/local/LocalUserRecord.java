@@ -68,6 +68,13 @@ public record LocalUserRecord(
                 recoveryQuestion, recoveryHint, recoveryAnswerHash);
     }
 
+    public LocalUserRecord withPasswordRecovery(
+            String question, String hint, String answerHash) {
+        return new LocalUserRecord(user, passwordHash,
+                failedLoginAttempts, lockedUntil,
+                question, hint, answerHash);
+    }
+
     public boolean hasPasswordRecovery() {
         return !recoveryQuestion.isEmpty() && !recoveryAnswerHash.isEmpty();
     }

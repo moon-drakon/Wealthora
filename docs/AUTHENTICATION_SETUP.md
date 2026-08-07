@@ -106,6 +106,9 @@ java -jar '.\dist\Wealthora.jar'
    Users** after confirming the administrator's own password and recording an
    audit reason. Only the OWNER can reset another ADMIN; the OWNER account must
    use its own recovery answer or Security settings.
+6. An account migrated from an older release can enroll recovery from
+   **Profile → Security and Sessions → Recovery** after confirming its current
+   password. This is especially important for an existing primary OWNER.
 
 Passwords and recovery answers use BCrypt cost 12 over a SHA-256 pre-hash.
 Existing 17-column local-user CSV files remain readable and are upgraded to the
