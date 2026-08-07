@@ -24,6 +24,7 @@ public final class AuthFrame extends JFrame implements AuthNavigator {
     private static final String OWNER_SETUP = "owner-setup";
     private static final String SIGN_UP = "sign-up";
     private static final String FORGOT_PASSWORD = "forgot-password";
+    private static final String RESET_PASSWORD = "reset-password";
 
     private final CardLayout cards = new CardLayout();
     private final JPanel content = new JPanel(cards);
@@ -31,6 +32,7 @@ public final class AuthFrame extends JFrame implements AuthNavigator {
     private final OwnerSetupPanel ownerSetupPanel;
     private final Consumer<UserSession> authenticatedListener;
     private final boolean localAccountUi;
+    private final boolean sharedOnlineUi;
 
     public AuthFrame(AuthService authService, SessionManager sessionManager) {
         this(authService, sessionManager, null);
@@ -48,17 +50,22 @@ public final class AuthFrame extends JFrame implements AuthNavigator {
         AuthService requiredService = Objects.requireNonNull(authService);
         SessionManager requiredSessions = Objects.requireNonNull(sessionManager);
         this.authenticatedListener = authenticatedListener;
+        sharedOnlineUi = requiredService.isSharedOnlineMode();
         localAccountUi = requiredService instanceof LocalAccountService
-                && !requiredService.isSharedOnlineMode();
+                && !sharedOnlineUi;
         profilePanel = new AuthenticatedProfilePanel(
                 requiredService, requiredSessions, this);
         content.add(scroll(new SignInPanel(
                 requiredService, requiredSessions, this)), SIGN_IN);
         content.add(scroll(new SignUpPanel(
                 requiredService, requiredSessions, this)), SIGN_UP);
-        if (localAccountUi) {
+        if (localAccountUi || sharedOnlineUi) {
             content.add(scroll(new ForgotPasswordPanel(
                     requiredService, this)), FORGOT_PASSWORD);
+        }
+        if (sharedOnlineUi) {
+            content.add(scroll(new ResetPasswordPanel(
+                    requiredService, this)), RESET_PASSWORD);
         }
         content.add(scroll(profilePanel), PROFILE);
         ownerSetupPanel = requiredService instanceof OwnerSetupService setup
@@ -71,7 +78,7 @@ public final class AuthFrame extends JFrame implements AuthNavigator {
         setSize(680, 820);
         setMinimumSize(new Dimension(520, 620));
         setLocationRelativeTo(null);
-        if (!requiredService.isSharedOnlineMode()
+        if (!sharedOnlineUi
                 && requiredService instanceof OwnerSetupService setup
                 && setup.isOwnerSetupRequired()) {
             showOwnerSetup();
@@ -121,12 +128,14 @@ public final class AuthFrame extends JFrame implements AuthNavigator {
 
     @Override
     public void showForgotPassword() {
-        cards.show(content, localAccountUi ? FORGOT_PASSWORD : SIGN_IN);
+        cards.show(content, (localAccountUi || sharedOnlineUi)
+                ? FORGOT_PASSWORD : SIGN_IN);
     }
 
     @Override
     public void showResetPassword() {
-        showForgotPassword();
+        cards.show(content, sharedOnlineUi ? RESET_PASSWORD
+                : FORGOT_PASSWORD);
     }
 
     @Override

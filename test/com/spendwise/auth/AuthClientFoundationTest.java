@@ -230,6 +230,15 @@ public final class AuthClientFoundationTest {
                         value.contains("CLOUD") || value.contains("Server:")));
                 assertContains(componentText(panels.get(1)),
                         "Continue with Google");
+                assertContains(componentText(panels.get(3)),
+                        "Enter Reset Token");
+
+                JPanel sharedSignIn = new SignInPanel(
+                        sharedOnlineService(), sessions, navigator);
+                List<String> sharedSignInText = componentText(sharedSignIn);
+                assertContains(sharedSignInText, "Shared Online Sign In");
+                assertContains(sharedSignInText, "Create Account");
+                assertContains(sharedSignInText, "Forgot Password?");
             } catch (Throwable exception) {
                 failure.set(exception);
             }
@@ -296,6 +305,41 @@ public final class AuthClientFoundationTest {
     private static GoogleAuthorization authorization() {
         return new GoogleAuthorization(
                 "one-time-code".toCharArray(), "http://127.0.0.1/callback");
+    }
+
+    private static AuthService sharedOnlineService() {
+        return new AuthService() {
+            @Override public boolean isSharedOnlineMode() { return true; }
+            @Override public UserSession signInWithNsuEmail(
+                    String email, char[] password) { throw unsupported(); }
+            @Override public UserSession continueWithGoogle() {
+                throw unsupported();
+            }
+            @Override public AuthenticatedUser registerWithNsuEmail(
+                    String fullName, String email, char[] password) {
+                throw unsupported();
+            }
+            @Override public AuthenticatedUser verifyNsuEmail(
+                    String email, String verificationCode) { throw unsupported(); }
+            @Override public void resendVerification(String email) {
+                throw unsupported();
+            }
+            @Override public void forgotPassword(String email) {
+                throw unsupported();
+            }
+            @Override public void resetPassword(
+                    String email, String token, char[] password) {
+                throw unsupported();
+            }
+            @Override public UserSession refreshSession() { throw unsupported(); }
+            @Override public void logout() { }
+            @Override public AuthenticatedUser getCurrentUser() {
+                throw unsupported();
+            }
+            private UnsupportedOperationException unsupported() {
+                return new UnsupportedOperationException("UI-only test service");
+            }
+        };
     }
 
     private static AuthenticatedUser localUser(

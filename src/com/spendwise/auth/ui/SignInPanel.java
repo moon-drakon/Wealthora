@@ -43,7 +43,9 @@ public final class SignInPanel extends AuthFormPanel {
         signInButton = primary("Sign In", this::signIn);
         if (sharedOnline) {
             addWide(buttonRow(signInButton,
-                    secondary("Create Account", navigator::showSignUp)));
+                    secondary("Create Account", navigator::showSignUp),
+                    secondary("Forgot Password?",
+                            navigator::showForgotPassword)));
         } else if (authService instanceof LocalAccountService) {
             addWide(buttonRow(signInButton,
                     secondary("Create Account", navigator::showSignUp),
