@@ -76,6 +76,13 @@ The required desktop libraries and their license notices are already under
 `lib/`. No Maven, database, Docker service, browser client, or web build is
 required.
 
+## Verified final release
+
+The [latest GitHub release](https://github.com/moon-drakon/Wealthora/releases/latest)
+provides the complete Windows and academic bundle, both runnable JARs, the final
+six-page report, the defense presentation, and SHA-256 checksums. Source archives
+remain available automatically from the same release page.
+
 ## Build, test, and run
 
 From the project root:

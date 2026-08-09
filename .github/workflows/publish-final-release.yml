@@ -1,0 +1,147 @@
+name: Publish Final CSE215 Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wealthora-cse215-final-v1.2.0
+  cancel-in-progress: false
+
+env:
+  RELEASE_TAG: cse215-final-v1.2.0
+  RELEASE_TITLE: Wealthora CSE215 Final v1.2.0
+  BUNDLE_NAME: Wealthora-CSE215-v1.2.0
+
+jobs:
+  publish:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.head_commit.message == 'ci: publish final academic release'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out the exact release commit
+        uses: actions/checkout@v6
+
+      - name: Check whether the immutable release already exists
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Release $RELEASE_TAG already exists; leaving it unchanged."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Java 25
+        if: steps.release.outputs.exists != 'true'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Install Apache Ant
+        if: steps.release.outputs.exists != 'true'
+        run: |
+          if ! command -v ant >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install --no-install-recommends --yes ant
+          fi
+          ant -version
+
+      - name: Rebuild and run the complete quality chain
+        if: steps.release.outputs.exists != 'true'
+        run: ant clean test-quality jar
+
+      - name: Assemble the sanitized public bundle
+        if: steps.release.outputs.exists != 'true'
+        run: |
+          mkdir -p \
+            "$BUNDLE_NAME/dist/lib" \
+            "$BUNDLE_NAME/dist/otp-relay" \
+            "$BUNDLE_NAME/scripts" \
+            "$BUNDLE_NAME/docs/final"
+
+          cp dist/Wealthora.jar "$BUNDLE_NAME/dist/"
+          cp dist/lib/*.jar "$BUNDLE_NAME/dist/lib/"
+          cp dist/otp-relay/wealthora-otp-relay.jar \
+            "$BUNDLE_NAME/dist/otp-relay/"
+          cp \
+            "Start Wealthora.cmd" \
+            "Configure Wealthora OTP.cmd" \
+            "Start OTP Relay for NetBeans.cmd" \
+            README.md \
+            "$BUNDLE_NAME/"
+          cp -R scripts/launchers "$BUNDLE_NAME/scripts/"
+          cp \
+            docs/ONE_CLICK_LAUNCHERS.md \
+            docs/OTP_RELAY_SETUP.md \
+            "$BUNDLE_NAME/docs/"
+          cp \
+            docs/final/Wealthora_Final_Academic_Report.docx \
+            docs/final/Wealthora_Final_Academic_Report.pdf \
+            docs/final/Wealthora_CSE215_Project_Defense.pptx \
+            docs/final/Wealthora_Speaker_Notes.md \
+            docs/final/Wealthora_Final_Submission_Checklist.md \
+            docs/final/Wealthora_OOP_Requirement_Traceability.md \
+            "$BUNDLE_NAME/docs/final/"
+
+          (
+            cd "$BUNDLE_NAME"
+            find . -type f -print0 | sort -z | xargs -0 sha256sum \
+              > SHA256SUMS.txt
+          )
+          zip -q -r "$BUNDLE_NAME.zip" "$BUNDLE_NAME"
+          sha256sum \
+            "$BUNDLE_NAME.zip" \
+            dist/Wealthora.jar \
+            dist/otp-relay/wealthora-otp-relay.jar \
+            docs/final/Wealthora_Final_Academic_Report.pdf \
+            docs/final/Wealthora_CSE215_Project_Defense.pptx \
+            > release-assets.sha256
+
+      - name: Publish the immutable final release
+        if: steps.release.outputs.exists != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$RELEASE_TAG" \
+            "$BUNDLE_NAME.zip#Complete Windows and academic bundle" \
+            "dist/Wealthora.jar#Wealthora desktop JAR" \
+            "dist/otp-relay/wealthora-otp-relay.jar#Local email OTP relay JAR" \
+            "docs/final/Wealthora_Final_Academic_Report.pdf#Final six-page academic report" \
+            "docs/final/Wealthora_CSE215_Project_Defense.pptx#Final defense presentation" \
+            "release-assets.sha256#SHA-256 checksums" \
+            --target "$GITHUB_SHA" \
+            --title "$RELEASE_TITLE" \
+            --latest \
+            --notes-file - <<'EOF'
+          Wealthora v1.2.0 is the final CSE215 academic release.
+
+          Highlights:
+
+          - Java 25 Swing personal expense tracker with local/offline-first finance storage
+          - Accounts, income, expenses, transfers, budgets, reports, recurring entries, goals, debts, backup/restore, and safe imports
+          - OWNER/ADMIN/USER authorization with secure registration and password-reset email OTP
+          - One-time Windows DPAPI Gmail configuration and NetBeans-compatible OTP relay launchers
+          - Production OOP mapping for abstraction, inheritance, polymorphism, encapsulation, and `Exportable.generateCSV()`
+          - Exactly six-page academic report and 17-slide defense presentation
+
+          Verification:
+
+          - `ant clean test-quality jar` passed on GitHub Actions with Java 25
+          - All 47 quality-chain Java entry points passed
+          - Repository hygiene and high-confidence credential scans passed
+          - The public bundle contains no Gmail address, App Password, OTP, local account/workspace record, or private finance data
+
+          Download the complete bundle for the one-click Windows launchers, or use the individual JAR and academic-document assets. Java 25 is required.
+          EOF
