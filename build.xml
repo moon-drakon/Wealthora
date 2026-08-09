@@ -711,5 +711,12 @@
             </manifest>
         </jar>
     </target>
-    <target name="-post-jar" depends="jar-otp-relay"/>
+    <target name="-post-jar" depends="jar-otp-relay">
+        <mkdir dir="${dist.dir}/lib"/>
+        <copy todir="${dist.dir}/lib">
+            <fileset dir="lib">
+                <include name="*.jar"/>
+            </fileset>
+        </copy>
+    </target>
 </project>

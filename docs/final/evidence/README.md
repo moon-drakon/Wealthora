@@ -11,6 +11,7 @@ This package indexes genuine repository, automated, manual, and team-supplied ev
 | `Build_Test_and_JAR_Evidence.txt` | Exact final Ant, Java, JAR, and hash evidence |
 | `Git_Integrity.txt` | Pre-commit branch, baseline, status classification, integrity, and exclusion checks |
 | `Git_Change_Manifest.txt` | Exact reviewed M/D/A path inventory for the final commit |
+| `Feature_Preservation_Checklist.md` | Binding non-regression review across all established production features |
 | `Sanitization_Statement.md` | Explains evidence exclusions and privacy handling |
 | `Academic_Details_and_Contribution_Record.md` | Records the confirmed academic metadata and declared contribution allocation |
 | `HTML_Email_Manual_Gate.md` | Records automated HTML-email readiness and the completed controlled Gmail visual checks |

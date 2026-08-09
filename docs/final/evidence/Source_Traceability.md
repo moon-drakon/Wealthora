@@ -39,4 +39,5 @@ All paths are relative to `G:\Projects\SpendWiseExpenseTracker`.
 | Defense responsibility allocation | `docs/PRESENTATION_GUIDE.md` |
 | Final academic details and contribution allocation | Team-supplied final academic details dated 2026-08-09; reconciled in `Academic_Details_and_Contribution_Record.md` |
 | Automated test dependency chain | `build.xml` |
+| Clean-clone JAR Class-Path and runtime-library copy | `manifest.mf`, `build.xml` (`-post-jar`) |
 | Final six-page report and defense deliverables | `docs/final/README.md` and the allowlisted files below it |

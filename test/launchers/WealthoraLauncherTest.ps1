@@ -141,6 +141,22 @@ try {
         (-not (Test-WealthoraSenderName "Wealthora`r`nBcc")) `
         'sender-name header injection rejected'
 
+    Write-Host 'Checking portable distribution metadata...'
+    $manifestText = Get-Content -LiteralPath `
+        (Join-Path $projectRoot 'manifest.mf') -Raw
+    $buildText = Get-Content -LiteralPath `
+        (Join-Path $projectRoot 'build.xml') -Raw
+    Assert-LauncherTest `
+        ($manifestText.Contains(
+            'Class-Path: lib/flatlaf-3.7.2.jar lib/jbcrypt-0.4.jar')) `
+        'desktop manifest declares both runtime libraries'
+    Assert-LauncherTest `
+        ($buildText -match '<target name="-post-jar"[^>]*>') `
+        'portable post-jar target is active'
+    Assert-LauncherTest `
+        ($buildText.Contains('<include name="*.jar"/>')) `
+        'portable post-jar target copies runtime libraries'
+
     Write-Host 'Checking DPAPI first-time configuration and persistence...'
     $configurationRoot = Join-Path $testRoot 'Configuration With Spaces'
     $password = New-TestAppPassword

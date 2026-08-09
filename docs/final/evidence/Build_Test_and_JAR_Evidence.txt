@@ -16,7 +16,7 @@ The Ant 1.10.17 launcher was invoked with these targets:
 Final result
 ------------
 BUILD SUCCESSFUL
-Total time: 2 minutes 0 seconds
+Total time: 3 minutes 52 seconds
 
 The test-quality dependency graph contains exactly 47 Java test entry points.
 Unique test entry points: 47
@@ -29,14 +29,14 @@ dist\Wealthora.jar
   Size: 2,134,924 bytes
   ZIP/JAR entries: 408
   Main-Class: com.spendwise.app.SpendWiseApplication
-  SHA-256: 903AD9E6BD7344DA1E612119B9C010F8156AC9C1D70514EDC9F664C399B712C1
+  SHA-256: 487CDE4A1239B9BA1A51465C624E0EF9AE5FB4DF165E84AFE76429D56CF5E914
 
 dist\otp-relay\wealthora-otp-relay.jar
   Size: 31,050 bytes
   ZIP/JAR entries: 24
   Main-Class: com.wealthora.otp.relay.OtpRelayApplication
   OtpEmailTemplate class entries: 4
-  SHA-256: 3F1F9F81A3F7A755471CCD49CF5EA8BF266289743809F424B86A1DFD46558D05
+  SHA-256: FF42D73F00D5488A0A233029712D2EEEC862514689890D5453245467459B662B
 
 Windows secure-launcher verification
 ------------------------------------
@@ -93,3 +93,17 @@ The rebuilt desktop JAR was launched with no OTP relay URL. The real user-facing
 window title was observed as `Wealthora Authentication`, normal offline startup
 remained available, and the application closed normally. No credential was
 entered and no private record was captured.
+
+Clean-export build portability
+------------------------------
+Fresh-extraction verification identified and corrected one build-only issue:
+without NetBeans private CopyLibs metadata, the rebuilt desktop JAR lacked its
+runtime Class-Path. The shared manifest now declares both required libraries and
+the Ant `-post-jar` target always copies them into `dist\lib`. No application
+source, stored-data format, GUI workflow, authentication behavior, OTP policy,
+or finance calculation changed.
+
+A clean committed-source export with no `nbproject\private` and no prebuilt
+`dist` then completed `ant clean jar`, produced both JARs and both desktop
+libraries, opened `Wealthora Authentication`, and closed normally. The full
+47/47 chain and launcher/security suite also passed after the correction.

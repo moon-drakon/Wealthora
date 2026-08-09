@@ -11,6 +11,7 @@ No ignored runtime data, credentials, build output, or local DPAPI configuration
 A	Configure Wealthora OTP.cmd
 A	docs/final/evidence/Academic_Details_and_Contribution_Record.md
 A	docs/final/evidence/Build_Test_and_JAR_Evidence.txt
+A	docs/final/evidence/Feature_Preservation_Checklist.md
 A	docs/final/evidence/Git_Change_Manifest.txt
 A	docs/final/evidence/Git_Integrity.txt
 A	docs/final/evidence/HTML_Email_Manual_Gate.md
@@ -295,6 +296,7 @@ D	test/com/spendwise/voice/LiveSpeechRecognitionTest.java
 M	.github/workflows/desktop-ci.yml
 M	.gitignore
 M	build.xml
+M	manifest.mf
 M	docs/ARCHITECTURE.md
 M	docs/OOP_MAPPING.md
 M	nbproject/build-impl.xml

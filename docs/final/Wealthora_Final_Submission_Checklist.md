@@ -22,6 +22,7 @@ This checklist records the approved finalization sequence. The archive is create
 - [x] Run `git diff --check` and inspect the complete diff.
 - [x] Confirm no tracked `data/`, `build/`, `dist/`, `.env`, key, certificate-with-private-key, backup, log, crash, replay, or audio file will enter the source submission.
 - [x] Confirm no password, OTP, recovery answer, SMTP value, signing secret, token, private finance record, or local account data is present.
+- [x] Complete the binding feature-preservation/non-regression checklist; no established production workflow was removed or replaced.
 
 ## 3. Final build and artifacts
 
@@ -30,6 +31,8 @@ This checklist records the approved finalization sequence. The archive is create
 - [x] Confirm `dist\Wealthora.jar` exists and launches from the project root.
 - [x] Confirm `dist\otp-relay\wealthora-otp-relay.jar` exists.
 - [x] Confirm `dist\lib` contains the required desktop libraries.
+- [x] Verify a clean export with no `nbproject\private` and no prebuilt `dist`
+  produces a runnable desktop JAR and copies both libraries to `dist\lib`.
 - [x] Record current SHA-256 hashes after the final approved build.
 - [x] Privately verified one branded Create Account email and one branded Forgot
   Password email in Gmail; no code or credential was captured or recorded.
@@ -87,6 +90,7 @@ Wealthora-CSE215-Submission/
     Manual_Verification_Summary.md
     Source_Traceability.md
     Build_Test_and_JAR_Evidence.txt
+    Feature_Preservation_Checklist.md
     Git_Integrity.txt
     Sanitization_Statement.md
     HTML_Email_Manual_Gate.md

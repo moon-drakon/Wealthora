@@ -11,6 +11,7 @@ the August 25, 2026 demonstration and submission review.
 - `Wealthora_Speaker_Notes.md` — standalone 17-slide talk track
 - `Wealthora_Final_Submission_Checklist.md` — build, defense, and submission checks
 - `Wealthora_OOP_Requirement_Traceability.md` — official OOP/Swing code-to-test map
+- `evidence/Feature_Preservation_Checklist.md` — binding non-regression review
 - `evidence/` — sanitized verification records only
 
 The report replaces the obsolete longer draft. Carry a printed copy of the

@@ -11,10 +11,11 @@ Upstream: origin/feature/shared-online-core
 Pre-commit working-tree audit
 -----------------------------
 Every modified, deleted, and untracked entry was classified. The expanded
-status contained 325 entries after adding this final evidence manifest:
-  Modified: 41
+status contained 327 entries after the build-portability correction and final
+preservation evidence:
+  Modified: 42
   Deleted: 213
-  Added/untracked files: 71
+  Added/untracked files: 72
   Unclassified: 0
 
 The 213 deletions are the approved removal of obsolete server/cloud/deployment
@@ -48,6 +49,7 @@ ant clean test-quality jar: BUILD SUCCESSFUL; 47/47 Java entry points passed.
 Windows launcher suite: PASS.
 DPAPI saved-configuration validation: PASS; plaintext credential fields absent.
 Offline desktop startup/window/normal close: PASS.
+Clean export without NetBeans private metadata: runnable JAR/`dist\lib` PASS.
 Both distribution JARs: manifest, main class, size, entry count, and SHA-256
 verified.
 Final report: exactly 6 A4 pages.
