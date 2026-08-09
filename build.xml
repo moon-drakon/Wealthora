@@ -493,7 +493,7 @@
                 <pathelement path="${javac.classpath}"/>
             </classpath>
         </java>
-        <java classname="com.spendwise.auth.registration.HttpRegistrationGatewayTest"
+        <java classname="com.spendwise.auth.local.EmailOtpAccountServiceTest"
               fork="true"
               maxmemory="64m"
               failonerror="true">
@@ -503,7 +503,7 @@
                 <pathelement path="${javac.classpath}"/>
             </classpath>
         </java>
-        <java classname="com.spendwise.repository.cloud.CloudFinanceRepositoryTest"
+        <java classname="com.spendwise.auth.otp.HttpEmailVerificationGatewayTest"
               fork="true"
               maxmemory="64m"
               failonerror="true">
@@ -527,26 +527,6 @@
             </classpath>
         </java>
     </target>
-    <target name="test-live-speech" depends="compile-test"
-            description="Runs the opt-in Windows ADC, Speech V1, and real microphone live test.">
-        <java classname="com.spendwise.voice.LiveSpeechRecognitionTest"
-              fork="true"
-              maxmemory="96m"
-              failonerror="true">
-            <jvmarg value="-Xms16m"/>
-            <jvmarg value="-Xshare:off"/>
-            <jvmarg value="-XX:+UseSerialGC"/>
-            <jvmarg value="-XX:MaxMetaspaceSize=96m"/>
-            <jvmarg value="-XX:CompressedClassSpaceSize=32m"/>
-            <jvmarg value="-XX:ReservedCodeCacheSize=32m"/>
-            <jvmarg value="-XX:TieredStopAtLevel=1"/>
-            <classpath>
-                <pathelement location="${build.classes.dir}"/>
-                <pathelement location="${build.test.classes.dir}"/>
-                <pathelement path="${javac.classpath}"/>
-            </classpath>
-        </java>
-    </target>
     <target name="test-windows-offline-speech" depends="compile-test"
             description="Runs the opt-in Windows offline speech integration test without a microphone or network.">
         <java classname="com.spendwise.voice.WindowsOfflineSpeechRecognitionLiveTest"
@@ -560,7 +540,7 @@
             </classpath>
         </java>
     </target>
-    <target name="test-quality" depends="test-voice"
+    <target name="test-quality" depends="test-voice,test-otp-relay"
             description="Runs the final chained suite including isolated restart and persistence checks.">
         <java classname="com.spendwise.service.ApplicationPersistenceSmokeTest"
               fork="true"
@@ -643,6 +623,36 @@
                 <pathelement location="${build.test.classes.dir}"/>
             </classpath>
         </java>
+        <java classname="com.spendwise.imports.MoneyManagerImportTest"
+              fork="true"
+              maxmemory="96m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+                <pathelement path="${javac.classpath}"/>
+            </classpath>
+        </java>
+        <java classname="com.spendwise.config.PortableProjectDataTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+                <pathelement path="${javac.classpath}"/>
+            </classpath>
+        </java>
+        <java classname="com.spendwise.service.PresentationDataServiceTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+                <pathelement path="${javac.classpath}"/>
+            </classpath>
+        </java>
     </target>
     <target name="test-quality-gui-smoke" depends="test-quality"
             description="Runs the final chained suite and isolated complete-frame GUI smoke test.">
@@ -657,4 +667,49 @@
             </classpath>
         </java>
     </target>
+    <target name="compile-otp-relay"
+            description="Compiles the standalone Java email OTP relay.">
+        <mkdir dir="${build.dir}/otp-relay/classes"/>
+        <javac srcdir="otp-relay/src"
+               destdir="${build.dir}/otp-relay/classes"
+               source="${javac.source}"
+               target="${javac.target}"
+               encoding="${source.encoding}"
+               includeantruntime="false"/>
+    </target>
+    <target name="test-otp-relay" depends="compile-otp-relay"
+            description="Runs OTP lifecycle, replay, expiry, and rate-limit tests.">
+        <mkdir dir="${build.dir}/otp-relay/test-classes"/>
+        <javac srcdir="otp-relay/test"
+               destdir="${build.dir}/otp-relay/test-classes"
+               source="${javac.source}"
+               target="${javac.target}"
+               encoding="${source.encoding}"
+               includeantruntime="false">
+            <classpath>
+                <pathelement location="${build.dir}/otp-relay/classes"/>
+            </classpath>
+        </javac>
+        <java classname="com.wealthora.otp.relay.OtpRelayServiceTest"
+              fork="true"
+              maxmemory="64m"
+              failonerror="true">
+            <classpath>
+                <pathelement location="${build.dir}/otp-relay/classes"/>
+                <pathelement location="${build.dir}/otp-relay/test-classes"/>
+            </classpath>
+        </java>
+    </target>
+    <target name="jar-otp-relay" depends="compile-otp-relay"
+            description="Builds the standalone Wealthora OTP relay JAR.">
+        <mkdir dir="${dist.dir}/otp-relay"/>
+        <jar destfile="${dist.dir}/otp-relay/wealthora-otp-relay.jar"
+             basedir="${build.dir}/otp-relay/classes">
+            <manifest>
+                <attribute name="Main-Class"
+                           value="com.wealthora.otp.relay.OtpRelayApplication"/>
+            </manifest>
+        </jar>
+    </target>
+    <target name="-post-jar" depends="jar-otp-relay"/>
 </project>

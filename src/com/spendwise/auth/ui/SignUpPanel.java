@@ -2,17 +2,14 @@ package com.spendwise.auth.ui;
 
 import com.spendwise.auth.AuthException;
 import com.spendwise.auth.AuthService;
-import com.spendwise.auth.AuthenticatedUser;
-import com.spendwise.auth.LocalAccountService;
 import com.spendwise.auth.SessionManager;
-import com.spendwise.auth.UserSession;
-import com.spendwise.config.AppBrand;
+import com.spendwise.auth.otp.EmailOtpAccountService;
+import com.spendwise.auth.otp.EmailOtpChallenge;
 import com.spendwise.ui.component.StyledTextField;
 import com.spendwise.ui.component.StyledComboBox;
 import com.spendwise.ui.theme.AppColors;
 import java.util.Arrays;
 import java.util.Objects;
-import javax.swing.JCheckBox;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPasswordField;
@@ -22,9 +19,7 @@ import javax.swing.event.DocumentListener;
 
 public final class SignUpPanel extends AuthFormPanel {
 
-    private final AuthService authService;
-    private final LocalAccountService localAccountService;
-    private final SessionManager sessionManager;
+    private final EmailOtpAccountService emailOtpAccountService;
     private final AuthNavigator navigator;
     private final StyledTextField fullName = textField("Full name");
     private final StyledTextField email = textField("NSU email");
@@ -38,74 +33,41 @@ public final class SignUpPanel extends AuthFormPanel {
             "A helpful hint that does not reveal the answer");
     private final JPasswordField recoveryAnswer =
             passwordField("Recovery answer");
-    private final JCheckBox terms = new JCheckBox(
-            "I accept the Terms and Privacy Notice");
     private final JLabel passwordStrength = new JLabel(
-            "Password: 8-128 characters with an English letter and number");
+            "Password: 6-128 characters with an English letter and number");
     private final JButton createButton;
-    private final JButton googleButton;
-    private final boolean sharedOnline;
 
     public SignUpPanel(
             AuthService authService,
             SessionManager sessionManager,
             AuthNavigator navigator) {
-        super("Create Account", authService.isSharedOnlineMode()
-                ? "Create a private account for the shared-online workspace."
-                : authService instanceof LocalAccountService
-                        ? "Create a private account for this computer. Each user receives a separate finance workspace."
-                        : "Register with an official NSU email.");
-        this.authService = Objects.requireNonNull(authService);
-        sharedOnline = authService.isSharedOnlineMode();
-        this.localAccountService = !sharedOnline
-                && authService instanceof LocalAccountService local
-                ? local : null;
-        this.sessionManager = Objects.requireNonNull(sessionManager);
+        super("Create Account",
+                "Verify an official NSU email before creating a private local account.");
+        Objects.requireNonNull(authService);
+        this.emailOtpAccountService = authService
+                instanceof EmailOtpAccountService otp ? otp : null;
+        Objects.requireNonNull(sessionManager);
         this.navigator = Objects.requireNonNull(navigator);
-        googleButton = localAccountService == null && !sharedOnline
-                ? primary("Continue with Google", this::continueWithGoogle)
-                : null;
-        if (googleButton != null) {
-            addWide(googleButton);
-            addWide(helperLabel(
-                    "Google registration requires real browser OAuth configuration; it never simulates success."));
-            addWide(orDivider());
-        }
         addWide(sectionHeading(
-                sharedOnline ? "Shared Online Registration"
-                        : localAccountService == null
-                                ? "NSU Email Registration"
-                                : "Local User Account",
-                localAccountService == null ? AppBrand.NSU_EMAIL_SUBTITLE
-                        : "Official NSU email · protected password · private local data"));
+                "Local User Registration",
+                "Official NSU email · email OTP · protected password · private project-local data"));
         addField("Full Name", fullName);
         addField("NSU Email", email);
         addField("Student ID (optional)", studentId);
         addField("Password", password);
         addWide(passwordStrength);
         addField("Confirm Password", confirmation);
-        if (localAccountService != null) {
-            addWide(sectionHeading("Password Recovery",
-                    "The answer is protected like a password and is never displayed."));
-            addField("Recovery Question", recoveryQuestion);
-            addField("Recovery Hint", recoveryHint);
-            addField("Recovery Answer", recoveryAnswer);
-        } else {
-            terms.setOpaque(false);
-            terms.setToolTipText(
-                    "Required before the server creates a pending account.");
-            addWide(terms);
-        }
-        createButton = primary("Create Account", this::createAccount);
+        addWide(sectionHeading("Offline Recovery",
+                "The answer is protected like a password and remains available without internet."));
+        addField("Recovery Question", recoveryQuestion);
+        addField("Recovery Hint", recoveryHint);
+        addField("Recovery Answer", recoveryAnswer);
+        createButton = primary("Send Verification Code", this::createAccount);
         addWide(buttonRow(
                 createButton,
                 secondary("Back to Sign In", navigator::showSignIn)));
         addWide(helperLabel(
-                sharedOnline
-                        ? "Only exact @northsouth.edu addresses are accepted. New accounts receive the USER role and cannot access anyone else's records."
-                        : localAccountService == null
-                        ? "Only exact @northsouth.edu addresses are accepted. A verification email is required; administrator approval is optional and disabled by default."
-                        : "Only exact @northsouth.edu addresses are accepted. This offline account is activated immediately on this computer."));
+                "Only explicit OTP send and verify actions use the internet. No account is created before successful verification."));
         password.getDocument().addDocumentListener(new DocumentListener() {
             @Override public void insertUpdate(DocumentEvent event) {
                 updatePasswordStrength();
@@ -127,9 +89,9 @@ public final class SignUpPanel extends AuthFormPanel {
             if (!Arrays.equals(entered, repeated)) {
                 throw new AuthException("Passwords do not match.");
             }
-            if (localAccountService == null && !terms.isSelected()) {
+            if (emailOtpAccountService == null) {
                 throw new AuthException(
-                        "Accept the Terms and Privacy Notice to create an account.");
+                        "Local email-OTP registration is unavailable.");
             }
             String enteredName = fullName.getText();
             String enteredEmail = email.getText();
@@ -138,29 +100,20 @@ public final class SignUpPanel extends AuthFormPanel {
                     (String) recoveryQuestion.getSelectedItem();
             String enteredRecoveryHint = recoveryHint.getText();
             createButton.setEnabled(false);
-            showStatus(sharedOnline
-                    ? "Creating your shared-online account..."
-                    : localAccountService == null
-                            ? "Creating a protected pending account..."
-                            : "Creating the protected local account...");
+            showStatus("Requesting a registration verification code...");
             password.setText("");
             confirmation.setText("");
             recoveryAnswer.setText("");
-            new SwingWorker<AuthenticatedUser, Void>() {
+            new SwingWorker<EmailOtpChallenge, Void>() {
                 @Override
-                protected AuthenticatedUser doInBackground() {
+                protected EmailOtpChallenge doInBackground() {
                     try {
-                        if (localAccountService != null) {
-                            return localAccountService.registerLocalAccount(
-                                    enteredName, enteredEmail,
-                                    enteredStudentId, entered, repeated,
-                                    selectedRecoveryQuestion,
-                                    enteredRecoveryHint,
-                                    enteredRecoveryAnswer);
-                        }
-                        return authService.registerWithNsuEmail(
+                        return emailOtpAccountService.beginRegistration(
                                 enteredName, enteredEmail,
-                                enteredStudentId, entered, true);
+                                enteredStudentId, entered, repeated,
+                                selectedRecoveryQuestion,
+                                enteredRecoveryHint,
+                                enteredRecoveryAnswer);
                     } finally {
                         clear(entered);
                         clear(repeated);
@@ -172,16 +125,7 @@ public final class SignUpPanel extends AuthFormPanel {
                 protected void done() {
                     createButton.setEnabled(true);
                     try {
-                        AuthenticatedUser account = get();
-                        if (localAccountService != null) {
-                            showSuccess(
-                                    "Account created. Use Back to Sign In when ready.");
-                        } else if (account.isEmailVerified()) {
-                            showSuccess(
-                                    "Account created. Return to sign in.");
-                        } else {
-                            navigator.showVerification(account.getEmail());
-                        }
+                        navigator.showRegistrationVerification(get());
                     } catch (Exception exception) {
                         showFailure(authenticationFailure(exception));
                     }
@@ -196,29 +140,6 @@ public final class SignUpPanel extends AuthFormPanel {
             confirmation.setText("");
             recoveryAnswer.setText("");
         }
-    }
-
-    private void continueWithGoogle() {
-        googleButton.setEnabled(false);
-        showStatus("Opening secure Google Sign-In in your browser...");
-        new SwingWorker<UserSession, Void>() {
-            @Override
-            protected UserSession doInBackground() {
-                return authService.continueWithGoogle();
-            }
-
-            @Override
-            protected void done() {
-                googleButton.setEnabled(true);
-                try {
-                    UserSession session = get();
-                    sessionManager.startSession(session);
-                    navigator.showAuthenticatedProfile(session);
-                } catch (Exception exception) {
-                    showFailure(authenticationFailure(exception));
-                }
-            }
-        }.execute();
     }
 
     private void updatePasswordStrength() {
@@ -238,7 +159,7 @@ public final class SignUpPanel extends AuthFormPanel {
                     && englishLetter && digit && !outerSpace;
             passwordStrength.setText(valid
                     ? "Password meets the required policy"
-                    : "Password: 8-128 characters with an English letter and number; no outer spaces");
+                    : "Password: 6-128 characters with an English letter and number; no outer spaces");
             passwordStrength.setForeground(valid
                     ? AppColors.income() : AppColors.warning());
         } finally {

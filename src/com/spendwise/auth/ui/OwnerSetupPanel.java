@@ -43,7 +43,7 @@ public final class OwnerSetupPanel extends AuthFormPanel {
         addField("Password", password);
         addField("Confirm password", confirmation);
         addWide(helperLabel(
-                "Use 8-128 characters with at least one English letter and one number, with no outer spaces. Passwords are stored only as protected BCrypt hashes."));
+                "Use 6-128 characters with at least one English letter and one number, with no outer spaces. Passwords are stored only as protected BCrypt hashes."));
         addWide(sectionHeading("OWNER Recovery",
                 "Choose an answer you can remember. Only its protected hash is stored."));
         addField("Recovery question", recoveryQuestion);

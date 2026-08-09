@@ -1,6 +1,7 @@
 package com.spendwise.ui;
 
 import com.spendwise.config.AppBrand;
+import com.spendwise.config.AppPaths;
 import com.spendwise.service.AccountService;
 import com.spendwise.service.AccountStatementService;
 import com.spendwise.service.BackupService;
@@ -25,13 +26,12 @@ import com.spendwise.service.FinanceNotificationService;
 import com.spendwise.service.JsonBackupService;
 import com.spendwise.service.CsvImportService;
 import com.spendwise.service.PdfReportService;
-import com.spendwise.service.MigrationPreviewService;
+import com.spendwise.service.FinanceWorkspace;
+import com.spendwise.service.WorkspacePortabilityService;
 import com.spendwise.ui.component.AppIcons;
 import com.spendwise.ui.component.EmptyStatePanel;
 import com.spendwise.ui.shell.AppShellPanel;
 import com.spendwise.auth.UserSession;
-import com.spendwise.auth.CloudConnectionState;
-import com.spendwise.auth.FinanceMode;
 import com.spendwise.ui.shell.ProfileMenuActions;
 import com.spendwise.ui.theme.AppTheme;
 import com.spendwise.ui.voice.VoiceQuickEntryDialog;
@@ -43,7 +43,6 @@ import java.awt.Dimension;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.util.Objects;
-import java.util.function.Supplier;
 import javax.swing.JFrame;
 import javax.swing.JComponent;
 import javax.swing.JMenu;
@@ -59,6 +58,7 @@ public final class SpendWiseFrame extends JFrame {
     private AppShellPanel appShell;
     private DataManagementActions dataManagementActions;
     private OverviewPanel overviewPanel;
+    private Runnable refreshAllViews;
 
     public SpendWiseFrame(
             ExpenseService expenseService,
@@ -381,6 +381,7 @@ public final class SpendWiseFrame extends JFrame {
                     voiceSettings,
                     refreshFinancialViews);
         }
+        this.refreshAllViews = refreshFinancialViews;
         QuickEntryDialog quickEntryDialog = new QuickEntryDialog(
                 this,
                 quickEntryService,
@@ -511,7 +512,11 @@ public final class SpendWiseFrame extends JFrame {
                     refreshFinancialViews, jsonBackupService, csvImportService,
                     pdfReportService, reportsPanel::getLatestPortfolioSnapshot,
                     () -> currencyService == null ? "BDT"
-                            : currencyService.getCurrency().getCurrencyCode());
+                            : currencyService.getCurrency().getCurrencyCode(),
+                    new WorkspacePortabilityService(
+                            FinanceWorkspace.overDirectory(
+                                    AppPaths.getDataDirectory())),
+                    true);
             menuBar.add(dataManagementActions.createMenu());
         }
         setJMenuBar(menuBar);
@@ -543,39 +548,97 @@ public final class SpendWiseFrame extends JFrame {
         appShell.configureProfile(session, actions);
     }
 
-    public void configureFinanceMode(FinanceMode mode,
-            Supplier<CloudConnectionState> connectionState,
-            MigrationPreviewService migrationPreviewService) {
-        if (appShell == null) {
-            throw new IllegalStateException(
-                    "The professional application shell is not active.");
+    /**
+     * Adds a small "Presentation Data" menu for loading or removing classroom-ready
+     * sample activity. The caller only invokes this for the signed-in OWNER, so
+     * ordinary users never see it and never receive presentation data automatically.
+     */
+    public void configurePresentationData(
+            com.spendwise.service.PresentationDataService presentationDataService) {
+        if (presentationDataService == null || getJMenuBar() == null) {
+            return;
         }
-        appShell.configureFinanceMode(mode, connectionState);
-        if (overviewPanel != null) {
-            overviewPanel.configureFinanceMode(mode, connectionState);
-        }
-        setTitle(mode == FinanceMode.LOCAL
-                ? AppBrand.WINDOW_TITLE
-                : AppBrand.WINDOW_TITLE + " [" + mode.name() + "]");
-        if (mode == FinanceMode.CLOUD) {
-            JMenu cloudData = new JMenu("Cloud Data");
-            JMenuItem state = new JMenuItem("Connection: "
-                    + connectionState.get().getDisplayName());
-            state.setEnabled(false);
-            cloudData.add(state);
-            JMenuItem preview = new JMenuItem("Review local migration preview");
-            preview.addActionListener(event -> JOptionPane.showMessageDialog(
-                    this, migrationPreviewService.preview().displayText(),
-                    "Local-to-cloud migration preview",
-                    JOptionPane.INFORMATION_MESSAGE));
-            cloudData.add(preview);
-            JMenuItem synchronization = new JMenuItem(
-                    "Synchronization is not enabled");
-            synchronization.setEnabled(false);
-            cloudData.add(synchronization);
-            getJMenuBar().add(cloudData);
-            getJMenuBar().revalidate();
-        }
+        JMenu presentationMenu = new JMenu("Presentation Data");
+        JMenuItem load = new JMenuItem("Load Presentation Data");
+        load.addActionListener(event -> runPresentationDataAction(
+                presentationDataService::load, "Presentation data loaded",
+                result -> result.total() == 0
+                        ? "Presentation data was already loaded; nothing changed."
+                        : "Added " + result.accounts() + " account(s), "
+                        + result.income() + " income entries, "
+                        + result.expenses() + " expense(s), and "
+                        + result.transfers() + " transfer(s)."));
+        JMenuItem remove = new JMenuItem("Remove Presentation Data");
+        remove.addActionListener(event -> {
+            int answer = JOptionPane.showConfirmDialog(this,
+                    "This removes only the sample accounts, income, "
+                    + "expenses, and transfers that Load Presentation Data added. "
+                    + "Your own data is not touched. Continue?",
+                    "Remove Presentation Data", JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE);
+            if (answer == JOptionPane.YES_OPTION) {
+                runPresentationDataAction(presentationDataService::remove, "Presentation data removed",
+                        result -> result.total() == 0
+                                ? "No presentation data was present."
+                                : "Removed " + result.income()
+                                + " income entries, " + result.expenses()
+                                + " expense(s), " + result.transfers()
+                                + " transfer(s), and archived "
+                                + result.accounts() + " presentation account(s).");
+            }
+        });
+        presentationMenu.add(load);
+        presentationMenu.add(remove);
+        getJMenuBar().add(presentationMenu);
+        getJMenuBar().revalidate();
+    }
+
+    private void runPresentationDataAction(
+            java.util.function.Supplier<
+                    com.spendwise.service.PresentationDataService.PresentationDataResult>
+                    action,
+            String title,
+            java.util.function.Function<
+                    com.spendwise.service.PresentationDataService.PresentationDataResult,
+                    String> message) {
+        setCursor(java.awt.Cursor.getPredefinedCursor(
+                java.awt.Cursor.WAIT_CURSOR));
+        new javax.swing.SwingWorker<
+                com.spendwise.service.PresentationDataService.PresentationDataResult,
+                Void>() {
+            @Override
+            protected com.spendwise.service.PresentationDataService.PresentationDataResult
+                    doInBackground() {
+                return action.get();
+            }
+
+            @Override
+            protected void done() {
+                setCursor(java.awt.Cursor.getDefaultCursor());
+                try {
+                    com.spendwise.service.PresentationDataService.PresentationDataResult
+                            result = get();
+                    if (refreshAllViews != null) {
+                        refreshAllViews.run();
+                    }
+                    JOptionPane.showMessageDialog(SpendWiseFrame.this,
+                            message.apply(result), title,
+                            JOptionPane.INFORMATION_MESSAGE);
+                } catch (RuntimeException
+                        | java.util.concurrent.ExecutionException
+                        | InterruptedException failure) {
+                    Throwable cause = failure instanceof
+                            java.util.concurrent.ExecutionException
+                            ? failure.getCause() : failure;
+                    String reason = cause != null && cause.getMessage() != null
+                            && !cause.getMessage().isBlank()
+                            ? cause.getMessage()
+                            : "The presentation data action could not be completed.";
+                    JOptionPane.showMessageDialog(SpendWiseFrame.this, reason,
+                            "Presentation Data", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        }.execute();
     }
 
     public void openMyFinance() {

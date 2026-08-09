@@ -426,14 +426,14 @@ public class ExpenseAnalyticsServiceTest {
 
     private static void outsideTrendIsIgnored() {
         InMemoryExpenseRepository repository = new InMemoryExpenseRepository();
-        YearMonth outsideMonth = SELECTED_MONTH.minusMonths(6);
+        YearMonth excludedMonth = SELECTED_MONTH.minusMonths(6);
         repository.seed(expense(
-                "outside", outsideMonth.atDay(1), "999.00", Category.OTHER));
+                "outside", excludedMonth.atDay(1), "999.00", Category.OTHER));
 
         ExpenseAnalyticsSnapshot snapshot =
                 analyticsService(repository).analyzeMonth(SELECTED_MONTH, 6);
 
-        assertFalse(snapshot.getMonthlyTotals().containsKey(outsideMonth),
+        assertFalse(snapshot.getMonthlyTotals().containsKey(excludedMonth),
                 "Expense outside trend range should be ignored.");
         for (BigDecimal total : snapshot.getMonthlyTotals().values()) {
             assertMoney("0.00", total, "Outside expense changed a trend total.");

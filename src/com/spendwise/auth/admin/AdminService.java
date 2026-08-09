@@ -31,7 +31,6 @@ public final class AdminService {
     private final AuditRepository auditRepository;
     private final LocalDesktopAuthService authService;
     private final AuthorizationService authorizationService;
-    private final AdministrationGateway administrationGateway;
     private final Clock clock;
     private final Path backupDirectory;
 
@@ -41,8 +40,7 @@ public final class AdminService {
             LocalDesktopAuthService authService) {
         this(userRepository, auditRepository, authService,
                 new AuthorizationService(), Clock.systemUTC(),
-                AppPaths.getBackupDirectory(),
-                authService.getAdministrationGateway());
+                AppPaths.getBackupDirectory());
     }
 
     AdminService(
@@ -52,19 +50,6 @@ public final class AdminService {
             AuthorizationService authorizationService,
             Clock clock,
             Path backupDirectory) {
-        this(userRepository, auditRepository, authService,
-                authorizationService, clock, backupDirectory,
-                AdministrationGateway.unavailable());
-    }
-
-    AdminService(
-            LocalUserRepository userRepository,
-            AuditRepository auditRepository,
-            LocalDesktopAuthService authService,
-            AuthorizationService authorizationService,
-            Clock clock,
-            Path backupDirectory,
-            AdministrationGateway administrationGateway) {
         this.userRepository = Objects.requireNonNull(
                 userRepository, "User repository is required.");
         this.auditRepository = Objects.requireNonNull(
@@ -77,13 +62,10 @@ public final class AdminService {
         this.backupDirectory = Objects.requireNonNull(
                 backupDirectory, "Backup directory is required.")
                 .toAbsolutePath().normalize();
-        this.administrationGateway = Objects.requireNonNull(
-                administrationGateway, "Administration gateway is required.");
     }
 
     public List<AuthenticatedUser> listUsers(UserSession actor) {
         authorizationService.requireAdmin(actor);
-        if (online()) return administrationGateway.listAdminUsers();
         return userRepository.findAll().stream().map(LocalUserRecord::user)
                 .sorted(Comparator.comparing(AuthenticatedUser::getCreatedAt))
                 .toList();
@@ -91,7 +73,6 @@ public final class AdminService {
 
     public AdminOverview getOverview(UserSession actor) {
         authorizationService.requireAdmin(actor);
-        if (online()) return administrationGateway.getAdminOverview();
         List<LocalUserRecord> records = userRepository.findAll();
         List<AuthenticatedUser> users = records.stream()
                 .map(LocalUserRecord::user).toList();
@@ -124,13 +105,11 @@ public final class AdminService {
 
     public List<AuditEvent> getAuditEvents(UserSession actor) {
         authorizationService.requireAdmin(actor);
-        if (online()) return administrationGateway.listAdminAuditEvents();
         return auditRepository.findAll();
     }
 
     public List<AuthenticatedUser> listPendingRegistrations(UserSession actor) {
         authorizationService.requireAdmin(actor);
-        if (online()) return administrationGateway.listPendingRegistrations();
         return listUsers(actor).stream().filter(user ->
                 user.getAccountStatus() == AccountStatus.PENDING_APPROVAL)
                 .toList();
@@ -138,29 +117,25 @@ public final class AdminService {
 
     public List<AuthenticatedUser> listPendingVerifications(UserSession actor) {
         authorizationService.requireAdmin(actor);
-        if (online()) return administrationGateway.listPendingVerifications();
         return listUsers(actor).stream().filter(user -> user.getAccountStatus()
                 == AccountStatus.PENDING_EMAIL_VERIFICATION).toList();
     }
 
     public AdminSecurityStatus getSecurityStatus(UserSession actor) {
         authorizationService.requireAdmin(actor);
-        if (online()) return administrationGateway.getAdminSecurityStatus();
         return new AdminSecurityStatus(
-                "8-128 characters with an English letter and number; no outer spaces",
+                "6-128 characters with an English letter and number; no outer spaces",
                 "Local session", "Local session", "15 minutes", 5,
-                "Server-managed", 5, "Server-managed");
+                "Local repository", 5, "Local repository");
     }
 
     public AdminApplicationSettings getApplicationSettings(UserSession actor) {
         authorizationService.requireAdmin(actor);
-        if (online()) return administrationGateway.getAdminApplicationSettings();
-        return new AdminApplicationSettings(true, false);
+        return new AdminApplicationSettings(false, false);
     }
 
     public DatabaseHealthStatus getDatabaseHealth(UserSession actor) {
         authorizationService.requireAdmin(actor);
-        if (online()) return administrationGateway.getDatabaseHealth();
         return new DatabaseHealthStatus("UP", "Validated local CSV storage",
                 0, userRepository.findAll().size(), 1);
     }
@@ -168,8 +143,6 @@ public final class AdminService {
     public AuthenticatedUser approveRegistration(
             UserSession actor, String targetUserIdentifier, String reason) {
         authorizationService.requireAdmin(actor);
-        if (online()) return administrationGateway.approveRegistration(
-                targetUserIdentifier, requireReason(reason));
         LocalUserRecord target = requiredUser(targetUserIdentifier);
         if (!target.user().isEmailVerified()
                 || target.user().getAccountStatus()
@@ -184,8 +157,6 @@ public final class AdminService {
     public AuthenticatedUser rejectRegistration(
             UserSession actor, String targetUserIdentifier, String reason) {
         authorizationService.requireAdmin(actor);
-        if (online()) return administrationGateway.rejectRegistration(
-                targetUserIdentifier, requireReason(reason));
         LocalUserRecord target = requiredUser(targetUserIdentifier);
         if (target.user().getAccountStatus() != AccountStatus.PENDING_APPROVAL
                 && target.user().getAccountStatus()
@@ -200,8 +171,6 @@ public final class AdminService {
     public AuthenticatedUser disableUser(
             UserSession actor, String targetUserIdentifier, String reason) {
         authorizationService.requireAdmin(actor);
-        if (online()) return administrationGateway.disableAdminUser(
-                targetUserIdentifier, requireReason(reason));
         return changeStatus(actor, targetUserIdentifier, AccountStatus.DISABLED,
                 AuditAction.USER_DISABLED, reason);
     }
@@ -212,19 +181,13 @@ public final class AdminService {
         if (!actor.isOwner()) {
             throw new AuthException("Only the OWNER can change application settings.");
         }
-        if (!online()) {
-            throw new AuthException(
-                    "Registration approval settings require an online server session.");
-        }
-        return administrationGateway.updateAdminApplicationSettings(
-                approvalRequired, ownerPassword, requireReason(reason));
+        throw new AuthException(
+                "Registration approval is fixed off for verified local accounts.");
     }
 
     public AuthenticatedUser suspendUser(
             UserSession actor, String targetUserIdentifier, String reason) {
         authorizationService.requireAdmin(actor);
-        if (online()) return administrationGateway.suspendAdminUser(
-                targetUserIdentifier, requireReason(reason));
         return changeStatus(actor, targetUserIdentifier,
                 AccountStatus.SUSPENDED, AuditAction.USER_SUSPENDED, reason);
     }
@@ -232,8 +195,6 @@ public final class AdminService {
     public AuthenticatedUser activateUser(
             UserSession actor, String targetUserIdentifier, String reason) {
         authorizationService.requireAdmin(actor);
-        if (online()) return administrationGateway.activateAdminUser(
-                targetUserIdentifier, requireReason(reason));
         return changeStatus(actor, targetUserIdentifier,
                 AccountStatus.ACTIVE, AuditAction.USER_ACTIVATED, reason);
     }
@@ -246,10 +207,6 @@ public final class AdminService {
             char[] passwordConfirmation,
             String reason) {
         authorizationService.requireAdmin(actor);
-        if (online()) {
-            throw new AuthException(
-                    "Administrator password reset is available for local accounts only.");
-        }
         String requiredReason = requireReason(reason);
         LocalUserRecord target = requiredUser(targetUserIdentifier);
         authService.resetPasswordByAdministrator(actor,
@@ -266,8 +223,6 @@ public final class AdminService {
             String reason) {
         authorizationService.requireCanManageAdministrators(
                 actor, requiredUserForAuthorization(targetUserIdentifier));
-        if (online()) return administrationGateway.grantAdminRole(
-                targetUserIdentifier, ownerPassword, requireReason(reason));
         return changeAdministrator(actor, targetUserIdentifier, true,
                 ownerPassword, reason);
     }
@@ -279,24 +234,12 @@ public final class AdminService {
             String reason) {
         authorizationService.requireCanManageAdministrators(
                 actor, requiredUserForAuthorization(targetUserIdentifier));
-        if (online()) return administrationGateway.revokeAdminRole(
-                targetUserIdentifier, ownerPassword, requireReason(reason));
         return changeAdministrator(actor, targetUserIdentifier, false,
                 ownerPassword, reason);
     }
 
     private AuthenticatedUser requiredUserForAuthorization(String identifier) {
-        if (online()) {
-            return administrationGateway.listAdminUsers().stream()
-                    .filter(user -> user.getUserIdentifier().equals(identifier))
-                    .findFirst().orElseThrow(() -> new AuthException(
-                            "The selected user no longer exists."));
-        }
         return requiredUser(identifier).user();
-    }
-
-    private boolean online() {
-        return administrationGateway.hasOnlineSession();
     }
 
     private AuthenticatedUser changeStatus(

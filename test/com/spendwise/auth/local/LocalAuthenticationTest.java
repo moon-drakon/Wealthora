@@ -13,10 +13,11 @@ import com.spendwise.auth.PasswordRecoveryChallenge;
 import com.spendwise.auth.SessionManager;
 import com.spendwise.auth.UserRole;
 import com.spendwise.auth.UserSession;
-import com.spendwise.auth.FinanceMode;
 import com.spendwise.auth.admin.AdminService;
 import com.spendwise.auth.audit.CsvAuditRepository;
-import com.spendwise.auth.registration.RegistrationGateway;
+import com.spendwise.auth.otp.EmailOtpChallenge;
+import com.spendwise.auth.otp.EmailVerificationGateway;
+import com.spendwise.auth.otp.OtpPurpose;
 import com.spendwise.config.AppPaths;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -75,12 +76,14 @@ public final class LocalAuthenticationTest {
         SessionManager sessions = new SessionManager();
         PasswordService passwords = new PasswordService();
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+        AlwaysAcceptOtpGateway otpGateway = new AlwaysAcceptOtpGateway(clock);
         LocalDesktopAuthService service = new LocalDesktopAuthService(
                 users, passwords, new OwnerConfiguration(OWNER_EMAIL),
                 sessions, audit,
                 new LegacyDataMigrationService(
                         legacy, backups, audit, clock),
-                clock, identifier -> workspaces.resolve(identifier));
+                clock, identifier -> workspaces.resolve(identifier),
+                otpGateway);
 
         test("missing owner configuration fails closed", () -> {
             OwnerConfiguration missing = new OwnerConfiguration("");
@@ -109,7 +112,7 @@ public final class LocalAuthenticationTest {
                                     .resolve(identifier));
             assertEquals("", offlineService.getConfiguredOwnerEmail());
             UserSession localOwner = offlineService.createFirstOwner(
-                    "Teacher Demo", "teacher@northsouth.edu",
+                    "Presentation Owner", "teacher@northsouth.edu",
                     "teacher25".toCharArray(),
                     "teacher25".toCharArray());
             assertTrue(localOwner.hasRole(UserRole.OWNER));
@@ -120,7 +123,8 @@ public final class LocalAuthenticationTest {
                     OWNER_PASSWORD, OWNER_PASSWORD));
             assertTrue(service.isOwnerSetupRequired());
         });
-        test("eight-character letter-and-number password policy", () -> {
+        test("six-character letter-and-number password policy", () -> {
+            passwords.requireStrong("moon12".toCharArray());
             passwords.requireStrong("moon1234".toCharArray());
             passwords.requireStrong("wealthora25".toCharArray());
             passwords.requireStrong("student2026".toCharArray());
@@ -131,7 +135,7 @@ public final class LocalAuthenticationTest {
             expect(AuthException.class, () -> passwords.requireStrong(
                     "abcdefgh".toCharArray()));
             expect(AuthException.class, () -> passwords.requireStrong(
-                    "moon12".toCharArray()));
+                    "moon1".toCharArray()));
             expect(AuthException.class, () -> passwords.requireStrong(
                     " moon1234".toCharArray()));
             expect(AuthException.class, () -> passwords.requireStrong(
@@ -216,55 +220,6 @@ public final class LocalAuthenticationTest {
                 assertEquals(1L, backupFiles.count());
             }
         });
-        test("Google sign-in never succeeds without backend", () ->
-                expect(AuthConfigurationException.class,
-                        service::continueWithGoogle));
-        test("online NSU user uses server session without replacing owner", () -> {
-            RecordingGateway gateway = new RecordingGateway();
-            SessionManager onlineSessions = new SessionManager();
-            LocalDesktopAuthService hybrid = new LocalDesktopAuthService(
-                    users, passwords, new OwnerConfiguration(OWNER_EMAIL),
-                    onlineSessions, audit,
-                    new LegacyDataMigrationService(
-                            legacy, backups, audit, clock),
-                    clock, identifier -> workspaces.resolve(identifier),
-                    gateway);
-            UserSession remote = hybrid.signInWithNsuEmail(
-                    gateway.user.getEmail(),
-                    "RemoteStudent1!".toCharArray());
-            onlineSessions.startSession(remote);
-            assertTrue(gateway.active);
-            assertEquals(FinanceMode.CLOUD, remote.getFinanceMode());
-            assertFalse(Files.exists(workspaces.resolve(
-                    gateway.user.getUserIdentifier())));
-            assertEquals(gateway.user.getUserIdentifier(),
-                    hybrid.refreshSession().getUserIdentifier());
-            hybrid.logout();
-            assertTrue(gateway.loggedOut);
-            assertTrue(onlineSessions.getCurrentSession().isEmpty());
-            assertTrue(users.findOwner().isPresent());
-        });
-        test("explicit CLOUD sign-in bypasses a same-email local account", () -> {
-            RecordingGateway gateway = new RecordingGateway(OWNER_EMAIL);
-            LocalDesktopAuthService hybrid = new LocalDesktopAuthService(
-                    users, passwords, new OwnerConfiguration(OWNER_EMAIL),
-                    new SessionManager(), audit,
-                    new LegacyDataMigrationService(
-                            legacy, backups, audit, clock),
-                    clock, identifier -> workspaces.resolve(identifier),
-                    gateway);
-            UserSession cloud = hybrid.signInWithNsuEmail(
-                    OWNER_EMAIL, "CloudPassword1!".toCharArray(),
-                    FinanceMode.CLOUD);
-            assertEquals(FinanceMode.CLOUD, cloud.getFinanceMode());
-            assertTrue(gateway.active);
-
-            UserSession local = hybrid.signInWithNsuEmail(
-                    OWNER_EMAIL, OWNER_PASSWORD, FinanceMode.LOCAL);
-            assertEquals(FinanceMode.LOCAL, local.getFinanceMode());
-            assertTrue(local.isOwner());
-        });
-
         AppPaths.activateUserDataDirectory(ownerId);
         service.logout();
         test("logout clears the current session and private workspace state", () -> {
@@ -285,12 +240,14 @@ public final class LocalAuthenticationTest {
         char[] recoveryChanged = "RecoveryUser2!".toCharArray();
         char[] recoveryAnswer = "Blue Bicycle".toCharArray();
         test("new local user registers with a private workspace", () -> {
-            recoveryUser[0] = service.registerLocalAccount(
+            EmailOtpChallenge registration = service.beginRegistration(
                     "Recovery User", "recovery@northsouth.edu", "2530000004",
                     recoveryOriginal, recoveryOriginal,
                     "What was the name of your first school?",
                     "Two words; remember the color and object",
                     recoveryAnswer);
+            recoveryUser[0] = service.verifyRegistration(
+                    registration.challengeIdentifier(), otpGateway.code);
             assertTrue(recoveryUser[0].getAccountStatus()
                     == AccountStatus.ACTIVE);
             assertTrue(Files.isDirectory(workspaces.resolve(
@@ -359,15 +316,15 @@ public final class LocalAuthenticationTest {
                     .requireOwnWorkspace(new UserSession(administrator, NOW),
                             ownerId));
         });
-        test("OWNER cannot be demoted", () ->
+        test("OWNER role cannot be reduced", () ->
                 expect(AuthException.class, () ->
                         admin.revokeAdministrator(signedIn, ownerId,
-                                OWNER_PASSWORD, "Invalid owner demotion")));
+                                OWNER_PASSWORD, "Invalid owner role change")));
         test("OWNER can revoke ADMIN", () -> {
-            AuthenticatedUser demoted = admin.revokeAdministrator(
+            AuthenticatedUser rolesReduced = admin.revokeAdministrator(
                     signedIn, normalUser.getUserIdentifier(), OWNER_PASSWORD,
                     "Support duty ended");
-            assertFalse(demoted.hasRole(UserRole.ADMIN));
+            assertFalse(rolesReduced.hasRole(UserRole.ADMIN));
         });
         char[] administratorResetPassword =
                 "TemporaryUser3!".toCharArray();
@@ -526,116 +483,44 @@ public final class LocalAuthenticationTest {
         }
     }
 
-    private static final class RecordingGateway
-            implements RegistrationGateway {
+    private static final class AlwaysAcceptOtpGateway
+            implements EmailVerificationGateway {
+        private final Clock clock;
+        private String activeIdentifier = "";
+        private String activeEmail = "";
+        private OtpPurpose activePurpose;
+        private final String code = "123456";
 
-        private final AuthenticatedUser user;
-        private boolean active;
-        private boolean loggedOut;
-
-        private RecordingGateway() {
-            this("remote.student@northsouth.edu");
-        }
-
-        private RecordingGateway(String email) {
-            user = new AuthenticatedUser(
-                    "usr_remote_1", "Remote Student", email, true,
-                    AuthProvider.LOCAL, "", AccountStatus.ACTIVE,
-                    NOW, NOW, NOW, Set.of(UserRole.USER), "2530000003",
-                    "System", "BDT");
-        }
-
-        @Override
-        public AuthenticatedUser register(
-                String fullName, String email, String studentIdentifier,
-                char[] password, char[] passwordConfirmation,
-                boolean termsAccepted) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public AuthenticatedUser verifyEmail(
-                String email, String verificationCode) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void resendVerification(String email) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void forgotPassword(String email) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void resetPassword(
-                String email, String resetToken, char[] newPassword) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void changePassword(
-                char[] currentPassword, char[] newPassword) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void setPassword(char[] newPassword) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public List<AccountSession> listSessions() {
-            return List.of(new AccountSession(
-                    "session-remote", "Test Desktop", NOW,
-                    NOW.plusSeconds(900), true));
-        }
-
-        @Override
-        public void revokeSession(AccountSession session) {
-            if (session.currentSession()) active = false;
-        }
-
-        @Override
-        public void logoutAll() {
-            active = false;
-            loggedOut = true;
-        }
-
-        @Override
-        public UserSession signIn(String email, char[] password) {
-            active = true;
-            loggedOut = false;
-            return new UserSession(user, NOW, FinanceMode.CLOUD);
-        }
-
-        @Override
-        public UserSession refreshSession() {
-            if (!active) throw new AuthException("No active session.");
-            return new UserSession(user, NOW, FinanceMode.CLOUD);
-        }
-
-        @Override
-        public void logout() {
-            active = false;
-            loggedOut = true;
-        }
-
-        @Override
-        public AuthenticatedUser getCurrentUser() {
-            return user;
-        }
-
-        @Override
-        public boolean hasActiveSession() {
-            return active;
+        AlwaysAcceptOtpGateway(Clock clock) {
+            this.clock = clock;
         }
 
         @Override
         public boolean isConfigured() {
             return true;
+        }
+
+        @Override
+        public EmailOtpChallenge sendCode(
+                String email, OtpPurpose purpose, String existingIdentifier) {
+            activeIdentifier = "challenge_00000000000000000001";
+            activeEmail = email;
+            activePurpose = purpose;
+            return new EmailOtpChallenge(activeIdentifier, email, purpose,
+                    clock.instant().plusSeconds(600),
+                    clock.instant().plusSeconds(60));
+        }
+
+        @Override
+        public void verifyCode(
+                String email, OtpPurpose purpose,
+                String identifier, String suppliedCode) {
+            if (!activeIdentifier.equals(identifier)
+                    || !activeEmail.equals(email)
+                    || activePurpose != purpose || !code.equals(suppliedCode)) {
+                throw new AuthException("Invalid code.");
+            }
+            activeIdentifier = "";
         }
     }
 

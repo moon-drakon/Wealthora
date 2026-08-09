@@ -1,8 +1,6 @@
 package com.spendwise.ui.shell;
 
 import com.spendwise.auth.UserSession;
-import com.spendwise.auth.CloudConnectionState;
-import com.spendwise.auth.FinanceMode;
 import com.spendwise.ui.component.AppIcons;
 import com.spendwise.ui.component.NotificationBanner;
 import com.spendwise.ui.theme.AppTheme;
@@ -13,7 +11,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 import javax.swing.JPanel;
 
 public final class AppShellPanel extends JPanel {
@@ -143,11 +140,6 @@ public final class AppShellPanel extends JPanel {
     public void configureProfile(
             UserSession session, ProfileMenuActions actions) {
         topBar.configureProfile(session, actions);
-    }
-
-    public void configureFinanceMode(FinanceMode mode,
-            Supplier<CloudConnectionState> connectionState) {
-        topBar.configureFinanceMode(mode, connectionState);
     }
 
     public void setDarkMode(boolean darkMode) {

@@ -10,12 +10,12 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 
-final class SafeFileSupport {
+public final class SafeFileSupport {
 
     private SafeFileSupport() {
     }
 
-    static void write(
+    public static void write(
             Path destination,
             byte[] content,
             boolean allowOverwrite,

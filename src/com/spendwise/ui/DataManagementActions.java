@@ -1,6 +1,10 @@
 package com.spendwise.ui;
 
 import com.spendwise.config.AppBrand;
+import com.spendwise.config.AppPaths;
+import com.spendwise.imports.ForeignBackupDetector;
+import com.spendwise.imports.ForeignBackupFormat;
+import com.spendwise.imports.MoneyManagerImport;
 import com.spendwise.repository.RepositoryException;
 import com.spendwise.service.AdvancedReportSnapshot;
 import com.spendwise.service.BackupInspection;
@@ -9,15 +13,20 @@ import com.spendwise.service.BackupService;
 import com.spendwise.service.ExportResult;
 import com.spendwise.service.ExportService;
 import com.spendwise.service.CsvImportService;
+import com.spendwise.service.ImportPreview;
+import com.spendwise.service.ImportReport;
 import com.spendwise.service.ImportResult;
 import com.spendwise.service.JsonBackupService;
 import com.spendwise.service.PdfReportService;
 import com.spendwise.service.PortfolioAnalyticsSnapshot;
 import com.spendwise.service.RestoreResult;
+import com.spendwise.service.WorkspacePortabilityService;
 import com.spendwise.validation.ValidationException;
 import java.awt.Component;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Comparator;
 import java.util.Objects;
 import java.util.function.Supplier;
 import javax.swing.JFileChooser;
@@ -38,6 +47,8 @@ final class DataManagementActions {
     private final PdfReportService pdfReportService;
     private final Supplier<PortfolioAnalyticsSnapshot> portfolioSupplier;
     private final Supplier<String> currencySupplier;
+    private final WorkspacePortabilityService portability;
+    private final boolean showLocalWorkspaceImport;
 
     DataManagementActions(
             Component owner,
@@ -60,11 +71,28 @@ final class DataManagementActions {
             PdfReportService pdfReportService,
             Supplier<PortfolioAnalyticsSnapshot> portfolioSupplier,
             Supplier<String> currencySupplier) {
+        this(owner, backupService, exportService, reportSupplier,
+                restoreSuccessListener, jsonBackupService, csvImportService,
+                pdfReportService, portfolioSupplier, currencySupplier,
+                null, false);
+    }
+
+    DataManagementActions(
+            Component owner,
+            BackupService backupService,
+            ExportService exportService,
+            Supplier<AdvancedReportSnapshot> reportSupplier,
+            Runnable restoreSuccessListener,
+            JsonBackupService jsonBackupService,
+            CsvImportService csvImportService,
+            PdfReportService pdfReportService,
+            Supplier<PortfolioAnalyticsSnapshot> portfolioSupplier,
+            Supplier<String> currencySupplier,
+            WorkspacePortabilityService portability,
+            boolean showLocalWorkspaceImport) {
         this.owner = Objects.requireNonNull(owner, "Data-action owner is required.");
-        this.backupService = Objects.requireNonNull(
-                backupService, "Backup service is required.");
-        this.exportService = Objects.requireNonNull(
-                exportService, "Export service is required.");
+        this.backupService = backupService;
+        this.exportService = exportService;
         this.reportSupplier = Objects.requireNonNull(
                 reportSupplier, "Report supplier is required.");
         this.restoreSuccessListener = Objects.requireNonNull(
@@ -75,43 +103,70 @@ final class DataManagementActions {
         this.pdfReportService = pdfReportService;
         this.portfolioSupplier = portfolioSupplier;
         this.currencySupplier = currencySupplier;
+        this.portability = portability;
+        this.showLocalWorkspaceImport = showLocalWorkspaceImport;
     }
 
     JMenu createMenu() {
         JMenu dataMenu = new JMenu("Data");
         dataMenu.setMnemonic('D');
-        dataMenu.add(item("Create Backup...", this::createBackup));
-        dataMenu.add(item("Restore Backup...", this::restoreBackup));
+        if (portability != null) {
+            dataMenu.add(item(
+                    "Export Full " + AppBrand.APP_NAME + " Backup (.zip)",
+                    this::createBackup));
+            dataMenu.add(item(
+                    "Import " + AppBrand.APP_NAME + " Backup (.zip)",
+                    this::restoreBackup));
+        }
         if (jsonBackupService != null) {
             dataMenu.add(item("Create JSON Backup...", this::createJsonBackup));
             dataMenu.add(item("Restore JSON Backup...", this::restoreJsonBackup));
         }
+        if (exportService != null || csvImportService != null) {
+            dataMenu.addSeparator();
+        }
+        if (exportService != null) {
+            dataMenu.add(item("Export Transactions (.csv)", () -> export(
+                    "Export Transactions", "transactions-export.csv",
+                    exportService::exportTransactions)));
+        }
         if (csvImportService != null) {
-            dataMenu.add(item("Import " + AppBrand.APP_NAME + " CSV...",
-                    this::importCsv));
+            dataMenu.add(item("Import Transactions (.csv)", this::importCsv));
         }
-        dataMenu.addSeparator();
-        JMenu exportMenu = new JMenu("Export");
-        exportMenu.add(item("Transactions...", () -> export(
-                "Export Transactions", "transactions-export.csv",
-                exportService::exportTransactions)));
-        exportMenu.add(item("Expenses...", () -> export(
-                "Export Expenses", "expenses-export.csv",
-                exportService::exportExpenses)));
-        exportMenu.add(item("Income...", () -> export(
-                "Export Income", "income-export.csv",
-                exportService::exportIncome)));
-        exportMenu.add(item("Transfers...", () -> export(
-                "Export Transfers", "transfers-export.csv",
-                exportService::exportTransfers)));
-        exportMenu.add(item("Account Summary...", () -> export(
-                "Export Account Summary", "account-summary.csv",
-                exportService::exportAccountSummary)));
-        exportMenu.add(item("Current Report...", this::exportCurrentReport));
-        if (pdfReportService != null) {
-            exportMenu.add(item("Current Report as PDF...", this::exportPdf));
+        if (portability != null) {
+            dataMenu.addSeparator();
+            JMenu importFromAnotherApp = new JMenu("Import from Another App");
+            if (showLocalWorkspaceImport) {
+                importFromAnotherApp.add(item(
+                        "Import Existing Local " + AppBrand.APP_NAME + " Data",
+                        this::importLocalWorkspace));
+            }
+            importFromAnotherApp.add(item(
+                    "Import Money Manager Backup",
+                    this::importMoneyManagerBackup));
+            dataMenu.add(importFromAnotherApp);
         }
-        dataMenu.add(exportMenu);
+        if (exportService != null) {
+            dataMenu.addSeparator();
+            JMenu exportMenu = new JMenu("Export");
+            exportMenu.add(item("Expenses...", () -> export(
+                    "Export Expenses", "expenses-export.csv",
+                    exportService::exportExpenses)));
+            exportMenu.add(item("Income...", () -> export(
+                    "Export Income", "income-export.csv",
+                    exportService::exportIncome)));
+            exportMenu.add(item("Transfers...", () -> export(
+                    "Export Transfers", "transfers-export.csv",
+                    exportService::exportTransfers)));
+            exportMenu.add(item("Account Summary...", () -> export(
+                    "Export Account Summary", "account-summary.csv",
+                    exportService::exportAccountSummary)));
+            exportMenu.add(item("Current Report...", this::exportCurrentReport));
+            if (pdfReportService != null) {
+                exportMenu.add(item("Current Report as PDF...", this::exportPdf));
+            }
+            dataMenu.add(exportMenu);
+        }
         return dataMenu;
     }
 
@@ -203,9 +258,13 @@ final class DataManagementActions {
         }
     }
 
+    /**
+     * Writes the whole current local workspace to one ZIP package via
+     * {@link #portability}.
+     */
     void createBackup() {
         JFileChooser chooser = chooser(
-                "Create " + AppBrand.APP_NAME + " Backup",
+                "Export " + AppBrand.APP_NAME + " Backup",
                 AppBrand.BACKUP_FILE_NAME, "ZIP backup", "zip");
         if (chooser.showSaveDialog(owner) != JFileChooser.APPROVE_OPTION) {
             return;
@@ -216,16 +275,20 @@ final class DataManagementActions {
             return;
         }
         try {
-            BackupResult result = backupService.createBackup(
-                    destination, overwrite);
+            BackupResult result = portability.exportBackup(destination, overwrite);
             showInformation(
                     "Backup created with " + result.includedFiles().size()
-                    + " managed data file(s):\n" + result.destination());
+                    + " file(s):\n" + result.destination());
         } catch (ValidationException | RepositoryException exception) {
             showError(safeMessage(exception));
         }
     }
 
+    /**
+     * Merges a ZIP backup package into the current workspace via
+     * {@link #portability}, previewing what will change before anything is
+     * written and writing a safety backup of the current data first.
+     */
     void restoreBackup() {
         JFileChooser chooser = chooser(
                 "Select " + AppBrand.APP_NAME + " Backup",
@@ -235,31 +298,134 @@ final class DataManagementActions {
         }
         Path source = chooser.getSelectedFile().toPath();
         try {
-            BackupInspection inspection = backupService.inspectBackup(source);
-            String files = inspection.includedFiles().isEmpty()
-                    ? "(no managed files)"
-                    : String.join("\n", inspection.includedFiles());
-            int answer = JOptionPane.showConfirmDialog(
-                    owner,
-                    "Backup created: " + inspection.createdAt()
-                    + "\n\nManaged files to restore:\n" + files
-                    + "\n\nCurrent managed data will receive a safety backup. Continue?",
-                    "Confirm Restore",
-                    JOptionPane.YES_NO_OPTION,
-                    JOptionPane.WARNING_MESSAGE);
-            if (answer != JOptionPane.YES_OPTION) {
+            ImportPreview preview = portability.previewBackup(source);
+            if (!confirmImport(preview.displayText())) {
                 return;
             }
-            RestoreResult result = backupService.restoreBackup(source);
+            Path safety = portability.suggestSafetyBackupPath(source.getParent());
+            ImportReport report = portability.importBackup(source, safety);
             restoreSuccessListener.run();
-            showInformation(
-                    "Restore completed for " + result.restoredFiles().size()
-                    + " managed data file(s)."
-                    + result.safetyBackup()
-                            .map(path -> "\nSafety backup: " + path)
-                            .orElse(""));
+            showInformation(report.displayText());
         } catch (ValidationException | RepositoryException exception) {
             showError(safeMessage(exception));
+        }
+    }
+
+    /**
+     * Imports an existing offline {@code Wealthora} data folder into the
+     * current workspace. The target is the signed-in account bound to
+     * {@link #portability}, so the desktop cannot write into another user's
+     * workspace.
+     */
+    private void importLocalWorkspace() {
+        Path legacyDirectory = AppPaths.getLegacyDataDirectory();
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle(
+                "Select Existing " + AppBrand.APP_NAME + " Data Folder");
+        chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+        if (Files.isDirectory(legacyDirectory)) {
+            chooser.setCurrentDirectory(legacyDirectory.toFile());
+        }
+        if (chooser.showOpenDialog(owner) != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+        Path folder = chooser.getSelectedFile().toPath();
+        try {
+            ImportPreview preview = portability.previewLocalWorkspace(folder);
+            if (!confirmImport(preview.displayText())) {
+                return;
+            }
+            ImportReport report = portability.importLocalWorkspace(
+                    folder, portability.suggestSafetyBackupPath(folder));
+            restoreSuccessListener.run();
+            showInformation(report.displayText());
+        } catch (RuntimeException exception) {
+            showError(safeMessage(exception));
+        }
+    }
+
+    /**
+     * Reads a Money Manager backup file (a database, possibly inside a ZIP)
+     * and merges the records it can map into the current workspace.
+     */
+    private void importMoneyManagerBackup() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("Select Money Manager Backup File");
+        if (chooser.showOpenDialog(owner) != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+        Path source = chooser.getSelectedFile().toPath();
+        ForeignBackupFormat format;
+        try {
+            format = ForeignBackupDetector.detect(source);
+        } catch (RuntimeException exception) {
+            showError(safeMessage(exception));
+            return;
+        }
+        if (!format.isImportable()) {
+            showError(format.notes().isEmpty()
+                    ? format.description()
+                    : format.description() + "\n\n"
+                            + String.join("\n", format.notes()));
+            return;
+        }
+        Path staging;
+        try {
+            staging = Files.createTempDirectory("wealthora-mm-import-");
+        } catch (IOException exception) {
+            showError("A temporary working folder could not be created.");
+            return;
+        }
+        try {
+            MoneyManagerImport.Result result =
+                    MoneyManagerImport.read(source, staging);
+            ImportPreview preview = portability.previewWorkspace(
+                    result.workspace(),
+                    "Money Manager backup (" + result.currencyCode() + ")");
+            StringBuilder message = new StringBuilder(preview.displayText());
+            if (!result.warnings().isEmpty()) {
+                message.append("\n\nMoney Manager notes:\n");
+                result.warnings().forEach(warning ->
+                        message.append("  • ").append(warning).append('\n'));
+            }
+            if (!confirmImport(message.toString())) {
+                return;
+            }
+            ImportReport report = portability.importWorkspace(result.workspace(),
+                    portability.suggestSafetyBackupPath(source.getParent()));
+            restoreSuccessListener.run();
+            StringBuilder resultMessage = new StringBuilder(report.displayText());
+            if (result.skippedRecords() > 0) {
+                resultMessage.append("\n\nMoney Manager also skipped ")
+                        .append(result.skippedRecords())
+                        .append(" record(s) that could not be mapped.");
+            }
+            showInformation(resultMessage.toString());
+        } catch (RuntimeException exception) {
+            showError(safeMessage(exception));
+        } finally {
+            deleteRecursively(staging);
+        }
+    }
+
+    private boolean confirmImport(String message) {
+        Object[] options = {"Import", "Cancel"};
+        int answer = JOptionPane.showOptionDialog(owner, message,
+                "Confirm Import", JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE, null, options, options[1]);
+        return answer == 0;
+    }
+
+    private static void deleteRecursively(Path directory) {
+        if (directory == null) {
+            return;
+        }
+        try (var paths = Files.walk(directory)) {
+            for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
+                Files.deleteIfExists(path);
+            }
+        } catch (IOException | SecurityException ignored) {
+            // Temporary files only; the operating system reclaims them.
         }
     }
 

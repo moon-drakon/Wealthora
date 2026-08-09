@@ -4,55 +4,7 @@ import java.util.List;
 
 public interface AuthService {
 
-    default boolean isSharedOnlineMode() {
-        return false;
-    }
-
-    default AuthenticationAvailability getAuthenticationAvailability() {
-        return AuthenticationAvailability.serverUrlMissing();
-    }
-
-    default String getServerConnectionStatus() {
-        return getAuthenticationAvailability().serverStatus();
-    }
-
     UserSession signInWithNsuEmail(String email, char[] password);
-
-    default UserSession signInWithNsuEmail(
-            String email, char[] password, FinanceMode destination) {
-        if (destination != FinanceMode.CLOUD) {
-            throw new AuthConfigurationException(
-                    "Local sign-in is unavailable in this authentication service.");
-        }
-        return signInWithNsuEmail(email, password);
-    }
-
-    UserSession continueWithGoogle();
-
-    AuthenticatedUser registerWithNsuEmail(
-            String fullName, String email, char[] password);
-
-    default AuthenticatedUser registerWithNsuEmail(
-            String fullName,
-            String email,
-            String studentIdentifier,
-            char[] password,
-            boolean termsAccepted) {
-        if (!termsAccepted) {
-            throw new AuthException(
-                    "Accept the terms and privacy notice to create an account.");
-        }
-        return registerWithNsuEmail(fullName, email, password);
-    }
-
-    AuthenticatedUser verifyNsuEmail(
-            String email, String verificationCode);
-
-    void resendVerification(String email);
-
-    void forgotPassword(String email);
-
-    void resetPassword(String email, String resetToken, char[] newPassword);
 
     default void changePassword(
             char[] currentPassword, char[] newPassword) {
@@ -79,8 +31,6 @@ public interface AuthService {
         throw new AuthConfigurationException(
                 "Session management requires a configured authentication service.");
     }
-
-    UserSession refreshSession();
 
     void logout();
 

@@ -1,7 +1,5 @@
 package com.spendwise.ui;
 
-import com.spendwise.auth.CloudConnectionState;
-import com.spendwise.auth.FinanceMode;
 import com.spendwise.config.AppBrand;
 import com.spendwise.model.RecurringEntry;
 import com.spendwise.model.Transaction;
@@ -36,7 +34,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
-import java.util.function.Supplier;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -94,9 +91,6 @@ public final class OverviewPanel extends JPanel {
     private final JLabel workspaceDetail = new JLabel(
             "Your finance data is stored on this computer.");
     private final JScrollPane scrollPane = new JScrollPane();
-    private FinanceMode financeMode = FinanceMode.LOCAL;
-    private Supplier<CloudConnectionState> connectionState =
-            () -> CloudConnectionState.OFFLINE;
 
     public OverviewPanel(
             FinanceService financeService,
@@ -183,23 +177,12 @@ public final class OverviewPanel extends JPanel {
         updateRecentActivity();
         updateUpcomingItems();
         updateWorkspaceStatus();
-        updatedLabel.setText(financeMode == FinanceMode.LOCAL
-                ? "Showing data for " + month.format(MONTH_LABEL)
-                : "Showing CLOUD data for " + month.format(MONTH_LABEL)
-                        + " · " + connectionState.get().getDisplayName());
+        updatedLabel.setText("Showing local data for "
+                + month.format(MONTH_LABEL));
         revalidate();
         repaint();
         SwingUtilities.invokeLater(() ->
                 scrollPane.getVerticalScrollBar().setValue(0));
-    }
-
-    public void configureFinanceMode(FinanceMode mode,
-            Supplier<CloudConnectionState> stateSupplier) {
-        financeMode = Objects.requireNonNull(mode,
-                "Finance mode is required.");
-        connectionState = Objects.requireNonNull(stateSupplier,
-                "Connection-state supplier is required.");
-        updateWorkspaceStatus();
     }
 
     private void buildInterface() {
@@ -282,35 +265,9 @@ public final class OverviewPanel extends JPanel {
     }
 
     private void updateWorkspaceStatus() {
-        if (financeMode == FinanceMode.LOCAL) {
-            workspaceTitle.setText("Local workspace");
-            workspaceDetail.setText(
-                    "Your finance data is stored on this computer.");
-            return;
-        }
-        CloudConnectionState state = connectionState.get();
-        switch (state) {
-            case CONNECTED -> {
-                workspaceTitle.setText("Private CLOUD workspace");
-                workspaceDetail.setText(
-                        "Synced to your authenticated Wealthora account.");
-            }
-            case UNAUTHORIZED -> {
-                workspaceTitle.setText("CLOUD session expired");
-                workspaceDetail.setText(
-                        "Sign in again to continue using CLOUD finance.");
-            }
-            case SERVER_UNAVAILABLE -> {
-                workspaceTitle.setText("CLOUD server unavailable");
-                workspaceDetail.setText(
-                        "Your local workspace remains separate and unchanged.");
-            }
-            case OFFLINE -> {
-                workspaceTitle.setText("CLOUD workspace offline");
-                workspaceDetail.setText(
-                        "Reconnect before loading or changing CLOUD data.");
-            }
-        }
+        workspaceTitle.setText("Portable local workspace");
+        workspaceDetail.setText(
+                "Finance data stays in this project's data folder.");
     }
 
     private JPanel buildActivityRow() {

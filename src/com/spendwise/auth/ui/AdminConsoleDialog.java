@@ -595,7 +595,7 @@ public final class AdminConsoleDialog extends JDialog {
         form.add(new JLabel("Confirm temporary password"));
         form.add(confirmation);
         form.add(new JLabel(
-                "Use 8-128 characters with an English letter and number."));
+                "Use 6-128 characters with an English letter and number."));
         int answer = JOptionPane.showConfirmDialog(this, form,
                 "Reset user password", JOptionPane.OK_CANCEL_OPTION,
                 JOptionPane.PLAIN_MESSAGE);

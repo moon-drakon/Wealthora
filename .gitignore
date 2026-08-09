@@ -2,7 +2,9 @@
 .env
 .env.*
 wealthora.local.env
-!**/.env.example
+**/otp-relay-config.json
+**/.otp-relay-config-*.tmp
+**/.otp-relay-config-*.bak
 **/credentials.json
 **/credentials/
 **/client_secret*.json
@@ -22,14 +24,12 @@ wealthora.local.env
 *.p12
 *.pfx
 
-# Java, Ant, and Maven output
+# Java and Ant output
 /build/
 /dist/
-/server/target/
 *.class
 *.jar
 !/lib/*.jar
-!/server/.mvn/wrapper/maven-wrapper.jar
 
 # Local databases, dumps, and backups
 *.db
@@ -61,13 +61,7 @@ wealthora.local.env
 /auth/
 /backups/
 /storage/
-/server/dev-mail/
-/server/data/
-/server/runtime-storage/
-
-# Web output reserved for the future web client
-/web/node_modules/
-/web/.next/
+/presentation-data/*.local.*
 
 # IDE-local state; keep the shared NetBeans project files
 /nbproject/private/

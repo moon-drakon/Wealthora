@@ -1,14 +1,112 @@
 package com.spendwise.config;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
 
+/**
+ * Resolves Wealthora's portable project and data locations.
+ *
+ * <p>The project directory is the portable unit. Runtime data is always below
+ * {@code <project-root>/data}; the operating-system application-data folder is
+ * exposed only as a possible migration source for older releases.
+ */
 public final class AppPaths {
 
-    private static final String APPLICATION_DIRECTORY = "SpendWiseExpenseTracker";
+    public static final String PROJECT_ROOT_PROPERTY = "wealthora.project.root";
+    public static final String PROJECT_ROOT_ENVIRONMENT =
+            "WEALTHORA_PROJECT_ROOT";
+    private static final String LEGACY_APPLICATION_DIRECTORY =
+            "SpendWiseExpenseTracker";
+    private static volatile Path cachedProjectRoot;
     private static volatile Path activeDataDirectory;
 
     private AppPaths() {
+    }
+
+    public static Path getProjectRoot() {
+        Path cached = cachedProjectRoot;
+        if (cached != null) {
+            return cached;
+        }
+        synchronized (AppPaths.class) {
+            if (cachedProjectRoot == null) {
+                cachedProjectRoot = resolveProjectRoot(
+                        Path.of(System.getProperty("user.dir", ".")),
+                        codeLocation(), configuredProjectRoot());
+            }
+            return cachedProjectRoot;
+        }
+    }
+
+    public static Path getDataRootDirectory() {
+        return getProjectRoot().resolve("data").toAbsolutePath().normalize();
+    }
+
+    public static Path getAuthenticationDirectory() {
+        return getDataRootDirectory().resolve("auth");
+    }
+
+    public static Path getBackupDirectory() {
+        return getDataRootDirectory().resolve("backups");
+    }
+
+    public static Path getSettingsDirectory() {
+        return getDataRootDirectory().resolve("settings");
+    }
+
+    public static Path getPresentationDirectory() {
+        return getDataRootDirectory().resolve("presentation");
+    }
+
+    /**
+     * Compatibility name for finance files stored directly below data/ by
+     * early project-local builds. It is not an AppData fallback.
+     */
+    public static Path getLegacyDataDirectory() {
+        return getDataRootDirectory();
+    }
+
+    /** Returns the old OS-specific root only for an explicit migration flow. */
+    public static Path getLegacyApplicationRoot() {
+        return legacyApplicationRoot(
+                System.getProperty("os.name"),
+                System.getenv("LOCALAPPDATA"),
+                System.getenv("XDG_DATA_HOME"),
+                System.getProperty("user.home"));
+    }
+
+    /** Returns the finance directory used by pre-portable releases. */
+    public static Path getLegacyAppDataDirectory() {
+        return getLegacyApplicationRoot().resolve("data")
+                .toAbsolutePath().normalize();
+    }
+
+    public static Path getUserDataDirectory(String trustedUserIdentifier) {
+        String identifier = requiredValue(trustedUserIdentifier,
+                "A trusted user identifier is required.");
+        if (!identifier.matches("[A-Za-z0-9_-]{3,80}")) {
+            throw new IllegalArgumentException(
+                    "The trusted user identifier is invalid.");
+        }
+        return getDataRootDirectory().resolve("users").resolve(identifier)
+                .toAbsolutePath().normalize();
+    }
+
+    public static synchronized void activateUserDataDirectory(
+            String trustedUserIdentifier) {
+        activeDataDirectory = getUserDataDirectory(trustedUserIdentifier);
+    }
+
+    public static synchronized void clearUserDataDirectory() {
+        activeDataDirectory = null;
+    }
+
+    public static Path getDataDirectory() {
+        Path active = activeDataDirectory;
+        return active == null ? getLegacyDataDirectory() : active;
     }
 
     public static Path getExpenseCsvPath() {
@@ -63,224 +161,196 @@ public final class AppPaths {
         return currentDataPath("debts.csv");
     }
 
-    public static Path getDataDirectory() {
-        Path active = activeDataDirectory;
-        return active == null ? getLegacyDataDirectory() : active;
-    }
-
-    public static Path getLegacyDataDirectory() {
-        return applicationRoot().resolve("data").toAbsolutePath().normalize();
-    }
-
-    public static Path getAuthenticationDirectory() {
-        return applicationRoot().resolve("auth").toAbsolutePath().normalize();
-    }
-
-    public static Path getBackupDirectory() {
-        return applicationRoot().resolve("backups").toAbsolutePath().normalize();
-    }
-
-    public static Path getUserDataDirectory(String trustedUserIdentifier) {
-        String identifier = requiredValue(trustedUserIdentifier,
-                "A trusted user identifier is required.");
-        if (!identifier.matches("[A-Za-z0-9_-]{3,80}")) {
-            throw new IllegalArgumentException(
-                    "The trusted user identifier is invalid.");
+    static Path resolveProjectRoot(
+            Path workingDirectory, Path codeLocation, String configuredRoot) {
+        if (configuredRoot != null && !configuredRoot.isBlank()) {
+            Path explicit = Path.of(configuredRoot.strip())
+                    .toAbsolutePath().normalize();
+            requireProjectMarkers(explicit,
+                    "The configured Wealthora project root is invalid.");
+            return explicit;
         }
-        return getLegacyDataDirectory().resolve("users").resolve(identifier)
-                .toAbsolutePath().normalize();
+        Path fromWorkingDirectory = findProjectRoot(workingDirectory);
+        if (fromWorkingDirectory != null) {
+            return fromWorkingDirectory;
+        }
+        Path fromCode = findProjectRoot(codeLocation);
+        if (fromCode != null) {
+            return fromCode;
+        }
+        throw new IllegalStateException(
+                "Wealthora could not locate its project root. Run from the "
+                + "project folder or set WEALTHORA_PROJECT_ROOT to a folder "
+                + "containing build.xml and nbproject/project.xml.");
     }
 
-    public static synchronized void activateUserDataDirectory(
-            String trustedUserIdentifier) {
-        activeDataDirectory = getUserDataDirectory(trustedUserIdentifier);
+    private static Path findProjectRoot(Path startingPoint) {
+        if (startingPoint == null) {
+            return null;
+        }
+        Path candidate = startingPoint.toAbsolutePath().normalize();
+        if (Files.isRegularFile(candidate)) {
+            candidate = candidate.getParent();
+        }
+        while (candidate != null) {
+            if (hasProjectMarkers(candidate)) {
+                return candidate;
+            }
+            candidate = candidate.getParent();
+        }
+        return null;
     }
 
-    public static synchronized void clearUserDataDirectory() {
-        activeDataDirectory = null;
+    private static boolean hasProjectMarkers(Path directory) {
+        return Files.isRegularFile(directory.resolve("build.xml"))
+                && Files.isRegularFile(
+                        directory.resolve("nbproject").resolve("project.xml"));
     }
 
-    static Path resolveExpenseCsvPath(
-            String operatingSystemName,
-            String localAppData,
-            String xdgDataHome,
-            String userHome) {
-        return resolveDataFilePath(
-                operatingSystemName,
-                localAppData,
-                xdgDataHome,
-                userHome,
-                "expenses.csv");
+    private static void requireProjectMarkers(Path directory, String message) {
+        if (!hasProjectMarkers(directory)) {
+            throw new IllegalStateException(message);
+        }
     }
 
-    static Path resolveBudgetCsvPath(
-            String operatingSystemName,
-            String localAppData,
-            String xdgDataHome,
-            String userHome) {
-        return resolveDataFilePath(
-                operatingSystemName,
-                localAppData,
-                xdgDataHome,
-                userHome,
-                "budgets.csv");
+    private static String configuredProjectRoot() {
+        String property = System.getProperty(PROJECT_ROOT_PROPERTY);
+        return property == null || property.isBlank()
+                ? System.getenv(PROJECT_ROOT_ENVIRONMENT) : property;
     }
 
-    static Path resolveCategoryCsvPath(
-            String operatingSystemName,
-            String localAppData,
-            String xdgDataHome,
-            String userHome) {
-        return resolveDataFilePath(
-                operatingSystemName,
-                localAppData,
-                xdgDataHome,
-                userHome,
-                "categories.csv");
-    }
-
-    static Path resolveAccountCsvPath(
-            String operatingSystemName,
-            String localAppData,
-            String xdgDataHome,
-            String userHome) {
-        return resolveDataFilePath(
-                operatingSystemName,
-                localAppData,
-                xdgDataHome,
-                userHome,
-                "accounts.csv");
-    }
-
-    static Path resolveIncomeCsvPath(
-            String operatingSystemName,
-            String localAppData,
-            String xdgDataHome,
-            String userHome) {
-        return resolveDataFilePath(
-                operatingSystemName,
-                localAppData,
-                xdgDataHome,
-                userHome,
-                "income.csv");
-    }
-
-    static Path resolveTransferCsvPath(
-            String operatingSystemName,
-            String localAppData,
-            String xdgDataHome,
-            String userHome) {
-        return resolveDataFilePath(
-                operatingSystemName,
-                localAppData,
-                xdgDataHome,
-                userHome,
-                "transfers.csv");
-    }
-
-    static Path resolveRecurringCsvPath(
-            String operatingSystemName,
-            String localAppData,
-            String xdgDataHome,
-            String userHome) {
-        return resolveDataFilePath(
-                operatingSystemName,
-                localAppData,
-                xdgDataHome,
-                userHome,
-                "recurring.csv");
-    }
-
-    static Path resolveAccountSettingsCsvPath(
-            String operatingSystemName,
-            String localAppData,
-            String xdgDataHome,
-            String userHome) {
-        return resolveDataFilePath(
-                operatingSystemName,
-                localAppData,
-                xdgDataHome,
-                userHome,
-                "account-settings.csv");
+    private static Path codeLocation() {
+        try {
+            URI location = AppPaths.class.getProtectionDomain()
+                    .getCodeSource().getLocation().toURI();
+            return Path.of(location);
+        } catch (URISyntaxException | RuntimeException exception) {
+            return null;
+        }
     }
 
     private static Path currentDataPath(String fileName) {
-        Path active = activeDataDirectory;
-        return active == null ? resolveDataFilePath(
-                System.getProperty("os.name"),
-                System.getenv("LOCALAPPDATA"),
-                System.getenv("XDG_DATA_HOME"),
-                System.getProperty("user.home"),
-                fileName) : active.resolve(fileName).toAbsolutePath().normalize();
+        return getDataDirectory().resolve(fileName)
+                .toAbsolutePath().normalize();
     }
 
-    private static Path applicationRoot() {
-        return resolveDataFilePath(
-                System.getProperty("os.name"),
-                System.getenv("LOCALAPPDATA"),
-                System.getenv("XDG_DATA_HOME"),
-                System.getProperty("user.home"),
-                ".").getParent().toAbsolutePath().normalize();
+    static Path resolveExpenseCsvPath(
+            String operatingSystemName, String localAppData,
+            String xdgDataHome, String userHome) {
+        return legacyDataFile(operatingSystemName, localAppData,
+                xdgDataHome, userHome, "expenses.csv");
     }
 
-    private static Path resolveDataFilePath(
-            String operatingSystemName,
-            String localAppData,
-            String xdgDataHome,
-            String userHome,
-            String fileName) {
-        String normalizedOperatingSystem = requiredValue(
-                operatingSystemName, "Operating-system information is unavailable.")
+    static Path resolveBudgetCsvPath(
+            String operatingSystemName, String localAppData,
+            String xdgDataHome, String userHome) {
+        return legacyDataFile(operatingSystemName, localAppData,
+                xdgDataHome, userHome, "budgets.csv");
+    }
+
+    static Path resolveCategoryCsvPath(
+            String operatingSystemName, String localAppData,
+            String xdgDataHome, String userHome) {
+        return legacyDataFile(operatingSystemName, localAppData,
+                xdgDataHome, userHome, "categories.csv");
+    }
+
+    static Path resolveAccountCsvPath(
+            String operatingSystemName, String localAppData,
+            String xdgDataHome, String userHome) {
+        return legacyDataFile(operatingSystemName, localAppData,
+                xdgDataHome, userHome, "accounts.csv");
+    }
+
+    static Path resolveIncomeCsvPath(
+            String operatingSystemName, String localAppData,
+            String xdgDataHome, String userHome) {
+        return legacyDataFile(operatingSystemName, localAppData,
+                xdgDataHome, userHome, "income.csv");
+    }
+
+    static Path resolveTransferCsvPath(
+            String operatingSystemName, String localAppData,
+            String xdgDataHome, String userHome) {
+        return legacyDataFile(operatingSystemName, localAppData,
+                xdgDataHome, userHome, "transfers.csv");
+    }
+
+    static Path resolveRecurringCsvPath(
+            String operatingSystemName, String localAppData,
+            String xdgDataHome, String userHome) {
+        return legacyDataFile(operatingSystemName, localAppData,
+                xdgDataHome, userHome, "recurring.csv");
+    }
+
+    static Path resolveAccountSettingsCsvPath(
+            String operatingSystemName, String localAppData,
+            String xdgDataHome, String userHome) {
+        return legacyDataFile(operatingSystemName, localAppData,
+                xdgDataHome, userHome, "account-settings.csv");
+    }
+
+    private static Path legacyDataFile(
+            String operatingSystemName, String localAppData,
+            String xdgDataHome, String userHome, String fileName) {
+        return legacyApplicationRoot(operatingSystemName, localAppData,
+                xdgDataHome, userHome).resolve("data").resolve(fileName)
+                .toAbsolutePath().normalize();
+    }
+
+    static Path legacyApplicationRoot(
+            String operatingSystemName, String localAppData,
+            String xdgDataHome, String userHome) {
+        String operatingSystem = requiredValue(operatingSystemName,
+                "Operating-system information is unavailable.")
                 .toLowerCase(Locale.ROOT);
-        String normalizedHome = optionalValue(userHome);
-        Path dataRoot;
-
-        if (normalizedOperatingSystem.startsWith("windows")) {
-            String normalizedLocalAppData = optionalValue(localAppData);
-            dataRoot = normalizedLocalAppData != null
-                    ? Path.of(normalizedLocalAppData)
-                    : requiredHome(normalizedHome).resolve("AppData").resolve("Local");
-        } else if (normalizedOperatingSystem.contains("mac")
-                || normalizedOperatingSystem.contains("darwin")) {
-            dataRoot = requiredHome(normalizedHome)
-                    .resolve("Library")
+        String home = optionalValue(userHome);
+        Path root;
+        if (operatingSystem.startsWith("windows")) {
+            String local = optionalValue(localAppData);
+            root = local == null
+                    ? requiredHome(home).resolve("AppData").resolve("Local")
+                    : Path.of(local);
+        } else if (operatingSystem.contains("mac")
+                || operatingSystem.contains("darwin")) {
+            root = requiredHome(home).resolve("Library")
                     .resolve("Application Support");
         } else {
-            String normalizedXdgDataHome = optionalValue(xdgDataHome);
-            dataRoot = normalizedXdgDataHome != null
-                    ? Path.of(normalizedXdgDataHome)
-                    : requiredHome(normalizedHome).resolve(".local").resolve("share");
+            String xdg = optionalValue(xdgDataHome);
+            root = xdg == null
+                    ? requiredHome(home).resolve(".local").resolve("share")
+                    : Path.of(xdg);
         }
-
-        return dataRoot
-                .resolve(APPLICATION_DIRECTORY)
-                .resolve("data")
-                .resolve(fileName)
-                .toAbsolutePath()
-                .normalize();
+        return root.resolve(LEGACY_APPLICATION_DIRECTORY)
+                .toAbsolutePath().normalize();
     }
 
     private static Path requiredHome(String userHome) {
         if (userHome == null) {
             throw new IllegalStateException(
-                    "The user home directory is required to locate application data.");
+                    "The user home directory is required to locate legacy data.");
         }
         return Path.of(userHome);
     }
 
     private static String requiredValue(String value, String message) {
-        String normalizedValue = optionalValue(value);
-        if (normalizedValue == null) {
+        String normalized = optionalValue(value);
+        if (normalized == null) {
             throw new IllegalStateException(message);
         }
-        return normalizedValue;
+        return normalized;
     }
 
     private static String optionalValue(String value) {
         if (value == null) {
             return null;
         }
-        String normalizedValue = value.trim();
-        return normalizedValue.isEmpty() ? null : normalizedValue;
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    static synchronized void resetForTests() {
+        cachedProjectRoot = null;
+        activeDataDirectory = null;
     }
 }

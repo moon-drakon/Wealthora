@@ -8,6 +8,7 @@ import com.spendwise.repository.RepositoryException;
 import com.spendwise.validation.FinanceValidator;
 import com.spendwise.validation.ValidationException;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -78,6 +79,31 @@ public final class AccountService {
                 Objects.requireNonNull(type, "Account type is required."),
                 openingBalance,
                 false);
+        repository.add(account);
+        return account;
+    }
+
+    Account addAccountWithId(
+            String identifier,
+            String displayName,
+            AccountType type,
+            BigDecimal openingBalance,
+            String iconName,
+            String colorHex) {
+        String normalizedId = FinanceValidator.validateIdentifier(
+                identifier, "Account", ID_PREFIX);
+        if (repository.findById(normalizedId).isPresent()) {
+            throw new ValidationException(
+                    "An account with the requested identifier already exists.");
+        }
+        String normalizedName = FinanceValidator.validateRequiredText(
+                displayName, "Account name", FinanceValidator.MAX_NAME_LENGTH);
+        rejectDuplicateName(normalizedName, null);
+        Account account = Account.createCustom(
+                normalizedId, normalizedName,
+                Objects.requireNonNull(type, "Account type is required."),
+                openingBalance, iconName, colorHex,
+                Account.DEFAULT_CURRENCY_CODE, "", LocalDate.now(), false);
         repository.add(account);
         return account;
     }

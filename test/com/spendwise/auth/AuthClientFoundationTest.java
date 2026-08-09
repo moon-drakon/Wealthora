@@ -1,29 +1,24 @@
 package com.spendwise.auth;
 
+import com.spendwise.auth.otp.EmailOtpAccountService;
+import com.spendwise.auth.otp.EmailOtpChallenge;
 import com.spendwise.auth.ui.AuthNavigator;
-import com.spendwise.auth.ui.AuthenticatedProfilePanel;
+import com.spendwise.auth.ui.EmailPasswordResetPanel;
 import com.spendwise.auth.ui.ForgotPasswordPanel;
-import com.spendwise.auth.ui.ResetPasswordPanel;
+import com.spendwise.auth.ui.RecoveryChoicePanel;
 import com.spendwise.auth.ui.SignInPanel;
 import com.spendwise.auth.ui.SignUpPanel;
 import com.spendwise.auth.ui.VerificationPanel;
-import com.spendwise.auth.registration.ServerConfiguration;
-import com.spendwise.config.AppBrand;
 import java.awt.Component;
 import java.awt.Container;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import javax.swing.AbstractButton;
-import javax.swing.JPasswordField;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
-import javax.swing.text.JTextComponent;
 
 public final class AuthClientFoundationTest {
 
@@ -35,34 +30,11 @@ public final class AuthClientFoundationTest {
 
     public static void main(String[] args) throws Exception {
         test("NSU email normalization", AuthClientFoundationTest::emailPolicy);
-        test("password registration is NSU only",
-                AuthClientFoundationTest::registrationPolicy);
-        test("password sign-in rejects lookalike domains",
-                AuthClientFoundationTest::signInPolicy);
-        test("personal Gmail works through Google",
-                AuthClientFoundationTest::googleGmail);
-        test("Google identity requires verified email and subject",
-                AuthClientFoundationTest::googleIdentityRules);
-        test("matching NSU account linking model",
-                AuthClientFoundationTest::linkingModel);
-        test("profile badges follow provider and domain",
-                AuthClientFoundationTest::profileBadges);
-        test("unconfigured backend never authenticates",
-                AuthClientFoundationTest::unconfiguredBackend);
-        test("password copy clearing",
-                AuthClientFoundationTest::passwordClearing);
-        test("Google authorization code clearing",
-                AuthClientFoundationTest::authorizationClearing);
-        test("verified session lifecycle",
-                AuthClientFoundationTest::sessionLifecycle);
-        test("authentication panels express correct policy",
-                AuthClientFoundationTest::panelsConstruct);
-        test("recovery panels keep server IO off the EDT",
-                AuthClientFoundationTest::recoveryPanelsAreAsynchronous);
-        test("server URL requires HTTPS except localhost",
-                AuthClientFoundationTest::serverUrlPolicy);
+        test("password policy", AuthClientFoundationTest::passwordPolicy);
+        test("verified local session", AuthClientFoundationTest::sessionPolicy);
+        test("local authentication panels", AuthClientFoundationTest::panels);
         System.out.println("All " + passed
-                + " authentication policy tests passed.");
+                + " local authentication foundation tests passed.");
     }
 
     private static void emailPolicy() {
@@ -72,180 +44,75 @@ public final class AuthClientFoundationTest {
         assertTrue(NsuEmailPolicy.isInstitutionalEmail(
                 "student@northsouth.edu"));
         assertFalse(NsuEmailPolicy.isInstitutionalEmail("student@gmail.com"));
+        expect(AuthException.class, () ->
+                NsuEmailPolicy.requireInstitutionalEmail(
+                        "student@northsouth.edu.invalid"));
     }
 
-    private static void registrationPolicy() {
-        RecordingClient client = new RecordingClient();
-        client.user = localUser(false, AccountStatus.PENDING_EMAIL_VERIFICATION);
-        BackendAuthService service = new BackendAuthService(client);
-        AuthenticatedUser result = service.registerWithNsuEmail(
-                "Student", "student@northsouth.edu",
-                "password1".toCharArray());
-        assertFalse(result.isEmailVerified());
-        expect(AuthException.class, () -> service.registerWithNsuEmail(
-                "Student", "user@gmail.com", "password1".toCharArray()));
+    private static void passwordPolicy() {
+        PasswordService passwords = new PasswordService();
+        char[] value = "StudentPass1".toCharArray();
+        String hash = passwords.hash(value);
+        assertFalse(hash.contains("StudentPass1"));
+        assertTrue(passwords.matches(value, hash));
+        expect(AuthException.class, () ->
+                passwords.requireStrong("short".toCharArray()));
     }
 
-    private static void signInPolicy() {
-        BackendAuthService service = new BackendAuthService(
-                new RecordingClient());
-        expect(AuthException.class, () -> service.signInWithNsuEmail(
-                "user@gmail.com", "password1".toCharArray()));
-        expect(AuthException.class, () -> service.signInWithNsuEmail(
-                "student@northsouth.edu.fake-domain.com",
-                "password1".toCharArray()));
-    }
-
-    private static void googleGmail() {
-        RecordingClient client = new RecordingClient();
-        client.session = googleSession("person@gmail.com", "GOOGLE_SUBJECT_1");
-        BackendAuthService service = new BackendAuthService(
-                client, AuthClientFoundationTest::authorization);
-        UserSession result = service.continueWithGoogle();
-        assertEquals("person@gmail.com", result.getEmail());
-        assertEquals("GOOGLE_SUBJECT_1", result.getGoogleSubjectId());
-        assertEquals(AuthProvider.GOOGLE, result.getProvider());
-    }
-
-    private static void googleIdentityRules() {
-        expect(AuthException.class, () -> new AuthenticatedUser(
-                "USER_1", "Person", "person@gmail.com", true,
-                AuthProvider.GOOGLE, "", AccountStatus.ACTIVE, NOW, NOW));
-        expect(AuthException.class, () -> new AuthenticatedUser(
-                "USER_1", "Person", "person@gmail.com", false,
-                AuthProvider.GOOGLE, "GOOGLE_SUBJECT_1",
-                AccountStatus.PENDING_EMAIL_VERIFICATION, NOW, NOW));
-    }
-
-    private static void linkingModel() {
-        AuthenticatedUser linked = new AuthenticatedUser(
-                "USER_1", "Student", "student@northsouth.edu", true,
-                AuthProvider.LOCAL_AND_GOOGLE, "GOOGLE_SUBJECT_1",
-                AccountStatus.ACTIVE, NOW, NOW);
-        assertEquals(AuthProvider.LOCAL_AND_GOOGLE,
-                linked.getPrimaryAuthProvider());
-        assertEquals("GOOGLE_SUBJECT_1", linked.getGoogleSubjectId());
-        expect(AuthException.class, () -> new AuthenticatedUser(
-                "USER_2", "Person", "person@gmail.com", true,
-                AuthProvider.LOCAL_AND_GOOGLE, "GOOGLE_SUBJECT_2",
-                AccountStatus.ACTIVE, NOW, NOW));
-    }
-
-    private static void profileBadges() {
-        assertEquals(List.of("NSU Password Account"),
-                localUser(true, AccountStatus.ACTIVE).getProfileBadges());
-        assertEquals(List.of("Google Account"),
-                googleSession("person@gmail.com", "SUBJECT_1")
-                        .getUser().getProfileBadges());
-        assertEquals(List.of("Google Account", "Verified NSU Email"),
-                googleSession("student@northsouth.edu", "SUBJECT_2")
-                        .getUser().getProfileBadges());
-    }
-
-    private static void unconfiguredBackend() {
-        BackendAuthService service = new BackendAuthService(
-                new UnconfiguredAuthApiClient());
-        expect(AuthConfigurationException.class, () ->
-                service.signInWithNsuEmail(
-                        "student@northsouth.edu",
-                        "password1".toCharArray()));
-        expect(AuthConfigurationException.class, service::continueWithGoogle);
-        expect(AuthConfigurationException.class, () ->
-                service.registerWithNsuEmail(
-                        "Student", "student@northsouth.edu",
-                        "password1".toCharArray()));
-        expect(AuthConfigurationException.class, () ->
-                service.verifyNsuEmail("student@northsouth.edu", "123456"));
-        expect(AuthConfigurationException.class, () ->
-                service.resendVerification("student@northsouth.edu"));
-        expect(AuthConfigurationException.class, () ->
-                service.forgotPassword("student@northsouth.edu"));
-        expect(AuthConfigurationException.class, () -> service.resetPassword(
-                "student@northsouth.edu", "reset-token",
-                "password2".toCharArray()));
-    }
-
-    private static void passwordClearing() {
-        RecordingClient client = new RecordingClient();
-        client.session = localSession();
-        BackendAuthService service = new BackendAuthService(client);
-        char[] original = "password1".toCharArray();
-        service.signInWithNsuEmail("student@northsouth.edu", original);
-        assertTrue(Arrays.equals("password1".toCharArray(), original));
-        assertAllCleared(client.receivedPassword);
-    }
-
-    private static void authorizationClearing() {
-        RecordingClient client = new RecordingClient();
-        client.session = googleSession("person@gmail.com", "SUBJECT_1");
-        BackendAuthService service = new BackendAuthService(
-                client, AuthClientFoundationTest::authorization);
-        service.continueWithGoogle();
-        assertAllCleared(client.receivedAuthorizationCode);
-    }
-
-    private static void sessionLifecycle() {
+    private static void sessionPolicy() {
+        AuthenticatedUser active = localUser(true, AccountStatus.ACTIVE);
+        UserSession session = new UserSession(active, NOW);
         SessionManager sessions = new SessionManager();
-        assertTrue(sessions.getCurrentSession().isEmpty());
-        UserSession verified = googleSession("person@gmail.com", "SUBJECT_1");
-        sessions.startSession(verified);
-        assertEquals(verified, sessions.getCurrentSession().orElseThrow());
+        sessions.startSession(session);
+        assertEquals(session, sessions.getCurrentSession().orElseThrow());
         sessions.clearSession();
         assertTrue(sessions.getCurrentSession().isEmpty());
         expect(AuthException.class, () -> new UserSession(
                 localUser(false, AccountStatus.PENDING_EMAIL_VERIFICATION), NOW));
     }
 
-    private static void panelsConstruct() throws Exception {
+    private static void panels() throws Exception {
         AtomicReference<Throwable> failure = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> {
             try {
-                AuthService service = new BackendAuthService(
-                        new UnconfiguredAuthApiClient());
+                LocalUiService service = new LocalUiService();
                 SessionManager sessions = new SessionManager();
                 AuthNavigator navigator = new NoOpNavigator();
                 List<JPanel> panels = List.of(
                         new SignInPanel(service, sessions, navigator),
                         new SignUpPanel(service, sessions, navigator),
                         new VerificationPanel(service, navigator),
+                        new RecoveryChoicePanel(navigator),
                         new ForgotPasswordPanel(service, navigator),
-                        new ResetPasswordPanel(service, navigator),
-                        new AuthenticatedProfilePanel(
-                                service, sessions, navigator));
+                        new EmailPasswordResetPanel(service, navigator));
                 for (JPanel panel : panels) {
                     assertTrue(panel.getComponentCount() > 0);
                 }
-                List<String> signInText = componentText(panels.get(0));
-                assertContains(signInText, AppBrand.APP_NAME);
-                assertContains(signInText, AppBrand.TAGLINE);
-                assertContains(signInText, AppBrand.DESCRIPTION);
-                assertContains(signInText, "Local Sign In");
-                assertContains(signInText, "Sign In");
-                assertContainsPart(signInText,
-                        "Finance records stay on this computer");
-                assertFalse(signInText.contains("Continue with Google"));
-                assertFalse(signInText.contains("Create Account"));
-                assertFalse(signInText.contains("Forgot Password?"));
-                assertFalse(signInText.stream().anyMatch(value ->
-                        value.contains("CLOUD") || value.contains("Server:")));
-                assertContains(componentText(panels.get(1)),
-                        "Continue with Google");
-                assertContains(componentText(panels.get(3)),
-                        "Enter Reset Token");
+                List<String> signIn = componentText(panels.get(0));
+                assertContains(signIn, "Local Sign In");
+                assertContains(signIn, "Create Account");
+                assertContains(signIn, "Forgot Password?");
+                assertFalse(signIn.stream().anyMatch(value ->
+                        value.toLowerCase(java.util.Locale.ROOT)
+                                .contains("remote finance")));
 
-                JPanel sharedSignIn = new SignInPanel(
-                        sharedOnlineService(), sessions, navigator);
-                List<String> sharedSignInText = componentText(sharedSignIn);
-                assertContains(sharedSignInText, "Shared Online Sign In");
-                assertContains(sharedSignInText, "Create Account");
-                assertContains(sharedSignInText, "Forgot Password?");
+                List<String> registration = componentText(panels.get(1));
+                assertContains(registration, "Send Verification Code");
+                assertContainsPart(registration,
+                        "No account is created before successful verification");
 
-                JPanel sharedRecovery = new ForgotPasswordPanel(
-                        sharedOnlineService(), navigator);
-                List<String> sharedRecoveryText = componentText(sharedRecovery);
-                assertContains(sharedRecoveryText, "Request Reset");
-                assertContains(sharedRecoveryText, "Enter Reset Token");
-                assertFalse(sharedRecoveryText.contains("Recovery Answer"));
+                List<String> verification = componentText(panels.get(2));
+                assertContains(verification, "Verify and Create Account");
+                assertContains(verification, "Cancel Registration");
+
+                List<String> recovery = componentText(panels.get(4));
+                assertContains(recovery, "Find Account");
+                assertContains(recovery, "Recovery Answer");
+
+                List<String> emailReset = componentText(panels.get(5));
+                assertContains(emailReset, "Send Reset Code");
+                assertContains(emailReset,
+                        "Verify Code and Reset Password");
             } catch (Throwable exception) {
                 failure.set(exception);
             }
@@ -256,129 +123,11 @@ public final class AuthClientFoundationTest {
         }
     }
 
-    private static void serverUrlPolicy() {
-        assertEquals("http://localhost:8080",
-                new ServerConfiguration("http://localhost:8080/")
-                        .requireBaseUri().toString());
-        assertEquals("https://auth.example.com",
-                new ServerConfiguration("https://auth.example.com")
-                        .requireBaseUri().toString());
-        expect(AuthConfigurationException.class, () ->
-                new ServerConfiguration("http://auth.example.com")
-                        .requireBaseUri());
-        expect(AuthConfigurationException.class, () ->
-                new ServerConfiguration("").requireBaseUri());
-    }
-
-    private static void recoveryPanelsAreAsynchronous() throws Exception {
-        RecordingClient client = new RecordingClient();
-        BackendAuthService service = new BackendAuthService(client);
-        NoOpNavigator navigator = new NoOpNavigator();
-        AtomicReference<ForgotPasswordPanel> forgot = new AtomicReference<>();
-        AtomicReference<ResetPasswordPanel> reset = new AtomicReference<>();
-        SwingUtilities.invokeAndWait(() -> {
-            forgot.set(new ForgotPasswordPanel(service, navigator));
-            reset.set(new ResetPasswordPanel(service, navigator));
-        });
-
-        client.forgotLatch = new CountDownLatch(1);
-        SwingUtilities.invokeAndWait(() -> {
-            textComponent(forgot.get(), "NSU email").setText(
-                    "student@northsouth.edu");
-            button(forgot.get(), "Request Reset").doClick();
-        });
-        assertTrue(client.forgotLatch.await(5, TimeUnit.SECONDS));
-        assertFalse(client.forgotCalledOnEdt);
-
-        client.resetLatch = new CountDownLatch(1);
-        SwingUtilities.invokeAndWait(() -> {
-            textComponent(reset.get(), "NSU email").setText(
-                    "student@northsouth.edu");
-            textComponent(reset.get(), "Reset token").setText(
-                    "one-time-reset-token-value");
-            ((JPasswordField) textComponent(
-                    reset.get(), "New password")).setText("ChangedUser2!");
-            ((JPasswordField) textComponent(
-                    reset.get(), "Confirm new password")).setText(
-                            "ChangedUser2!");
-            button(reset.get(), "Reset Password").doClick();
-        });
-        assertTrue(client.resetLatch.await(5, TimeUnit.SECONDS));
-        assertFalse(client.resetCalledOnEdt);
-        SwingUtilities.invokeAndWait(() -> {
-        });
-    }
-
-    private static GoogleAuthorization authorization() {
-        return new GoogleAuthorization(
-                "one-time-code".toCharArray(), "http://127.0.0.1/callback");
-    }
-
-    private static AuthService sharedOnlineService() {
-        return new SharedOnlineLocalService();
-    }
-
-    private static final class SharedOnlineLocalService
-            implements AuthService, LocalAccountService {
-
-        @Override public boolean isSharedOnlineMode() { return true; }
-        @Override public UserSession signInWithNsuEmail(
-                String email, char[] password) { throw unsupported(); }
-        @Override public UserSession continueWithGoogle() { throw unsupported(); }
-        @Override public AuthenticatedUser registerWithNsuEmail(
-                String fullName, String email, char[] password) {
-            throw unsupported();
-        }
-        @Override public AuthenticatedUser verifyNsuEmail(
-                String email, String verificationCode) { throw unsupported(); }
-        @Override public void resendVerification(String email) { throw unsupported(); }
-        @Override public void forgotPassword(String email) { throw unsupported(); }
-        @Override public void resetPassword(
-                String email, String token, char[] password) { throw unsupported(); }
-        @Override public UserSession refreshSession() { throw unsupported(); }
-        @Override public void logout() { }
-        @Override public AuthenticatedUser getCurrentUser() { throw unsupported(); }
-        @Override public AuthenticatedUser registerLocalAccount(
-                String fullName, String email, String studentIdentifier,
-                char[] password, char[] passwordConfirmation,
-                String recoveryQuestion, String recoveryHint,
-                char[] recoveryAnswer) { throw unsupported(); }
-        @Override public PasswordRecoveryChallenge getPasswordRecoveryChallenge(
-                String email) { throw unsupported(); }
-        @Override public void resetPasswordWithRecovery(
-                String email, char[] recoveryAnswer, char[] newPassword,
-                char[] passwordConfirmation) { throw unsupported(); }
-        @Override public boolean hasPasswordRecovery(UserSession session) {
-            throw unsupported();
-        }
-        @Override public void updatePasswordRecovery(
-                UserSession session, char[] currentPassword,
-                String recoveryQuestion, String recoveryHint,
-                char[] recoveryAnswer, char[] recoveryAnswerConfirmation) {
-            throw unsupported();
-        }
-
-        private UnsupportedOperationException unsupported() {
-            return new UnsupportedOperationException("UI-only test service");
-        }
-    }
-
     private static AuthenticatedUser localUser(
             boolean verified, AccountStatus status) {
         return new AuthenticatedUser(
                 "USER_LOCAL", "Student", "student@northsouth.edu",
                 verified, AuthProvider.LOCAL, "", status, NOW, NOW);
-    }
-
-    private static UserSession localSession() {
-        return new UserSession(localUser(true, AccountStatus.ACTIVE), NOW);
-    }
-
-    private static UserSession googleSession(String email, String subject) {
-        AuthenticatedUser user = new AuthenticatedUser(
-                "USER_GOOGLE", "Google User", email, true,
-                AuthProvider.GOOGLE, subject, AccountStatus.ACTIVE, NOW, NOW);
-        return new UserSession(user, NOW);
     }
 
     private static List<String> componentText(Component component) {
@@ -398,200 +147,109 @@ public final class AuthClientFoundationTest {
         return values;
     }
 
-    private static JTextComponent textComponent(
-            Component component, String accessibleName) {
-        if (component instanceof JTextComponent text
-                && accessibleName.equals(text.getAccessibleContext()
-                        .getAccessibleName())) {
-            return text;
-        }
-        if (component instanceof Container container) {
-            for (Component child : container.getComponents()) {
-                try {
-                    return textComponent(child, accessibleName);
-                } catch (AssertionError ignored) {
-                }
-            }
-        }
-        throw new AssertionError(
-                "Text component not found: " + accessibleName);
-    }
-
-    private static AbstractButton button(
-            Component component, String text) {
-        if (component instanceof AbstractButton button
-                && text.equals(button.getText())) {
-            return button;
-        }
-        if (component instanceof Container container) {
-            for (Component child : container.getComponents()) {
-                try {
-                    return button(child, text);
-                } catch (AssertionError ignored) {
-                }
-            }
-        }
-        throw new AssertionError("Button not found: " + text);
-    }
-
-    private static void assertAllCleared(char[] value) {
-        assertTrue(value != null);
-        for (char character : value) {
-            assertEquals('\0', character);
-        }
-    }
-
     private static void test(String name, ThrowingRunnable action)
             throws Exception {
-        try {
-            action.run();
-            passed++;
-        } catch (Throwable failure) {
-            throw new AssertionError(name + " failed", failure);
-        }
+        action.run();
+        passed++;
+        System.out.println("PASS: " + name);
     }
 
     private static void expect(
-            Class<? extends Throwable> type, ThrowingRunnable action) {
+            Class<? extends Throwable> type, Runnable action) {
         try {
             action.run();
+            throw new AssertionError("Expected " + type.getSimpleName());
         } catch (Throwable failure) {
-            if (type.isInstance(failure)) {
-                return;
+            if (!type.isInstance(failure)) {
+                throw new AssertionError("Unexpected exception", failure);
             }
-            throw new AssertionError(
-                    "Expected " + type.getSimpleName() + " but caught "
-                    + failure, failure);
         }
-        throw new AssertionError("Expected " + type.getSimpleName() + ".");
     }
 
     private static void assertContains(List<String> values, String expected) {
-        assertTrue(values.contains(expected));
+        if (!values.contains(expected)) {
+            throw new AssertionError("Missing UI text: " + expected
+                    + " in " + values);
+        }
     }
 
     private static void assertContainsPart(
             List<String> values, String expected) {
-        assertTrue(values.stream().anyMatch(value -> value.contains(expected)));
+        if (values.stream().noneMatch(value -> value.contains(expected))) {
+            throw new AssertionError("Missing UI text containing: " + expected);
+        }
     }
 
     private static void assertTrue(boolean value) {
-        if (!value) {
-            throw new AssertionError("Expected true.");
-        }
+        if (!value) throw new AssertionError("Expected true");
     }
 
     private static void assertFalse(boolean value) {
-        if (value) {
-            throw new AssertionError("Expected false.");
-        }
+        if (value) throw new AssertionError("Expected false");
     }
 
     private static void assertEquals(Object expected, Object actual) {
         if (!java.util.Objects.equals(expected, actual)) {
             throw new AssertionError(
-                    "Expected <" + expected + "> but was <" + actual + ">.");
-        }
-    }
-
-    private static final class RecordingClient implements AuthApiClient {
-
-        private UserSession session;
-        private AuthenticatedUser user;
-        private char[] receivedPassword;
-        private char[] receivedAuthorizationCode;
-        private CountDownLatch forgotLatch;
-        private CountDownLatch resetLatch;
-        private boolean forgotCalledOnEdt;
-        private boolean resetCalledOnEdt;
-
-        @Override
-        public UserSession signInWithNsuEmail(String email, char[] password) {
-            receivedPassword = password;
-            return session;
-        }
-
-        @Override
-        public UserSession continueWithGoogle(
-                char[] authorizationCode, String redirectUri) {
-            receivedAuthorizationCode = authorizationCode;
-            return session;
-        }
-
-        @Override
-        public AuthenticatedUser registerWithNsuEmail(
-                String fullName, String email, char[] password) {
-            receivedPassword = password;
-            return user;
-        }
-
-        @Override
-        public AuthenticatedUser verifyNsuEmail(
-                String email, String verificationCode) {
-            return user;
-        }
-
-        @Override
-        public void resendVerification(String email) {
-        }
-
-        @Override
-        public void forgotPassword(String email) {
-            forgotCalledOnEdt = SwingUtilities.isEventDispatchThread();
-            if (forgotLatch != null) forgotLatch.countDown();
-        }
-
-        @Override
-        public void resetPassword(
-                String email, String resetToken, char[] newPassword) {
-            receivedPassword = newPassword;
-            resetCalledOnEdt = SwingUtilities.isEventDispatchThread();
-            if (resetLatch != null) resetLatch.countDown();
-        }
-
-        @Override
-        public UserSession refreshSession() {
-            return session;
-        }
-
-        @Override
-        public void logout() {
-        }
-
-        @Override
-        public AuthenticatedUser getCurrentUser() {
-            return user;
+                    "Expected " + expected + " but was " + actual);
         }
     }
 
     private static final class NoOpNavigator implements AuthNavigator {
+        @Override public void showOwnerSetup() { }
+        @Override public void showSignIn() { }
+        @Override public void showSignUp() { }
+        @Override public void showVerification(String email) { }
+        @Override public void showForgotPassword() { }
+        @Override public void showAuthenticatedProfile(UserSession session) { }
+    }
 
-        @Override
-        public void showOwnerSetup() {
+    private static final class LocalUiService
+            implements AuthService, LocalAccountService, EmailOtpAccountService {
+        @Override public UserSession signInWithNsuEmail(
+                String email, char[] password) { throw unsupported(); }
+        @Override public void logout() { }
+        @Override public AuthenticatedUser getCurrentUser() {
+            throw unsupported();
         }
-
-        @Override
-        public void showSignIn() {
+        @Override public PasswordRecoveryChallenge getPasswordRecoveryChallenge(
+                String email) { throw unsupported(); }
+        @Override public void resetPasswordWithRecovery(
+                String email, char[] answer, char[] password,
+                char[] confirmation) { throw unsupported(); }
+        @Override public boolean hasPasswordRecovery(UserSession session) {
+            return true;
         }
-
-        @Override
-        public void showSignUp() {
+        @Override public void updatePasswordRecovery(
+                UserSession session, char[] currentPassword,
+                String question, String hint, char[] answer,
+                char[] confirmation) { throw unsupported(); }
+        @Override public boolean isEmailOtpConfigured() { return true; }
+        @Override public EmailOtpChallenge beginRegistration(
+                String name, String email, String studentIdentifier,
+                char[] password, char[] passwordConfirmation,
+                String question, String hint, char[] answer) {
+            throw unsupported();
         }
-
-        @Override
-        public void showVerification(String email) {
+        @Override public EmailOtpChallenge resendRegistration(String id) {
+            throw unsupported();
         }
-
-        @Override
-        public void showForgotPassword() {
+        @Override public AuthenticatedUser verifyRegistration(
+                String id, String code) { throw unsupported(); }
+        @Override public void cancelRegistration(String id) { }
+        @Override public EmailOtpChallenge beginPasswordReset(String email) {
+            throw unsupported();
         }
-
-        @Override
-        public void showResetPassword() {
+        @Override public EmailOtpChallenge resendPasswordReset(String id) {
+            throw unsupported();
         }
+        @Override public void completePasswordReset(
+                String id, String code, char[] password,
+                char[] confirmation) { throw unsupported(); }
+        @Override public void cancelPasswordReset(String id) { }
 
-        @Override
-        public void showAuthenticatedProfile(UserSession session) {
+        private UnsupportedOperationException unsupported() {
+            return new UnsupportedOperationException("UI construction only");
         }
     }
 

@@ -16,7 +16,6 @@ import javax.swing.SwingWorker;
 
 public final class ForgotPasswordPanel extends AuthFormPanel {
 
-    private final AuthService authService;
     private final LocalAccountService localAccountService;
     private final StyledTextField email = textField("NSU email");
     private final JLabel question = new JLabel("Find your account first.");
@@ -31,69 +30,52 @@ public final class ForgotPasswordPanel extends AuthFormPanel {
 
     public ForgotPasswordPanel(
             AuthService authService, AuthNavigator navigator) {
-        super("Forgot Password",
-                usesLocalRecovery(authService)
-                        ? "Recover a local account with its protected answer, or ask an administrator for help."
-                        : "Request a password-reset message for a verified NSU password account.");
-        this.authService = Objects.requireNonNull(authService);
-        this.localAccountService = usesLocalRecovery(authService)
-                && authService instanceof LocalAccountService local
-                ? local : null;
+        super("Offline Recovery",
+                "Recover a local account with its protected answer without using the internet.");
+        Objects.requireNonNull(authService);
+        this.localAccountService = authService instanceof LocalAccountService local
+                ? local : requiredLocalRecovery();
         AuthNavigator requiredNavigator = Objects.requireNonNull(navigator);
         addWide(policyLabel());
         addField("NSU Email", email);
-        requestButton = primary(localAccountService == null
-                ? "Request Reset" : "Find Account", this::requestReset);
-        if (localAccountService == null) {
-            resetButton = null;
-            addWide(buttonRow(
-                    requestButton,
-                    secondary("Enter Reset Token",
-                            requiredNavigator::showResetPassword)));
-        } else {
-            addWide(requestButton);
-            question.setFont(AppFonts.button());
-            AppTheme.mark(question, AppTheme.PRIMARY_TEXT_ROLE);
-            hint.setFont(AppFonts.caption());
-            AppTheme.mark(hint, AppTheme.SECONDARY_TEXT_ROLE);
-            addWide(question);
-            addWide(hint);
-            addField("Recovery Answer", recoveryAnswer);
-            addField("New Password", password);
-            addField("Confirm New Password", confirmation);
-            recoveryAnswer.setEnabled(false);
-            password.setEnabled(false);
-            confirmation.setEnabled(false);
-            resetButton = primary("Reset Password", this::resetLocally);
-            resetButton.setEnabled(false);
-            addWide(buttonRow(resetButton));
-            addWide(helperLabel(
-                    "After five incorrect attempts, recovery is temporarily locked for 15 minutes. The OWNER or an administrator can reset another user's password from Admin Console."));
-        }
+        requestButton = primary("Find Account", this::requestReset);
+        addWide(requestButton);
+        question.setFont(AppFonts.button());
+        AppTheme.mark(question, AppTheme.PRIMARY_TEXT_ROLE);
+        hint.setFont(AppFonts.caption());
+        AppTheme.mark(hint, AppTheme.SECONDARY_TEXT_ROLE);
+        addWide(question);
+        addWide(hint);
+        addField("Recovery Answer", recoveryAnswer);
+        addField("New Password", password);
+        addField("Confirm New Password", confirmation);
+        recoveryAnswer.setEnabled(false);
+        password.setEnabled(false);
+        confirmation.setEnabled(false);
+        resetButton = primary("Reset Password", this::resetLocally);
+        resetButton.setEnabled(false);
+        addWide(buttonRow(resetButton));
+        addWide(helperLabel(
+                "After five incorrect attempts, recovery is temporarily locked for 15 minutes. The OWNER or an administrator can reset another user's password from Admin Console."));
         addWide(buttonRow(secondary(
-                "Back to Sign In", requiredNavigator::showSignIn)));
+                "Other Recovery Options", requiredNavigator::showForgotPassword),
+                secondary("Back to Sign In", requiredNavigator::showSignIn)));
     }
 
-    private static boolean usesLocalRecovery(AuthService authService) {
-        return authService instanceof LocalAccountService
-                && !authService.isSharedOnlineMode();
+    private static LocalAccountService requiredLocalRecovery() {
+        throw new IllegalArgumentException(
+                "Offline recovery requires a local account service.");
     }
 
     private void requestReset() {
         String enteredEmail = email.getText();
         requestButton.setEnabled(false);
-        showStatus(localAccountService == null
-                ? "Requesting password-reset instructions..."
-                : "Loading the local recovery question...");
+        showStatus("Loading the local recovery question...");
         new SwingWorker<PasswordRecoveryChallenge, Void>() {
             @Override
             protected PasswordRecoveryChallenge doInBackground() {
-                if (localAccountService != null) {
-                    return localAccountService
-                            .getPasswordRecoveryChallenge(enteredEmail);
-                }
-                authService.forgotPassword(enteredEmail);
-                return null;
+                return localAccountService
+                        .getPasswordRecoveryChallenge(enteredEmail);
             }
 
             @Override
@@ -101,17 +83,13 @@ public final class ForgotPasswordPanel extends AuthFormPanel {
                 requestButton.setEnabled(true);
                 try {
                     PasswordRecoveryChallenge challenge = get();
-                    if (localAccountService == null) {
-                        showSuccess("If the account is eligible, reset instructions were sent.");
-                    } else {
-                        question.setText("Question: " + challenge.question());
-                        hint.setText("Hint: " + challenge.hint());
-                        recoveryAnswer.setEnabled(true);
-                        password.setEnabled(true);
-                        confirmation.setEnabled(true);
-                        resetButton.setEnabled(true);
-                        showSuccess("Answer the question and choose a new password.");
-                    }
+                    question.setText("Question: " + challenge.question());
+                    hint.setText("Hint: " + challenge.hint());
+                    recoveryAnswer.setEnabled(true);
+                    password.setEnabled(true);
+                    confirmation.setEnabled(true);
+                    resetButton.setEnabled(true);
+                    showSuccess("Answer the question and choose a new password.");
                 } catch (Exception exception) {
                     showFailure(workerFailure(exception));
                 }

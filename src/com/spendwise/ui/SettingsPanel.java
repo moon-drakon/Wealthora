@@ -1,7 +1,6 @@
 package com.spendwise.ui;
 
 import com.spendwise.config.AppBrand;
-import com.spendwise.auth.ui.AuthFrame;
 import com.spendwise.model.Category;
 import com.spendwise.service.CategoryService;
 import com.spendwise.service.CurrencyService;
@@ -270,18 +269,18 @@ public final class SettingsPanel extends JPanel {
 
     private static JPanel profileCard() {
         JPanel actions = actions();
-        SecondaryButton preview = new SecondaryButton(
-                "Open authentication preview");
-        preview.addActionListener(event -> AuthFrame.openUnconfiguredPreview());
-        actions.add(preview);
+        JLabel value = new JLabel("Local account · email OTP protected");
+        value.setFont(AppFonts.button());
+        AppTheme.mark(value, AppTheme.PRIMARY_TEXT_ROLE);
+        actions.add(value);
         return card("Profile",
-                "Preview Google and NSU email flows. Authentication remains inactive until a real backend is configured.",
+                "Registration and email password recovery require a configured OTP relay.",
                 actions);
     }
 
     private static JPanel privacyCard() {
         JPanel actions = actions();
-        JLabel value = new JLabel("Local storage · no cloud sync");
+        JLabel value = new JLabel("Project-local storage · offline by default");
         value.setFont(AppFonts.button());
         AppTheme.mark(value, AppTheme.PRIMARY_TEXT_ROLE);
         actions.add(value);

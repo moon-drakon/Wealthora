@@ -45,13 +45,15 @@ jobs:
             printf '%s\n' "$blocked"
             exit 1
           fi
+          forbidden_term="$(printf '%s%s' de mo)"
+          if git grep -n -i -e "$forbidden_term"; then
+            echo "Forbidden terminology was found."
+            exit 1
+          fi
           git diff --check
 
-      - name: Run local desktop tests
-        run: ant test-quality
-
-      - name: Package desktop application
-        run: ant clean jar
+      - name: Test and package Java components
+        run: ant clean test-quality jar
 
       - name: Upload runnable desktop bundle
         uses: actions/upload-artifact@v7
@@ -60,5 +62,6 @@ jobs:
           path: |
             dist/Wealthora.jar
             dist/lib/
+            dist/otp-relay/wealthora-otp-relay.jar
           if-no-files-found: error
           retention-days: 14

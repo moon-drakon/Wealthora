@@ -150,7 +150,7 @@ public final class SecuritySessionsDialog extends JDialog {
         row += 2;
 
         JLabel passwordPolicy = new JLabel(
-                "8-128 characters; English letter and number; no outer spaces");
+                "6-128 characters; English letter and number; no outer spaces");
         passwordPolicy.setFont(AppFonts.caption());
         AppTheme.mark(passwordPolicy, AppTheme.SECONDARY_TEXT_ROLE);
         panel.add(passwordPolicy, constraints(row++));

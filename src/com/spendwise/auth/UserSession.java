@@ -7,14 +7,7 @@ public final class UserSession {
 
     private final AuthenticatedUser user;
     private final Instant authenticatedAt;
-    private final FinanceMode financeMode;
-
     public UserSession(AuthenticatedUser user, Instant authenticatedAt) {
-        this(user, authenticatedAt, FinanceMode.LOCAL);
-    }
-
-    public UserSession(AuthenticatedUser user, Instant authenticatedAt,
-            FinanceMode financeMode) {
         this.user = Objects.requireNonNull(user, "Authenticated user is required.");
         if (!user.isEmailVerified()
                 || user.getAccountStatus() != AccountStatus.ACTIVE) {
@@ -23,8 +16,6 @@ public final class UserSession {
         }
         this.authenticatedAt = Objects.requireNonNull(
                 authenticatedAt, "Authentication time is required.");
-        this.financeMode = Objects.requireNonNull(
-                financeMode, "Finance mode is required.");
     }
 
     public String getUserIdentifier() {
@@ -57,10 +48,6 @@ public final class UserSession {
 
     public Instant getAuthenticatedAt() {
         return authenticatedAt;
-    }
-
-    public FinanceMode getFinanceMode() {
-        return financeMode;
     }
 
     public boolean hasRole(UserRole role) {

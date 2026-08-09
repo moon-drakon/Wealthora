@@ -2,12 +2,10 @@ package com.spendwise.auth.ui;
 
 import com.spendwise.config.AppBrand;
 import com.spendwise.auth.AuthService;
-import com.spendwise.auth.BackendAuthService;
 import com.spendwise.auth.OwnerSetupService;
 import com.spendwise.auth.LocalAccountService;
 import com.spendwise.auth.SessionManager;
 import com.spendwise.auth.UserSession;
-import com.spendwise.auth.UnconfiguredAuthApiClient;
 import java.awt.CardLayout;
 import java.awt.Dimension;
 import java.util.Objects;
@@ -23,16 +21,18 @@ public final class AuthFrame extends JFrame implements AuthNavigator {
     private static final String PROFILE = "profile";
     private static final String OWNER_SETUP = "owner-setup";
     private static final String SIGN_UP = "sign-up";
+    private static final String VERIFICATION = "verification";
     private static final String FORGOT_PASSWORD = "forgot-password";
-    private static final String RESET_PASSWORD = "reset-password";
+    private static final String OFFLINE_RECOVERY = "offline-recovery";
+    private static final String EMAIL_RESET = "email-reset";
 
     private final CardLayout cards = new CardLayout();
     private final JPanel content = new JPanel(cards);
     private final AuthenticatedProfilePanel profilePanel;
     private final OwnerSetupPanel ownerSetupPanel;
+    private final VerificationPanel verificationPanel;
     private final Consumer<UserSession> authenticatedListener;
     private final boolean localAccountUi;
-    private final boolean sharedOnlineUi;
 
     public AuthFrame(AuthService authService, SessionManager sessionManager) {
         this(authService, sessionManager, null);
@@ -50,22 +50,21 @@ public final class AuthFrame extends JFrame implements AuthNavigator {
         AuthService requiredService = Objects.requireNonNull(authService);
         SessionManager requiredSessions = Objects.requireNonNull(sessionManager);
         this.authenticatedListener = authenticatedListener;
-        sharedOnlineUi = requiredService.isSharedOnlineMode();
-        localAccountUi = requiredService instanceof LocalAccountService
-                && !sharedOnlineUi;
+        localAccountUi = requiredService instanceof LocalAccountService;
         profilePanel = new AuthenticatedProfilePanel(
                 requiredService, requiredSessions, this);
         content.add(scroll(new SignInPanel(
                 requiredService, requiredSessions, this)), SIGN_IN);
         content.add(scroll(new SignUpPanel(
                 requiredService, requiredSessions, this)), SIGN_UP);
-        if (localAccountUi || sharedOnlineUi) {
+        verificationPanel = new VerificationPanel(requiredService, this);
+        content.add(scroll(verificationPanel), VERIFICATION);
+        if (localAccountUi) {
+            content.add(scroll(new RecoveryChoicePanel(this)), FORGOT_PASSWORD);
             content.add(scroll(new ForgotPasswordPanel(
-                    requiredService, this)), FORGOT_PASSWORD);
-        }
-        if (sharedOnlineUi) {
-            content.add(scroll(new ResetPasswordPanel(
-                    requiredService, this)), RESET_PASSWORD);
+                    requiredService, this)), OFFLINE_RECOVERY);
+            content.add(scroll(new EmailPasswordResetPanel(
+                    requiredService, this)), EMAIL_RESET);
         }
         content.add(scroll(profilePanel), PROFILE);
         ownerSetupPanel = requiredService instanceof OwnerSetupService setup
@@ -78,26 +77,11 @@ public final class AuthFrame extends JFrame implements AuthNavigator {
         setSize(680, 820);
         setMinimumSize(new Dimension(520, 620));
         setLocationRelativeTo(null);
-        if (!sharedOnlineUi
-                && requiredService instanceof OwnerSetupService setup
+        if (requiredService instanceof OwnerSetupService setup
                 && setup.isOwnerSetupRequired()) {
             showOwnerSetup();
         } else {
             showSignIn();
-        }
-    }
-
-    public static void openUnconfiguredPreview() {
-        Runnable open = () -> {
-            AuthService service = new BackendAuthService(
-                    new UnconfiguredAuthApiClient());
-            AuthFrame frame = new AuthFrame(service, new SessionManager());
-            frame.setVisible(true);
-        };
-        if (SwingUtilities.isEventDispatchThread()) {
-            open.run();
-        } else {
-            SwingUtilities.invokeLater(open);
         }
     }
 
@@ -123,19 +107,30 @@ public final class AuthFrame extends JFrame implements AuthNavigator {
 
     @Override
     public void showVerification(String email) {
-        showSignIn();
+        verificationPanel.setEmail(email);
+        cards.show(content, VERIFICATION);
+    }
+
+    @Override
+    public void showRegistrationVerification(
+            com.spendwise.auth.otp.EmailOtpChallenge challenge) {
+        verificationPanel.setChallenge(challenge);
+        cards.show(content, VERIFICATION);
     }
 
     @Override
     public void showForgotPassword() {
-        cards.show(content, (localAccountUi || sharedOnlineUi)
-                ? FORGOT_PASSWORD : SIGN_IN);
+        cards.show(content, localAccountUi ? FORGOT_PASSWORD : SIGN_IN);
     }
 
     @Override
-    public void showResetPassword() {
-        cards.show(content, sharedOnlineUi ? RESET_PASSWORD
-                : FORGOT_PASSWORD);
+    public void showEmailPasswordReset() {
+        cards.show(content, localAccountUi ? EMAIL_RESET : SIGN_IN);
+    }
+
+    @Override
+    public void showOfflineRecovery() {
+        cards.show(content, localAccountUi ? OFFLINE_RECOVERY : SIGN_IN);
     }
 
     @Override

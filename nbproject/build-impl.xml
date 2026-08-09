@@ -106,8 +106,6 @@ is divided into following sections:
         <property name="run.modulepath" value="${javac.modulepath}"/>
         <property name="module.build.classes.dir" value="${build.classes.dir}"/>
         <property name="debug.modulepath" value="${run.modulepath}"/>
-        <property name="javac.upgrademodulepath" value=""/>
-        <property name="run.upgrademodulepath" value="${javac.upgrademodulepath}"/>
         <condition else="" property="javac.systemmodulepath.cmd.line.arg" value="--system '${javac.systemmodulepath}'">
             <and>
                 <isset property="javac.systemmodulepath"/>
@@ -314,7 +312,6 @@ is divided into following sections:
             <attribute default="${build.classes.dir}" name="destdir"/>
             <attribute default="${javac.classpath}" name="classpath"/>
             <attribute default="${javac.modulepath}" name="modulepath"/>
-            <attribute default="${javac.upgrademodulepath}" name="upgrademodulepath"/>
             <attribute default="${javac.processorpath}" name="processorpath"/>
             <attribute default="${javac.processormodulepath}" name="processormodulepath"/>
             <attribute default="${build.generated.sources.dir}/ap-source-output" name="apgeneratedsrcdir"/>
@@ -355,9 +352,6 @@ is divided into following sections:
                     <modulepath>
                         <path path="@{modulepath}"/>
                     </modulepath>
-                    <upgrademodulepath>
-                        <path path="@{upgrademodulepath}"/>
-                    </upgrademodulepath>
                     <compilerarg line="${javac.systemmodulepath.cmd.line.arg}"/>
                     <compilerarg line="${javac.profile.cmd.line.arg}"/>
                     <compilerarg line="${javac.compilerargs}"/>
@@ -381,7 +375,6 @@ is divided into following sections:
             <attribute default="${build.classes.dir}" name="destdir"/>
             <attribute default="${javac.classpath}" name="classpath"/>
             <attribute default="${javac.modulepath}" name="modulepath"/>
-            <attribute default="${javac.upgrademodulepath}" name="upgrademodulepath"/>
             <attribute default="${javac.processorpath}" name="processorpath"/>
             <attribute default="${build.generated.sources.dir}/ap-source-output" name="apgeneratedsrcdir"/>
             <attribute default="${includes}" name="includes"/>
@@ -424,7 +417,6 @@ is divided into following sections:
             <attribute default="${build.classes.dir}" name="destdir"/>
             <attribute default="${javac.classpath}" name="classpath"/>
             <attribute default="${javac.modulepath}" name="modulepath"/>
-            <attribute default="${javac.upgrademodulepath}" name="upgrademodulepath"/>
             <attribute default="${javac.processorpath}" name="processorpath"/>
             <attribute default="${build.generated.sources.dir}/ap-source-output" name="apgeneratedsrcdir"/>
             <attribute default="${includes}" name="includes"/>
@@ -894,7 +886,6 @@ is divided into following sections:
             <attribute default="${module.name}" name="modulename"/>
             <attribute default="${main.class}" name="classname"/>
             <attribute default="${run.modulepath}" name="modulepath"/>
-            <attribute default="${run.upgrademodulepath}" name="upgrademodulepath"/>
             <attribute default="${run.classpath}" name="classpath"/>
             <attribute default="jvm" name="jvm"/>
             <element name="customize" optional="true"/>
@@ -907,9 +898,6 @@ is divided into following sections:
                         <pathelement path="@{modulepath}"/>
                         <pathelement location="${module.build.classes.dir}"/>
                     </modulepath>
-                    <upgrademodulepath>
-                        <path path="@{upgrademodulepath}"/>
-                    </upgrademodulepath>
                     <jvmarg value="-Dfile.encoding=${runtime.encoding}"/>
                     <redirector errorencoding="${runtime.encoding}" inputencoding="${runtime.encoding}" outputencoding="${runtime.encoding}"/>
                     <jvmarg line="${run.jvmargs}"/>
@@ -928,7 +916,6 @@ is divided into following sections:
             <attribute default="" name="modulename"/>
             <attribute default="${main.class}" name="classname"/>
             <attribute default="${run.modulepath}" name="modulepath"/>
-            <attribute default="${run.upgrademodulepath}" name="upgrademodulepath"/>
             <attribute default="${run.classpath}" name="classpath"/>
             <attribute default="jvm" name="jvm"/>
             <element name="customize" optional="true"/>
@@ -940,9 +927,6 @@ is divided into following sections:
                     <modulepath>
                         <path path="@{modulepath}"/>
                     </modulepath>
-                    <upgrademodulepath>
-                        <path path="@{upgrademodulepath}"/>
-                    </upgrademodulepath>
                     <jvmarg value="-Dfile.encoding=${runtime.encoding}"/>
                     <redirector errorencoding="${runtime.encoding}" inputencoding="${runtime.encoding}" outputencoding="${runtime.encoding}"/>
                     <jvmarg line="${run.jvmargs}"/>

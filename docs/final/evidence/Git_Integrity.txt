@@ -1,0 +1,58 @@
+WEALTHORA FINAL PRE-COMMIT GIT INTEGRITY RECORD
+Verification date: 2026-08-09 (Asia/Dhaka)
+Repository: G:\Projects\SpendWiseExpenseTracker
+
+Branch and baseline
+-------------------
+Branch: feature/shared-online-core
+Starting HEAD: d987a4a997fb0e7ed8025e6be7e9eca8989a663a
+Upstream: origin/feature/shared-online-core
+
+Pre-commit working-tree audit
+-----------------------------
+Every modified, deleted, and untracked entry was classified. The expanded
+status contained 325 entries after adding this final evidence manifest:
+  Modified: 41
+  Deleted: 213
+  Added/untracked files: 71
+  Unclassified: 0
+
+The 213 deletions are the approved removal of obsolete server/cloud/deployment
+and legacy desktop-integration material:
+  Obsolete server tree: 167
+  Obsolete desktop cloud/legacy integration: 37
+  Obsolete documentation: 7
+  Obsolete CI/deployment: 2
+
+Active and final-material entries were classified as desktop source/tests, OTP
+relay, secure launchers, NetBeans/Ant metadata, root security/CI documentation,
+presentation metadata, final documentation/evidence, and required notices.
+`Git_Change_Manifest.txt` lists every path with its exact M/D/A status.
+
+Integrity and exclusion checks
+------------------------------
+git diff --check: PASS. Git emitted only the informational line-ending warning
+for nbproject/build-impl.xml (CRLF will become LF when Git next touches it).
+
+The intended final tree contains no tracked/untracked `data/`, `build/`,
+ordinary `dist/`, `nbproject/private/`, `.env`, key container, local
+`otp-relay-config.json`, log, crash, replay, backup, or submission-ZIP path.
+High-confidence token/private-key scan: 0 hits.
+Secret-assignment scan: 0 hits.
+Personal Gmail candidate scan: 0 hits; the sole gmail.com address in source is
+the synthetic invalid-policy test fixture.
+
+Final verification baseline
+---------------------------
+ant clean test-quality jar: BUILD SUCCESSFUL; 47/47 Java entry points passed.
+Windows launcher suite: PASS.
+DPAPI saved-configuration validation: PASS; plaintext credential fields absent.
+Offline desktop startup/window/normal close: PASS.
+Both distribution JARs: manifest, main class, size, entry count, and SHA-256
+verified.
+Final report: exactly 6 A4 pages.
+Defense presentation: 17 slides, 17 embedded notes, no overflow.
+Final documentation consistency/sanitization validator: PASS.
+
+The final commit, normal upstream push, archive hash, and fresh-extraction
+results are recorded after this self-contained pre-commit evidence is frozen.

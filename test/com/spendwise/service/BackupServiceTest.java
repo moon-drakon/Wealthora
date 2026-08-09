@@ -55,7 +55,7 @@ public final class BackupServiceTest {
                     fixture.backup, false);
             assertEquals(ManagedDataFiles.FILE_NAMES, result.includedFiles());
             try (ZipFile zip = new ZipFile(fixture.backup.toFile())) {
-                assertEquals(ManagedDataFiles.FILE_NAMES.size() + 1, zip.size());
+                assertEquals(ManagedDataFiles.FILE_NAMES.size() + 2, zip.size());
             }
         });
     }

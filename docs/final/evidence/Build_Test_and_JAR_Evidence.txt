@@ -1,0 +1,95 @@
+WEALTHORA FINAL BUILD, TEST, AND ARTIFACT EVIDENCE
+Verification date: 2026-08-09 (Asia/Dhaka)
+Repository: G:\Projects\SpendWiseExpenseTracker
+
+Toolchain
+---------
+Apache Ant(TM) version 1.10.17 compiled on April 6 2026
+java version "25.0.4" 2026-07-21 LTS
+javac 25.0.4
+
+Final command
+-------------
+The Ant 1.10.17 launcher was invoked with these targets:
+  clean test-quality jar
+
+Final result
+------------
+BUILD SUCCESSFUL
+Total time: 2 minutes 0 seconds
+
+The test-quality dependency graph contains exactly 47 Java test entry points.
+Unique test entry points: 47
+Duplicate test entry points: 0
+Result: 47/47 passed.
+
+Distribution artifacts
+----------------------
+dist\Wealthora.jar
+  Size: 2,134,924 bytes
+  ZIP/JAR entries: 408
+  Main-Class: com.spendwise.app.SpendWiseApplication
+  SHA-256: 903AD9E6BD7344DA1E612119B9C010F8156AC9C1D70514EDC9F664C399B712C1
+
+dist\otp-relay\wealthora-otp-relay.jar
+  Size: 31,050 bytes
+  ZIP/JAR entries: 24
+  Main-Class: com.wealthora.otp.relay.OtpRelayApplication
+  OtpEmailTemplate class entries: 4
+  SHA-256: 3F1F9F81A3F7A755471CCD49CF5EA8BF266289743809F424B86A1DFD46558D05
+
+Windows secure-launcher verification
+------------------------------------
+Command:
+  powershell.exe -NoProfile -ExecutionPolicy Bypass
+    -File .\test\launchers\WealthoraLauncherTest.ps1
+
+Result: PASS
+
+The suite verified PowerShell and CMD syntax, static security controls, masked
+input, DPAPI CurrentUser persistence across a new process, no plaintext secret
+storage, atomic replacement and failure rollback, missing/corrupt/removal paths,
+Java discovery order, paths containing spaces, live local-relay readiness,
+healthy-relay reuse, command-line secret absence, normal-launch ownership
+cleanup, and NetBeans relay startup/reuse/cleanup behavior. It used randomized
+dummy values and temporary directories and did not read or change the user's
+real Gmail configuration.
+
+Branded OTP email verification
+--------------------------------
+Automated relay tests verify distinct registration and password-reset content,
+purpose-preserving resend, UTF-8 multipart/alternative MIME headers, plain-text
+and HTML bodies, responsive table markup, inline styling, context validation,
+HTML escaping, header-injection rejection, and absence of scripts or external
+resources. The existing expiry, cooldown, five-attempt, newest-code, replay,
+binding, rate-limit, and failed-delivery preservation tests continue to pass.
+
+Controlled Gmail visual verification was confirmed by the user on August 9,
+2026. The Create Account and Forgot Password branded HTML messages both passed,
+including Wealthora branding, purpose-specific headings, readable code boxes,
+expiry and security notices, and desktop/mobile layouts. No OTP, credential, or
+account address was captured or copied into this evidence package. The manual
+HTML-email gate is closed.
+
+Documentation artifact QA
+-------------------------
+Academic report: exactly 6 A4 pages including the cover; DOCX exported with
+Word and every final PDF page rendered and visually inspected.
+Defense deck: 17 slides; every slide rendered and visually inspected; 17
+embedded notes slides; automated overflow check passed.
+Visible-text privacy scan: 0 email-like values, 0 standalone six-digit values
+outside the explicitly labeled SHA-256 digests, and 0 secret-assignment-like
+values in the final deliverables.
+
+The relay email-rendering, SMTP sender-name configuration, and Windows launcher
+source changed. Desktop Swing authentication screens, OTP policy, and unrelated
+application behavior did not change. The real one-time launcher persistence,
+restart, and NetBeans F6 gate passed privately and is closed in
+Persistent_OTP_Launcher_Manual_Gate.md.
+
+Offline startup verification
+----------------------------
+The rebuilt desktop JAR was launched with no OTP relay URL. The real user-facing
+window title was observed as `Wealthora Authentication`, normal offline startup
+remained available, and the application closed normally. No credential was
+entered and no private record was captured.

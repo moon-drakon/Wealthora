@@ -40,7 +40,14 @@ import java.util.zip.ZipOutputStream;
 public final class BackupService {
 
     public static final String MANIFEST_NAME = "manifest.txt";
+
+    /**
+     * Optional descriptive manifest. Readers ignore it when it is absent, so
+     * backups written before this entry existed still restore.
+     */
+    public static final String INFO_NAME = "backup-info.json";
     public static final String FORMAT_VERSION = "1";
+    public static final int BACKUP_VERSION = 1;
     public static final String APPLICATION_NAME = AppBrand.APP_NAME;
     private static final long MAX_ENTRY_BYTES = 50L * 1024L * 1024L;
     private static final long MAX_TOTAL_BYTES = 100L * 1024L * 1024L;
@@ -79,6 +86,36 @@ public final class BackupService {
 
     public BackupInspection inspectBackup(Path source) {
         return validateBackup(source).inspection();
+    }
+
+    /**
+     * Validates {@code source} and writes its managed files into
+     * {@code directory}, which must be a controlled temporary folder. Entry
+     * names are checked before any file is created, so a crafted archive cannot
+     * place a file outside the folder or add an unexpected file type.
+     */
+    BackupInspection extractTo(Path source, Path directory) {
+        ValidatedBackup backup = validateBackup(source);
+        Path base = Objects.requireNonNull(
+                directory, "Extraction directory is required.")
+                .toAbsolutePath().normalize();
+        try {
+            Files.createDirectories(base);
+            for (Map.Entry<String, byte[]> entry : backup.files().entrySet()) {
+                Path destination = base.resolve(entry.getKey())
+                        .toAbsolutePath().normalize();
+                if (!destination.getParent().equals(base)) {
+                    throw new ValidationException(
+                            "Backup contains an unsafe entry: "
+                            + entry.getKey());
+                }
+                Files.write(destination, entry.getValue());
+            }
+        } catch (IOException | SecurityException exception) {
+            throw new RepositoryException(
+                    "Could not open the backup for review.", exception);
+        }
+        return backup.inspection();
     }
 
     public RestoreResult restoreBackup(Path source) {
@@ -136,6 +173,9 @@ public final class BackupService {
             putEntry(zip, MANIFEST_NAME,
                     manifest(files.keySet(), createdAt)
                             .getBytes(StandardCharsets.UTF_8));
+            putEntry(zip, INFO_NAME,
+                    backupInfo(files, createdAt)
+                            .getBytes(StandardCharsets.UTF_8));
             for (Map.Entry<String, byte[]> entry : files.entrySet()) {
                 putEntry(zip, entry.getKey(), entry.getValue());
             }
@@ -164,6 +204,77 @@ public final class BackupService {
                 + "files=" + String.join(";", names) + "\n";
     }
 
+    /**
+     * Describes the package for humans and for future readers that need to know
+     * which version wrote it. It carries no account, amount, or credential data.
+     */
+    private static String backupInfo(
+            LinkedHashMap<String, byte[]> files, Instant createdAt) {
+        StringBuilder json = new StringBuilder("{\n")
+                .append("  \"format\": \"").append(AppBrand.BACKUP_FORMAT)
+                .append("\",\n")
+                .append("  \"backupVersion\": ").append(BACKUP_VERSION)
+                .append(",\n")
+                .append("  \"formatVersion\": \"").append(FORMAT_VERSION)
+                .append("\",\n")
+                .append("  \"application\": \"").append(APPLICATION_NAME)
+                .append("\",\n")
+                .append("  \"appVersion\": \"").append(AppBrand.APP_VERSION)
+                .append("\",\n")
+                .append("  \"createdAt\": \"").append(createdAt).append("\",\n")
+                .append("  \"sections\": [");
+        boolean comma = false;
+        for (Map.Entry<String, byte[]> entry : files.entrySet()) {
+            if (comma) {
+                json.append(',');
+            }
+            json.append("\n    {\"name\": \"").append(entry.getKey())
+                    .append("\", \"records\": ")
+                    .append(countCsvRecords(entry.getValue())).append('}');
+            comma = true;
+        }
+        return json.append(files.isEmpty() ? "" : "\n  ")
+                .append("]\n}\n").toString();
+    }
+
+    /**
+     * Counts data rows in a managed CSV file. Quoted fields may contain line
+     * breaks, so raw line counting would overstate the total.
+     */
+    private static int countCsvRecords(byte[] content) {
+        String text = new String(content, StandardCharsets.UTF_8);
+        int records = 0;
+        boolean quoted = false;
+        boolean started = false;
+        for (int index = 0; index < text.length(); index++) {
+            char character = text.charAt(index);
+            if (quoted) {
+                if (character == '"') {
+                    if (index + 1 < text.length()
+                            && text.charAt(index + 1) == '"') {
+                        index++;
+                    } else {
+                        quoted = false;
+                    }
+                }
+                continue;
+            }
+            if (character == '"') {
+                quoted = true;
+                started = true;
+            } else if (character == '\n') {
+                records++;
+                started = false;
+            } else if (character != '\r') {
+                started = true;
+            }
+        }
+        if (started) {
+            records++;
+        }
+        return Math.max(0, records - 1);
+    }
+
     private ValidatedBackup validateBackup(Path source) {
         Path archive = Objects.requireNonNull(
                 source, "Backup source is required.")
@@ -174,6 +285,7 @@ public final class BackupService {
         }
         LinkedHashMap<String, byte[]> entries = readArchive(archive);
         byte[] manifestBytes = entries.remove(MANIFEST_NAME);
+        entries.remove(INFO_NAME);
         if (manifestBytes == null) {
             throw new ValidationException(
                     "Backup manifest is missing.");
@@ -343,6 +455,7 @@ public final class BackupService {
                 || name.equals(".")
                 || name.equals("..")
                 || (!name.equals(MANIFEST_NAME)
+                    && !name.equals(INFO_NAME)
                     && !ManagedDataFiles.FILE_NAMES.contains(name))) {
             throw new ValidationException(
                     "Backup contains an unsafe or unsupported entry: " + name);

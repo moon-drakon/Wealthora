@@ -9,7 +9,7 @@ import org.mindrot.jbcrypt.BCrypt;
 
 public final class PasswordService {
 
-    public static final int MINIMUM_LENGTH = 8;
+    public static final int MINIMUM_LENGTH = 6;
     public static final int MAXIMUM_LENGTH = 128;
     private static final int BCRYPT_COST = 12;
     private static final String BCRYPT_SHA256_PREFIX = "{bcrypt-sha256}";
@@ -47,7 +47,7 @@ public final class PasswordService {
     public char[] requireStrong(char[] password) {
         if (password == null || password.length < MINIMUM_LENGTH) {
             throw new AuthException(
-                    "Password must contain at least 8 characters.");
+                    "Password must contain at least 6 characters.");
         }
         if (password.length > MAXIMUM_LENGTH) {
             throw new AuthException(

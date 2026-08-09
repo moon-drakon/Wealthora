@@ -2,14 +2,11 @@ package com.spendwise.auth.local;
 
 import com.spendwise.auth.AccountStatus;
 import com.spendwise.auth.AccountSession;
-import com.spendwise.auth.AuthenticationAvailability;
-import com.spendwise.auth.AuthConfigurationException;
 import com.spendwise.auth.AuthException;
 import com.spendwise.auth.AuthProvider;
 import com.spendwise.auth.AuthService;
 import com.spendwise.auth.AuthenticatedUser;
 import com.spendwise.auth.EmailAddressPolicy;
-import com.spendwise.auth.FinanceMode;
 import com.spendwise.auth.LocalAccountService;
 import com.spendwise.auth.NsuEmailPolicy;
 import com.spendwise.auth.OwnerConfiguration;
@@ -23,26 +20,29 @@ import com.spendwise.auth.UserSession;
 import com.spendwise.auth.audit.AuditAction;
 import com.spendwise.auth.audit.AuditEvent;
 import com.spendwise.auth.audit.AuditRepository;
-import com.spendwise.auth.registration.RegistrationGateway;
-import com.spendwise.auth.registration.FinanceApiGateway;
-import com.spendwise.auth.admin.AdministrationGateway;
-import com.spendwise.auth.registration.UnconfiguredRegistrationGateway;
+import com.spendwise.auth.otp.EmailOtpAccountService;
+import com.spendwise.auth.otp.EmailOtpChallenge;
+import com.spendwise.auth.otp.EmailVerificationGateway;
+import com.spendwise.auth.otp.OtpPurpose;
+import com.spendwise.auth.otp.UnconfiguredEmailVerificationGateway;
 import com.spendwise.config.AppPaths;
-import com.spendwise.voice.SpeechApiClient;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 
 public final class LocalDesktopAuthService
-        implements AuthService, OwnerSetupService, LocalAccountService {
+        implements AuthService, OwnerSetupService, LocalAccountService,
+        EmailOtpAccountService {
 
     public static final int MAXIMUM_FAILED_ATTEMPTS = 5;
     public static final Duration LOCK_DURATION = Duration.ofMinutes(15);
@@ -61,7 +61,11 @@ public final class LocalDesktopAuthService
     private final Clock clock;
     private final Function<String, java.nio.file.Path> workspaceResolver;
     private final String dummyPasswordHash;
-    private final RegistrationGateway registrationGateway;
+    private final EmailVerificationGateway emailVerificationGateway;
+    private final Map<String, PendingRegistration> pendingRegistrations =
+            new HashMap<>();
+    private final Map<String, PendingPasswordReset> pendingPasswordResets =
+            new HashMap<>();
 
     public LocalDesktopAuthService(
             LocalUserRepository userRepository,
@@ -72,7 +76,7 @@ public final class LocalDesktopAuthService
             LegacyDataMigrationService migrationService) {
         this(userRepository, passwordService, ownerConfiguration,
                 sessionManager, auditRepository, migrationService,
-                new UnconfiguredRegistrationGateway());
+                new UnconfiguredEmailVerificationGateway());
     }
 
     public LocalDesktopAuthService(
@@ -82,11 +86,11 @@ public final class LocalDesktopAuthService
             SessionManager sessionManager,
             AuditRepository auditRepository,
             LegacyDataMigrationService migrationService,
-            RegistrationGateway registrationGateway) {
+            EmailVerificationGateway emailVerificationGateway) {
         this(userRepository, passwordService, ownerConfiguration,
                 sessionManager, auditRepository, migrationService,
                 Clock.systemUTC(), AppPaths::getUserDataDirectory,
-                registrationGateway);
+                emailVerificationGateway);
     }
 
     LocalDesktopAuthService(
@@ -100,7 +104,7 @@ public final class LocalDesktopAuthService
             Function<String, java.nio.file.Path> workspaceResolver) {
         this(userRepository, passwordService, ownerConfiguration,
                 sessionManager, auditRepository, migrationService, clock,
-                workspaceResolver, new UnconfiguredRegistrationGateway());
+                workspaceResolver, new UnconfiguredEmailVerificationGateway());
     }
 
     LocalDesktopAuthService(
@@ -112,7 +116,7 @@ public final class LocalDesktopAuthService
             LegacyDataMigrationService migrationService,
             Clock clock,
             Function<String, java.nio.file.Path> workspaceResolver,
-            RegistrationGateway registrationGateway) {
+            EmailVerificationGateway emailVerificationGateway) {
         this.userRepository = Objects.requireNonNull(
                 userRepository, "User repository is required.");
         this.passwordService = Objects.requireNonNull(
@@ -129,37 +133,15 @@ public final class LocalDesktopAuthService
         this.clock = Objects.requireNonNull(clock, "Clock is required.");
         this.workspaceResolver = Objects.requireNonNull(
                 workspaceResolver, "Workspace resolver is required.");
-        this.registrationGateway = Objects.requireNonNull(
-                registrationGateway, "Registration gateway is required.");
+        this.emailVerificationGateway = Objects.requireNonNull(
+                emailVerificationGateway,
+                "Email verification gateway is required.");
         this.dummyPasswordHash = passwordService.hash(DUMMY_PASSWORD);
     }
 
     @Override
     public boolean isOwnerSetupRequired() {
         return userRepository.findOwner().isEmpty();
-    }
-
-    public SpeechApiClient getSpeechApiClient() {
-        return registrationGateway;
-    }
-
-    public FinanceApiGateway getFinanceApiGateway() {
-        return registrationGateway;
-    }
-
-    @Override
-    public boolean isSharedOnlineMode() {
-        return registrationGateway.isConfigured();
-    }
-
-    @Override
-    public AuthenticationAvailability getAuthenticationAvailability() {
-        return registrationGateway.getAuthenticationAvailability();
-    }
-
-    public AdministrationGateway getAdministrationGateway() {
-        return registrationGateway instanceof AdministrationGateway gateway
-                ? gateway : AdministrationGateway.unavailable();
     }
 
     @Override
@@ -224,13 +206,12 @@ public final class LocalDesktopAuthService
                 now, Set.of(UserRole.USER, UserRole.ADMIN, UserRole.OWNER),
                 studentIdentifier(normalizedEmail), "System", "BDT");
         String hash = passwordService.hash(password);
+        prepareWorkspace(owner);
         userRepository.save(recovery == null
                 ? new LocalUserRecord(owner, hash, 0, null)
                 : new LocalUserRecord(owner, hash, 0, null,
                         recovery.question(), recovery.hint(),
                         recovery.answerHash()));
-        migrationService.assignToFirstOwner(identifier,
-                workspaceResolver.apply(identifier));
         auditRepository.append(new AuditEvent(now, identifier,
                 AuditAction.OWNER_BOOTSTRAP, identifier, "SUCCESS",
                 "Primary local OWNER created."));
@@ -238,7 +219,12 @@ public final class LocalDesktopAuthService
     }
 
     @Override
-    public synchronized AuthenticatedUser registerLocalAccount(
+    public boolean isEmailOtpConfigured() {
+        return emailVerificationGateway.isConfigured();
+    }
+
+    @Override
+    public synchronized EmailOtpChallenge beginRegistration(
             String fullName,
             String email,
             String studentIdentifier,
@@ -247,6 +233,7 @@ public final class LocalDesktopAuthService
             String recoveryQuestion,
             String recoveryHint,
             char[] recoveryAnswer) {
+        cleanupExpiredOtpState();
         if (isOwnerSetupRequired()) {
             throw new AuthException(
                     "Complete the primary OWNER setup before adding users.");
@@ -259,6 +246,7 @@ public final class LocalDesktopAuthService
         if (userRepository.findByEmail(normalizedEmail).isPresent()) {
             throw new AuthException("An account already uses this email.");
         }
+        String name = requiredText(fullName, "Full name", 2, 160);
         String studentId = studentIdentifier == null
                 ? "" : studentIdentifier.strip();
         if (studentId.length() > 40) {
@@ -267,6 +255,131 @@ public final class LocalDesktopAuthService
         }
         RecoveryData recovery = requireRecovery(
                 recoveryQuestion, recoveryHint, recoveryAnswer);
+        String passwordHash = passwordService.hash(password);
+        EmailOtpChallenge challenge = emailVerificationGateway.sendCode(
+                normalizedEmail, OtpPurpose.REGISTRATION, "");
+        pendingRegistrations.put(challenge.challengeIdentifier(),
+                new PendingRegistration(name, normalizedEmail, studentId,
+                        passwordHash, recovery, challenge));
+        return challenge;
+    }
+
+    @Override
+    public synchronized EmailOtpChallenge resendRegistration(
+            String challengeIdentifier) {
+        cleanupExpiredOtpState();
+        PendingRegistration pending = requiredPendingRegistration(
+                challengeIdentifier);
+        EmailOtpChallenge refreshed = emailVerificationGateway.sendCode(
+                pending.email(), OtpPurpose.REGISTRATION,
+                pending.challenge().challengeIdentifier());
+        requireConsistentReplacement(pending.challenge(), refreshed);
+        pendingRegistrations.remove(
+                pending.challenge().challengeIdentifier());
+        pendingRegistrations.put(refreshed.challengeIdentifier(),
+                pending.withChallenge(refreshed));
+        return refreshed;
+    }
+
+    @Override
+    public synchronized AuthenticatedUser verifyRegistration(
+            String challengeIdentifier, String code) {
+        cleanupExpiredOtpState();
+        PendingRegistration pending = requiredPendingRegistration(
+                challengeIdentifier);
+        emailVerificationGateway.verifyCode(pending.email(),
+                OtpPurpose.REGISTRATION,
+                pending.challenge().challengeIdentifier(), code);
+        pendingRegistrations.remove(pending.challenge().challengeIdentifier());
+        if (userRepository.findByEmail(pending.email()).isPresent()) {
+            throw new AuthException("An account already uses this email.");
+        }
+        return createLocalAccount(pending.fullName(), pending.email(),
+                pending.studentIdentifier(), pending.passwordHash(),
+                pending.recovery());
+    }
+
+    @Override
+    public synchronized void cancelRegistration(String challengeIdentifier) {
+        if (challengeIdentifier != null) {
+            pendingRegistrations.remove(challengeIdentifier.strip());
+        }
+    }
+
+    @Override
+    public synchronized EmailOtpChallenge beginPasswordReset(String email) {
+        cleanupExpiredOtpState();
+        String normalizedEmail = NsuEmailPolicy.requireInstitutionalEmail(email);
+        LocalUserRecord record = userRepository.findByEmail(normalizedEmail)
+                .orElseThrow(() -> new AuthException(
+                        "No local account uses this email."));
+        EmailOtpChallenge challenge = emailVerificationGateway.sendCode(
+                normalizedEmail, OtpPurpose.PASSWORD_RESET, "");
+        pendingPasswordResets.put(challenge.challengeIdentifier(),
+                new PendingPasswordReset(record.user().getUserIdentifier(),
+                        normalizedEmail, challenge));
+        return challenge;
+    }
+
+    @Override
+    public synchronized EmailOtpChallenge resendPasswordReset(
+            String challengeIdentifier) {
+        cleanupExpiredOtpState();
+        PendingPasswordReset pending = requiredPendingPasswordReset(
+                challengeIdentifier);
+        EmailOtpChallenge refreshed = emailVerificationGateway.sendCode(
+                pending.email(), OtpPurpose.PASSWORD_RESET,
+                pending.challenge().challengeIdentifier());
+        requireConsistentReplacement(pending.challenge(), refreshed);
+        pendingPasswordResets.remove(
+                pending.challenge().challengeIdentifier());
+        pendingPasswordResets.put(refreshed.challengeIdentifier(),
+                pending.withChallenge(refreshed));
+        return refreshed;
+    }
+
+    @Override
+    public synchronized void completePasswordReset(
+            String challengeIdentifier,
+            String code,
+            char[] newPassword,
+            char[] passwordConfirmation) {
+        cleanupExpiredOtpState();
+        PendingPasswordReset pending = requiredPendingPasswordReset(
+                challengeIdentifier);
+        LocalUserRecord record = userRepository.findById(pending.userIdentifier())
+                .filter(candidate -> candidate.user().getEmail()
+                        .equals(pending.email()))
+                .orElseThrow(() -> new AuthException(
+                        "The local account is no longer available."));
+        requireMatchingNewPassword(newPassword, passwordConfirmation,
+                record.passwordHash());
+        String nextHash = passwordService.hash(newPassword);
+        emailVerificationGateway.verifyCode(pending.email(),
+                OtpPurpose.PASSWORD_RESET,
+                pending.challenge().challengeIdentifier(), code);
+        pendingPasswordResets.remove(pending.challenge().challengeIdentifier());
+        userRepository.save(record.withPasswordHash(nextHash));
+        auditRepository.append(new AuditEvent(clock.instant(),
+                record.user().getUserIdentifier(),
+                AuditAction.PASSWORD_RESET_COMPLETED,
+                record.user().getUserIdentifier(), "SUCCESS",
+                "Password reset after email verification."));
+    }
+
+    @Override
+    public synchronized void cancelPasswordReset(String challengeIdentifier) {
+        if (challengeIdentifier != null) {
+            pendingPasswordResets.remove(challengeIdentifier.strip());
+        }
+    }
+
+    private AuthenticatedUser createLocalAccount(
+            String fullName,
+            String normalizedEmail,
+            String studentIdentifier,
+            String passwordHash,
+            RecoveryData recovery) {
         Instant now = clock.instant();
         String identifier = "usr_" + UUID.randomUUID()
                 .toString().replace("-", "");
@@ -274,14 +387,15 @@ public final class LocalDesktopAuthService
                 identifier, fullName, normalizedEmail, true,
                 AuthProvider.LOCAL, "", AccountStatus.ACTIVE, now, now,
                 null, Set.of(UserRole.USER),
-                studentId.isEmpty() ? studentIdentifier(normalizedEmail)
-                        : studentId,
+                studentIdentifier.isEmpty()
+                        ? studentIdentifier(normalizedEmail)
+                        : studentIdentifier,
                 "System", "BDT");
+        prepareWorkspace(user);
         userRepository.save(new LocalUserRecord(user,
-                passwordService.hash(password), 0, null,
+                passwordHash, 0, null,
                 recovery.question(), recovery.hint(),
                 recovery.answerHash()));
-        prepareWorkspace(user);
         auditRepository.append(new AuditEvent(now, identifier,
                 AuditAction.REGISTRATION_CREATED, identifier, "SUCCESS",
                 "Local user account created on this computer."));
@@ -406,25 +520,6 @@ public final class LocalDesktopAuthService
     public synchronized UserSession signInWithNsuEmail(
             String email, char[] password) {
         Instant now = clock.instant();
-        LocalUserRecord record = findLocalRecord(email);
-        if (record == null && registrationGateway.isConfigured()) {
-            return signInOnline(email, password, now);
-        }
-        return signInLocally(password, record, now);
-    }
-
-    @Override
-    public synchronized UserSession signInWithNsuEmail(
-            String email, char[] password, FinanceMode destination) {
-        FinanceMode requiredDestination = Objects.requireNonNull(
-                destination, "A sign-in destination is required.");
-        Instant now = clock.instant();
-        if (requiredDestination == FinanceMode.CLOUD) {
-            if (!registrationGateway.isConfigured()) {
-                throw unavailable("Cloud password sign-in");
-            }
-            return signInOnline(email, password, now);
-        }
         return signInLocally(password, findLocalRecord(email), now);
     }
 
@@ -435,18 +530,6 @@ public final class LocalDesktopAuthService
         } catch (RuntimeException exception) {
             return null;
         }
-    }
-
-    private UserSession signInOnline(
-            String email, char[] password, Instant now) {
-        UserSession onlineSession = registrationGateway.signIn(
-                email, password);
-        auditRepository.append(new AuditEvent(now,
-                onlineSession.getUserIdentifier(),
-                AuditAction.LOGIN_SUCCESS,
-                onlineSession.getUserIdentifier(), "SUCCESS",
-                "Online password sign-in."));
-        return onlineSession;
     }
 
     private UserSession signInLocally(
@@ -491,73 +574,8 @@ public final class LocalDesktopAuthService
     }
 
     @Override
-    public UserSession continueWithGoogle() {
-        if (!registrationGateway.isConfigured()) {
-            throw unavailable("Google Sign-In");
-        }
-        UserSession session = registrationGateway.continueWithGoogle();
-        auditRepository.append(new AuditEvent(clock.instant(),
-                session.getUserIdentifier(), AuditAction.LOGIN_SUCCESS,
-                session.getUserIdentifier(), "SUCCESS",
-                "Verified Google browser sign-in."));
-        return session;
-    }
-
-    @Override
-    public AuthenticatedUser registerWithNsuEmail(
-            String fullName, String email, char[] password) {
-        return registerWithNsuEmail(
-                fullName, email, "", password, true);
-    }
-
-    @Override
-    public AuthenticatedUser registerWithNsuEmail(
-            String fullName,
-            String email,
-            String studentIdentifier,
-            char[] password,
-            boolean termsAccepted) {
-        return registrationGateway.register(fullName, email,
-                studentIdentifier, password, password,
-                termsAccepted);
-    }
-
-    @Override
-    public AuthenticatedUser verifyNsuEmail(
-            String email, String verificationCode) {
-        return registrationGateway.verifyEmail(email, verificationCode);
-    }
-
-    @Override
-    public void resendVerification(String email) {
-        registrationGateway.resendVerification(email);
-    }
-
-    @Override
-    public void forgotPassword(String email) {
-        if (!registrationGateway.isConfigured()) {
-            throw unavailable("Password recovery");
-        }
-        registrationGateway.forgotPassword(email);
-    }
-
-    @Override
-    public void resetPassword(
-            String email, String resetToken, char[] newPassword) {
-        if (!registrationGateway.isConfigured()) {
-            throw unavailable("Password recovery");
-        }
-        registrationGateway.resetPassword(email, resetToken, newPassword);
-    }
-
-    @Override
     public synchronized void changePassword(
             char[] currentPassword, char[] newPassword) {
-        if (registrationGateway.hasActiveSession()) {
-            registrationGateway.changePassword(currentPassword, newPassword);
-            clearDesktopSession();
-            return;
-        }
         UserSession current = sessionManager.getCurrentSession()
                 .orElseThrow(() -> new AuthException("No active session."));
         LocalUserRecord record = userRepository.findById(
@@ -583,19 +601,12 @@ public final class LocalDesktopAuthService
 
     @Override
     public synchronized void setPassword(char[] newPassword) {
-        if (!registrationGateway.hasActiveSession()) {
-            throw new AuthException(
-                    "This local account already has a password.");
-        }
-        registrationGateway.setPassword(newPassword);
-        clearDesktopSession();
+        throw new AuthException(
+                "This local account already has a password.");
     }
 
     @Override
     public synchronized List<AccountSession> listSessions() {
-        if (registrationGateway.hasActiveSession()) {
-            return registrationGateway.listSessions();
-        }
         UserSession current = sessionManager.getCurrentSession()
                 .orElseThrow(() -> new AuthException("No active session."));
         return List.of(new AccountSession(
@@ -608,11 +619,6 @@ public final class LocalDesktopAuthService
     public synchronized void revokeSession(AccountSession session) {
         AccountSession required = Objects.requireNonNull(
                 session, "Session is required.");
-        if (registrationGateway.hasActiveSession()) {
-            registrationGateway.revokeSession(required);
-            if (required.currentSession()) clearDesktopSession();
-            return;
-        }
         UserSession current = sessionManager.getCurrentSession()
                 .orElseThrow(() -> new AuthException("No active session."));
         if (!localSessionIdentifier(current).equals(
@@ -628,20 +634,10 @@ public final class LocalDesktopAuthService
 
     @Override
     public synchronized void logoutAll() {
-        try {
-            if (registrationGateway.hasActiveSession()) {
-                registrationGateway.logoutAll();
-            }
-        } finally {
-            clearDesktopSession();
-        }
+        clearDesktopSession();
     }
 
-    @Override
     public UserSession refreshSession() {
-        if (registrationGateway.hasActiveSession()) {
-            return registrationGateway.refreshSession();
-        }
         UserSession current = sessionManager.getCurrentSession()
                 .orElseThrow(() -> new AuthException("No active session."));
         LocalUserRecord record = userRepository.findById(
@@ -653,9 +649,6 @@ public final class LocalDesktopAuthService
     @Override
     public synchronized void logout() {
         try {
-            if (registrationGateway.hasActiveSession()) {
-                registrationGateway.logout();
-            }
             sessionManager.getCurrentSession().ifPresent(session ->
                     auditRepository.append(new AuditEvent(clock.instant(),
                             session.getUserIdentifier(), AuditAction.LOGOUT,
@@ -669,9 +662,6 @@ public final class LocalDesktopAuthService
 
     public synchronized void switchAccount() {
         try {
-            if (registrationGateway.hasActiveSession()) {
-                registrationGateway.logout();
-            }
             sessionManager.getCurrentSession().ifPresent(session ->
                     auditRepository.append(new AuditEvent(clock.instant(),
                             session.getUserIdentifier(),
@@ -686,9 +676,6 @@ public final class LocalDesktopAuthService
 
     @Override
     public AuthenticatedUser getCurrentUser() {
-        if (registrationGateway.hasActiveSession()) {
-            return registrationGateway.getCurrentUser();
-        }
         return sessionManager.getCurrentSession().map(UserSession::getUser)
                 .orElseThrow(() -> new AuthException("No active session."));
     }
@@ -719,10 +706,6 @@ public final class LocalDesktopAuthService
         if (!actor.canAccessAdminConsole()) {
             throw new AuthException(
                     "Administrator access is required to reset a password.");
-        }
-        if (registrationGateway.hasActiveSession()) {
-            throw new AuthException(
-                    "Administrator password reset is available for local accounts only.");
         }
         UserSession current = sessionManager.getCurrentSession()
                 .orElseThrow(() -> new AuthException("No active session."));
@@ -840,9 +823,45 @@ public final class LocalDesktopAuthService
         return separator <= 0 ? "" : email.substring(0, separator);
     }
 
-    private static AuthConfigurationException unavailable(String feature) {
-        return new AuthConfigurationException(feature
-                + " requires a configured authentication backend.");
+    private void cleanupExpiredOtpState() {
+        Instant now = clock.instant();
+        pendingRegistrations.entrySet().removeIf(entry ->
+                !entry.getValue().challenge().expiresAt().isAfter(now));
+        pendingPasswordResets.entrySet().removeIf(entry ->
+                !entry.getValue().challenge().expiresAt().isAfter(now));
+    }
+
+    private PendingRegistration requiredPendingRegistration(
+            String challengeIdentifier) {
+        String required = requiredText(challengeIdentifier,
+                "Challenge identifier", 20, 120);
+        PendingRegistration pending = pendingRegistrations.get(required);
+        if (pending == null) {
+            throw new AuthException(
+                    "The registration verification has expired or was cancelled.");
+        }
+        return pending;
+    }
+
+    private PendingPasswordReset requiredPendingPasswordReset(
+            String challengeIdentifier) {
+        String required = requiredText(challengeIdentifier,
+                "Challenge identifier", 20, 120);
+        PendingPasswordReset pending = pendingPasswordResets.get(required);
+        if (pending == null) {
+            throw new AuthException(
+                    "The password-reset verification has expired or was cancelled.");
+        }
+        return pending;
+    }
+
+    private static void requireConsistentReplacement(
+            EmailOtpChallenge previous, EmailOtpChallenge refreshed) {
+        if (!previous.email().equals(refreshed.email())
+                || previous.purpose() != refreshed.purpose()) {
+            throw new AuthException(
+                    "The email verification service returned an inconsistent challenge.");
+        }
     }
 
     private record PathHolder(java.nio.file.Path path) {
@@ -850,5 +869,29 @@ public final class LocalDesktopAuthService
 
     private record RecoveryData(
             String question, String hint, String answerHash) {
+    }
+
+    private record PendingRegistration(
+            String fullName,
+            String email,
+            String studentIdentifier,
+            String passwordHash,
+            RecoveryData recovery,
+            EmailOtpChallenge challenge) {
+
+        PendingRegistration withChallenge(EmailOtpChallenge value) {
+            return new PendingRegistration(fullName, email, studentIdentifier,
+                    passwordHash, recovery, value);
+        }
+    }
+
+    private record PendingPasswordReset(
+            String userIdentifier,
+            String email,
+            EmailOtpChallenge challenge) {
+
+        PendingPasswordReset withChallenge(EmailOtpChallenge value) {
+            return new PendingPasswordReset(userIdentifier, email, value);
+        }
     }
 }
