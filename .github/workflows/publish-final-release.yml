@@ -10,19 +10,19 @@ permissions:
   contents: write
 
 concurrency:
-  group: wealthora-cse215-final-v1.2.0
+  group: wealthora-cse215-final-v1.2.1
   cancel-in-progress: false
 
 env:
-  RELEASE_TAG: cse215-final-v1.2.0
-  RELEASE_TITLE: Wealthora CSE215 Final v1.2.0
-  BUNDLE_NAME: Wealthora-CSE215-v1.2.0
+  RELEASE_TAG: cse215-final-v1.2.1
+  RELEASE_TITLE: Wealthora CSE215 Final v1.2.1
+  BUNDLE_NAME: Wealthora-CSE215-v1.2.1
 
 jobs:
   publish:
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      github.event.head_commit.message == 'ci: publish final academic release'
+      github.event.head_commit.message == 'fix: correct final release checksum manifest'
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
@@ -97,7 +97,8 @@ jobs:
 
           (
             cd "$BUNDLE_NAME"
-            find . -type f -print0 | sort -z | xargs -0 sha256sum \
+            find . -type f ! -path './SHA256SUMS.txt' -print0 | sort -z | \
+              xargs -0 sha256sum \
               > SHA256SUMS.txt
           )
           zip -q -r "$BUNDLE_NAME.zip" "$BUNDLE_NAME"
@@ -125,7 +126,9 @@ jobs:
             --title "$RELEASE_TITLE" \
             --latest \
             --notes-file - <<'EOF'
-          Wealthora v1.2.0 is the final CSE215 academic release.
+          Wealthora v1.2.1 is the final CSE215 academic release. It supersedes
+          v1.2.0 and corrects only the public bundle's self-referential checksum
+          manifest; application functionality is unchanged.
 
           Highlights:
 
