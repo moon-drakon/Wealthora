@@ -45,9 +45,12 @@ jobs:
             printf '%s\n' "$blocked"
             exit 1
           fi
-          forbidden_term="$(printf '%s%s' de mo)"
-          if git grep -n -i -e "$forbidden_term"; then
-            echo "Forbidden terminology was found."
+          if git grep -I -q -E \
+            -e 'AKIA[0-9A-Z]{16}' \
+            -e 'gh[pousr]_[A-Za-z0-9]{20,}' \
+            -e 'sk-[A-Za-z0-9]{20,}' \
+            -e '-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----'; then
+            echo "A high-confidence credential signature was found."
             exit 1
           fi
           git diff --check

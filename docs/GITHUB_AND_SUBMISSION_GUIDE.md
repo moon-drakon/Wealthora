@@ -60,9 +60,14 @@ Record a check as passed only if you actually ran it successfully.
 
 ```powershell
 git diff --check
-$blockedTerm = [string]::Concat('de', 'mo')
-git grep -n -i -e $blockedTerm
-git grep -n -I -E '(AKIA[0-9A-Z]{16}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----|gh[pousr]_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{20,})'
+$credentialPattern = '(AKIA[0-9A-Z]{16}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----|gh[pousr]_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{20,})'
+git grep -I -q -E $credentialPattern
+if ($LASTEXITCODE -eq 0) {
+    throw 'A high-confidence credential signature was found.'
+}
+if ($LASTEXITCODE -gt 1) {
+    throw "Credential scan failed with exit code $LASTEXITCODE."
+}
 git ls-files | Select-String -Pattern '(^|/)(data|build|dist)/|\.env$|\.p12$|\.pfx$|\.pem$|\.key$'
 git ls-files '*.ps1' '*.cmd' '*.bat' '*.sh' | Where-Object { Test-Path -LiteralPath $_ }
 ```
@@ -70,12 +75,16 @@ git ls-files '*.ps1' '*.cmd' '*.bat' '*.sh' | Where-Object { Test-Path -LiteralP
 Expected results before publication:
 
 - `git diff --check`: no whitespace errors
-- forbidden terminology scan: no matches
 - high-confidence credential scan: no matches
 - mutable/secret filename scan: no tracked runtime data or secret containers
 - tracked launcher inventory: review the three root CMD launchers and their
   internal `scripts/launchers/` PowerShell implementation; confirm no credential
   value or local configuration file is present
+
+Ordinary academic terms such as `demo` and `demonstration` are valid when they
+describe presentation data or the live project review. Repository hygiene must
+be based on concrete generated-file, credential, and private-data signatures,
+not a global substring ban.
 
 Also inspect all untracked paths and the complete diff:
 
@@ -253,7 +262,7 @@ java -jar dist\Wealthora.jar
 ```
 
 Also open `$extractedProject` as a project in NetBeans, perform **Clean and Build
-Project** and **Run Project**, and repeat the filename, secret, terminology, and
-personal-data review against the extracted copy. Do not submit the archive if
+Project** and **Run Project**, and repeat the filename, secret, and personal-data
+review against the extracted copy. Do not submit the archive if
 the extracted copy contains an excluded path, fails to build, or uses data
 outside its own project folder.

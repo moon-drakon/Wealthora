@@ -1,5 +1,7 @@
 # Wealthora — Personal Expense Tracker
 
+[![Desktop CI](https://github.com/moon-drakon/Wealthora/actions/workflows/desktop-ci.yml/badge.svg?branch=main)](https://github.com/moon-drakon/Wealthora/actions/workflows/desktop-ci.yml)
+
 **For CSE 215 Presentation**
 
 ## Course Project Information
