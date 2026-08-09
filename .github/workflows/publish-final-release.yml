@@ -10,19 +10,19 @@ permissions:
   contents: write
 
 concurrency:
-  group: wealthora-cse215-final-v1.2.1
+  group: wealthora-cse215-final-v1.2.2
   cancel-in-progress: false
 
 env:
-  RELEASE_TAG: cse215-final-v1.2.1
-  RELEASE_TITLE: Wealthora CSE215 Final v1.2.1
-  BUNDLE_NAME: Wealthora-CSE215-v1.2.1
+  RELEASE_TAG: cse215-final-v1.2.2
+  RELEASE_TITLE: Wealthora CSE215 Final v1.2.2
+  BUNDLE_NAME: Wealthora-CSE215-v1.2.2
 
 jobs:
   publish:
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      github.event.head_commit.message == 'fix: correct final release checksum manifest'
+      github.event.head_commit.message == 'fix: polish final defense presentation layout'
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
@@ -126,9 +126,9 @@ jobs:
             --title "$RELEASE_TITLE" \
             --latest \
             --notes-file - <<'EOF'
-          Wealthora v1.2.1 is the final CSE215 academic release. It supersedes
-          v1.2.0 and corrects only the public bundle's self-referential checksum
-          manifest; application functionality is unchanged.
+          Wealthora v1.2.2 is the final CSE215 academic release. It supersedes
+          v1.2.1 and improves the defense presentation's typography, spacing,
+          and cross-platform rendering. Core application functionality is unchanged.
 
           Highlights:
 

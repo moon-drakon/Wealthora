@@ -4,7 +4,7 @@ package com.spendwise.config;
 public final class AppBrand {
 
     public static final String APP_NAME = "Wealthora";
-    public static final String APP_VERSION = "1.2.1";
+    public static final String APP_VERSION = "1.2.2";
     public static final String TAGLINE = "Take Control of Every Taka.";
     public static final String DESCRIPTION =
             "A Smart Personal Finance Management System";
