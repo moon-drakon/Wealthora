@@ -18,6 +18,10 @@ public final class PortableProjectDataTest {
 
     private void run() throws Exception {
         test("project root with spaces", this::projectRootWithSpaces);
+        test("packaged release root without source markers",
+                this::packagedReleaseRootWithoutSourceMarkers);
+        test("incomplete packaged release is rejected",
+                this::incompletePackagedReleaseIsRejected);
         test("portable layout and exclusive lock", this::layoutAndLock);
         test("non-directory data target fails safely",
                 this::invalidDataTargetFailsSafely);
@@ -30,6 +34,44 @@ public final class PortableProjectDataTest {
         test("invalid legacy data rolls back", this::invalidDataRollsBack);
         System.out.println("All " + passed
                 + " portable project-data tests passed.");
+    }
+
+    private void packagedReleaseRootWithoutSourceMarkers() throws Exception {
+        Path release = Files.createTempDirectory("Wealthora Release ");
+        String previous = System.getProperty(AppPaths.PROJECT_ROOT_PROPERTY);
+        try {
+            Path desktopJar = createPackagedReleaseMarkers(release);
+            assertFalse(Files.exists(release.resolve("build.xml")));
+            assertFalse(Files.exists(release.resolve("nbproject")));
+
+            assertEquals(release.toAbsolutePath().normalize(),
+                    AppPaths.resolveProjectRoot(release, desktopJar, null));
+
+            System.setProperty(AppPaths.PROJECT_ROOT_PROPERTY,
+                    release.toString());
+            AppPaths.resetForTests();
+            assertEquals(release.toAbsolutePath().normalize(),
+                    AppPaths.getProjectRoot());
+            assertEquals(release.resolve("data").toAbsolutePath().normalize(),
+                    AppPaths.getDataRootDirectory());
+        } finally {
+            restoreProperty(previous);
+            AppPaths.resetForTests();
+            deleteTree(release);
+        }
+    }
+
+    private void incompletePackagedReleaseIsRejected() throws Exception {
+        Path release = Files.createTempDirectory("Wealthora Incomplete ");
+        try {
+            Path dist = Files.createDirectories(release.resolve("dist"));
+            Files.writeString(dist.resolve("Wealthora.jar"), "placeholder");
+            expect(IllegalStateException.class,
+                    () -> AppPaths.resolveProjectRoot(
+                            release, null, release.toString()));
+        } finally {
+            deleteTree(release);
+        }
     }
 
     private void projectRootWithSpaces() throws Exception {
@@ -201,6 +243,15 @@ public final class PortableProjectDataTest {
         Files.writeString(project.resolve("build.xml"), "<project/>");
         Path nbproject = Files.createDirectories(project.resolve("nbproject"));
         Files.writeString(nbproject.resolve("project.xml"), "<project/>");
+    }
+
+    private static Path createPackagedReleaseMarkers(Path release)
+            throws Exception {
+        Files.writeString(release.resolve("Start Wealthora.cmd"), "@echo off");
+        Path dist = Files.createDirectories(release.resolve("dist"));
+        Path desktopJar = dist.resolve("Wealthora.jar");
+        Files.writeString(desktopJar, "placeholder");
+        return desktopJar;
     }
 
     private static void restoreProperty(String previous) {

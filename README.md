@@ -68,8 +68,8 @@ recovery answers, SMTP secrets, and finance records are never sent to the relay.
 
 ## Requirements
 
-- JDK 25
-- Apache Ant for the documented build commands
+- JDK 25 for running Wealthora
+- Apache Ant only when building or testing from source
 - Apache NetBeans (optional; the repository contains a standard Ant project)
 
 The required desktop libraries and their license notices are already under
@@ -98,20 +98,24 @@ In NetBeans, use **Clean and Build Project**, then **Run Project**.
 
 ## Windows one-click Quick Start
 
-After the first successful build, Windows users do not need to enter relay
-commands or Gmail credentials on every launch:
+The complete GitHub release bundle is prebuilt; Apache Ant and NetBeans are not
+required for normal use:
 
-1. Double-click **`Configure Wealthora OTP.cmd`** once. Enter the Gmail or
+1. On the latest release page, download **Complete Windows and academic
+   bundle**—not GitHub's automatic **Source code (zip)**—and extract it fully.
+2. Double-click **`Configure Wealthora OTP.cmd`** once. Enter the Gmail or
    Google Workspace sender address, an optional sender name (default:
    `Wealthora Security`), and the Google 16-character App Password privately.
    Spaces in the App Password are accepted.
-2. The configurator performs a STARTTLS Gmail authentication check without
+3. The configurator performs a STARTTLS Gmail authentication check without
    sending mail. Only after that succeeds does it atomically save the address,
    sender name, and Windows DPAPI-encrypted credentials under
    `%LOCALAPPDATA%\Wealthora\`.
-3. Double-click **`Start Wealthora.cmd`** for normal use. It reuses a healthy
+4. Double-click **`Start Wealthora.cmd`** for normal use. It reuses a healthy
    relay or starts one, waits for `/health`, launches the desktop JAR, and stops
-   only the relay process it created when Wealthora closes.
+   only the relay process it created when Wealthora closes. The extracted
+   folder is a valid portable application root and stores runtime state in its
+   local `data/` directory.
 
 Subsequent normal launches—including after a computer restart—reuse the saved
 Windows user-specific encrypted configuration without asking for the Gmail
