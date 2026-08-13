@@ -141,6 +141,75 @@ depends on an installed Windows speech voice:
 ant test-windows-offline-speech
 ```
 
+## macOS quick start and OTP
+
+The Windows `.cmd` launchers and DPAPI credential storage are not available on
+macOS. For normal use, extract the **Complete Windows and academic bundle** and
+use its prebuilt JARs with JDK 25. For NetBeans, also download and open the
+**Source code (zip)** project.
+
+Quit NetBeans completely before the first setup. In Terminal, adjust the release
+folder path if necessary, then paste this block. The Gmail address and App
+Password are requested interactively, are not written to the repository, and
+the App Password is not echoed:
+
+```zsh
+cd "$HOME/Downloads/Wealthora-CSE215-v1.2.3" || exit 1
+pkill -f 'wealthora-otp-relay.jar' 2>/dev/null || true
+read -r "U?Gmail sender address: "
+read -rs "P?Google 16-character App Password: "
+echo
+nohup env \
+  WEALTHORA_SMTP_HOST=smtp.gmail.com \
+  WEALTHORA_SMTP_PORT=587 \
+  WEALTHORA_SMTP_USERNAME="$U" \
+  WEALTHORA_SMTP_PASSWORD="${P// /}" \
+  WEALTHORA_SMTP_FROM="$U" \
+  WEALTHORA_SMTP_FROM_NAME="Wealthora Security" \
+  WEALTHORA_OTP_SIGNING_SECRET="$(openssl rand -base64 48)" \
+  WEALTHORA_RELAY_ALLOW_HTTP_LOOPBACK=true \
+  WEALTHORA_RELAY_BIND_ADDRESS=127.0.0.1 \
+  WEALTHORA_RELAY_PORT=8443 \
+  java -jar dist/otp-relay/wealthora-otp-relay.jar \
+  </dev/null >/tmp/wealthora-otp.log 2>&1 &
+disown
+unset U P
+sleep 3
+curl -fsS http://127.0.0.1:8443/health
+launchctl setenv WEALTHORA_OTP_RELAY_URL "http://127.0.0.1:8443"
+```
+
+A successful health check returns JSON containing `"status":"UP"`. The relay
+continues in the background after the Terminal window closes.
+
+To run the extracted application directly:
+
+```zsh
+cd "$HOME/Downloads/Wealthora-CSE215-v1.2.3" &&
+WEALTHORA_OTP_RELAY_URL="http://127.0.0.1:8443" \
+  java -jar dist/Wealthora.jar
+```
+
+To use NetBeans, fully quit and reopen it after the setup command, open the
+source project, then use **Clean and Build Project** and **Run Project (F6)**:
+
+```zsh
+open -a "Apache NetBeans"
+```
+
+Useful checks and cleanup:
+
+```zsh
+curl -fsS http://127.0.0.1:8443/health
+tail -n 50 /tmp/wealthora-otp.log
+pkill -f 'wealthora-otp-relay.jar'
+launchctl unsetenv WEALTHORA_OTP_RELAY_URL
+```
+
+Run the setup block again after a Mac restart or after stopping the relay.
+Email OTP recipients must use the supported `@northsouth.edu` domain. Never
+paste an App Password into source code, GitHub, screenshots, or support output.
+
 ## First launch and accounts
 
 1. Run Wealthora from the project root. Runtime state is created only below
@@ -230,7 +299,7 @@ See [OOP mapping](docs/OOP_MAPPING.md) for the viva-ready class map.
 - [Security policy](SECURITY.md)
 - [Final six-page academic report and defense materials](docs/final/README.md)
 
-For the August 25, 2026 demonstration, carry a printed copy of the final
+For the August 16, 2026 demonstration, carry a printed copy of the final
 six-page A4 report. Use the configured presentation laptop for live OTP and keep
 the fully offline sign-in/recovery demonstration path available.
 
