@@ -166,8 +166,8 @@ public final class AppPaths {
         if (configuredRoot != null && !configuredRoot.isBlank()) {
             Path explicit = Path.of(configuredRoot.strip())
                     .toAbsolutePath().normalize();
-            requireProjectMarkers(explicit,
-                    "The configured Wealthora project root is invalid.");
+            requireApplicationMarkers(explicit,
+                    "The configured Wealthora application root is invalid.");
             return explicit;
         }
         Path fromWorkingDirectory = findProjectRoot(workingDirectory);
@@ -179,9 +179,9 @@ public final class AppPaths {
             return fromCode;
         }
         throw new IllegalStateException(
-                "Wealthora could not locate its project root. Run from the "
-                + "project folder or set WEALTHORA_PROJECT_ROOT to a folder "
-                + "containing build.xml and nbproject/project.xml.");
+                "Wealthora could not locate its application root. Run from "
+                + "the extracted release or project folder, or set "
+                + "WEALTHORA_PROJECT_ROOT to that folder.");
     }
 
     private static Path findProjectRoot(Path startingPoint) {
@@ -193,7 +193,7 @@ public final class AppPaths {
             candidate = candidate.getParent();
         }
         while (candidate != null) {
-            if (hasProjectMarkers(candidate)) {
+            if (hasApplicationMarkers(candidate)) {
                 return candidate;
             }
             candidate = candidate.getParent();
@@ -201,14 +201,26 @@ public final class AppPaths {
         return null;
     }
 
-    private static boolean hasProjectMarkers(Path directory) {
+    private static boolean hasApplicationMarkers(Path directory) {
+        return hasSourceProjectMarkers(directory)
+                || hasPackagedReleaseMarkers(directory);
+    }
+
+    private static boolean hasSourceProjectMarkers(Path directory) {
         return Files.isRegularFile(directory.resolve("build.xml"))
                 && Files.isRegularFile(
                         directory.resolve("nbproject").resolve("project.xml"));
     }
 
-    private static void requireProjectMarkers(Path directory, String message) {
-        if (!hasProjectMarkers(directory)) {
+    private static boolean hasPackagedReleaseMarkers(Path directory) {
+        return Files.isRegularFile(directory.resolve("Start Wealthora.cmd"))
+                && Files.isRegularFile(directory.resolve("dist")
+                        .resolve("Wealthora.jar"));
+    }
+
+    private static void requireApplicationMarkers(
+            Path directory, String message) {
+        if (!hasApplicationMarkers(directory)) {
             throw new IllegalStateException(message);
         }
     }
