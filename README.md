@@ -13,7 +13,7 @@
 | Faculty | SAM3 |
 | Registered Topic | Personal Expenses Tracker |
 | Project Title | Wealthora — Personal Expense Tracker |
-| Demonstration | August 25, 2026 |
+| Demonstration | August 16, 2026 |
 
 ### Team Members
 
