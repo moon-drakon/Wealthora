@@ -1,13 +1,13 @@
 # Academic Details and Contribution Record
 
-This record distinguishes repository-verified roster evidence from academic details explicitly supplied by the team for the final submission edition.
+This record distinguishes repository-verified roster evidence from academic details explicitly supplied by the team for the final submission.
 
-## Final academic details
+## Academic details
 
 - Course: CSE 215
 - Section: 11
 - Faculty: SAM3
-- Demonstration date: August 25, 2026
+- Project: Wealthora — Personal Expense Tracker
 
 ## Final supplied roster
 
@@ -19,8 +19,8 @@ This record distinguishes repository-verified roster evidence from academic deta
 
 - Shibli Rahman Moon and student ID 2534187012 match `README.md`.
 - Md. Nafij Jaman Rabbi and student ID 2513403642 match `README.md`.
-- The official spelling is confirmed as `Md. Monimul Haque`, and student ID `1821781042` is unchanged.
-- Repository documentation and final deliverables now use the confirmed spelling consistently.
+- The official spelling is `Md. Monimul Haque`, and student ID `1821781042` is unchanged.
+- Repository documentation uses the confirmed spelling consistently.
 
 ## Final contribution allocation
 
@@ -31,7 +31,7 @@ This record distinguishes repository-verified roster evidence from academic deta
 - Password recovery
 - Multi-user/workspace integration
 - Overall module/system integration
-- Quality assurance and 47/47 test verification
+- Quality assurance and test verification
 - Final build verification
 - Documentation coordination
 - Presentation and live-demo preparation
@@ -54,7 +54,7 @@ This record distinguishes repository-verified roster evidence from academic deta
 - Calendar features
 - Import/export
 - Backup and restore
-- Demo-data support
+- Presentation-data support
 - Related testing
 
-This contribution allocation is team supplied. It is not inferred from Git authorship. The repository's existing presentation guide remains valid as evidence of presentation-topic allocation.
+This contribution allocation is team supplied. It is not inferred from Git authorship.
