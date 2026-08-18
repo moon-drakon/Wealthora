@@ -1,6 +1,6 @@
 # Source Traceability
 
-All paths are relative to `G:\Projects\SpendWiseExpenseTracker`.
+All paths below are relative to the Wealthora repository root.
 
 | Claim | Primary source evidence |
 | --- | --- |
@@ -36,8 +36,7 @@ All paths are relative to `G:\Projects\SpendWiseExpenseTracker`.
 | Money Manager read-only import mapping | `src/com/spendwise/imports/ForeignBackupDetector.java`, `MoneyManagerImport.java` |
 | Presentation-data ownership and idempotence | `src/com/spendwise/service/PresentationDataService.java` |
 | Team roster and course context | `README.md` |
-| Defense responsibility allocation | `docs/PRESENTATION_GUIDE.md` |
-| Final academic details and contribution allocation | Team-supplied final academic details dated 2026-08-09; reconciled in `Academic_Details_and_Contribution_Record.md` |
+| Academic details and declared contribution allocation | `docs/final/evidence/Academic_Details_and_Contribution_Record.md` |
 | Automated test dependency chain | `build.xml` |
 | Clean-clone JAR Class-Path and runtime-library copy | `manifest.mf`, `build.xml` (`-post-jar`) |
-| Final six-page report and defense deliverables | `docs/final/README.md` and the allowlisted files below it |
+| Final academic report and supporting evidence | `docs/final/README.md` and the allowlisted files below it |
