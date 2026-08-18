@@ -2,7 +2,7 @@
 
 [![Desktop CI](https://github.com/moon-drakon/Wealthora/actions/workflows/desktop-ci.yml/badge.svg?branch=main)](https://github.com/moon-drakon/Wealthora/actions/workflows/desktop-ci.yml)
 
-**For CSE 215 Presentation**
+**CSE 215 Final Project — Group 5**
 
 ## Course Project Information
 
@@ -13,7 +13,6 @@
 | Faculty | SAM3 |
 | Registered Topic | Personal Expenses Tracker |
 | Project Title | Wealthora — Personal Expense Tracker |
-| Demonstration | August 16, 2026 |
 
 ### Team Members
 
@@ -297,11 +296,10 @@ See [OOP mapping](docs/OOP_MAPPING.md) for the viva-ready class map.
 - [Presentation guide](docs/PRESENTATION_GUIDE.md)
 - [GitHub and submission guide](docs/GITHUB_AND_SUBMISSION_GUIDE.md)
 - [Security policy](SECURITY.md)
-- [Final six-page academic report and defense materials](docs/final/README.md)
+- [Final academic report and presentation materials](docs/final/README.md)
 
-For the August 16, 2026 demonstration, carry a printed copy of the final
-six-page A4 report. Use the configured presentation laptop for live OTP and keep
-the fully offline sign-in/recovery demonstration path available.
+These documents provide the architecture, OOP traceability, security guidance,
+presentation workflow, and final academic submission materials for the project.
 
 ## Future Scope
 
